@@ -432,15 +432,20 @@ async function main() {
       const pack = contents.sticker_packs[0]
       const stickersOk = pack.stickers.every((sticker) => entries.has(sticker.image_file))
       const webps = [...entries.keys()].filter((name) => name.endsWith('.webp'))
+      // Sin FFmpeg las fotos no se pueden convertir: solo entra el sticker de prueba.
+      const minimum = ffmpeg ? 2 : 1
       const valid =
-        pack.stickers.length >= 2 &&
+        pack.stickers.length >= minimum &&
         stickersOk &&
         webps.length === pack.stickers.length &&
-        entries.has(pack.tray_image_file)
+        // La vista previa necesita FFmpeg: solo se exige si está declarada.
+        (!pack.tray_image_file || entries.has(pack.tray_image_file))
       record(
         `.wasticker válido (${pack.stickers.length} stickers${entries.has(pack.tray_image_file) ? ' + vista previa' : ''})`,
         valid,
-        valid ? `contents.json + ${webps.length} webp` : 'estructura incompleta',
+        valid
+          ? `contents.json + ${webps.length} webp${ffmpeg ? '' : ' (sin FFmpeg: solo el sticker de prueba)'}`
+          : 'estructura incompleta',
         []
       )
     } else {

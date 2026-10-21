@@ -10,7 +10,8 @@ import {
   stickerToTray,
   stickerToVideo
 } from '../src/lib/media.js'
-import { readSticker } from '../src/lib/sticker.js'
+import { readSticker, writeStickerMetadata } from '../src/lib/sticker.js'
+import { auditSticker, webpInfo } from '../src/lib/webp.js'
 import { buildStickerArgs, buildToImageArgs, buildToVideoArgs, buildTrayArgs } from '../src/lib/ffmpeg.js'
 import { ffmpegAvailable } from './helpers.js'
 
@@ -81,6 +82,33 @@ test('convertToSticker crea stickers estáticos y animados', async (t) => {
 
   const video = await convertToSticker(mp4, { extension: 'mp4', animated: true, settings: {} })
   assert.ok(video.buffer.length > 100)
+})
+
+test('el sticker final conserva transparencia y cuadros (bug del fondo negro)', async (t) => {
+  if (!(await ffmpegAvailable())) {
+    t.skip('FFmpeg no disponible en este entorno')
+    return
+  }
+
+  // Imagen con relleno: el sticker debe quedar 512×512 con alfa.
+  const still = await convertToSticker(png, { extension: 'png', animated: false, settings: {} })
+  const stillOut = await writeStickerMetadata(still.buffer, { packName: 'Bug', packAuthor: 'Tomi' })
+  const stillInfo = webpInfo(stillOut)
+  assert.equal(stillInfo.width, 512)
+  assert.equal(stillInfo.height, 512)
+  assert.equal(stillInfo.hasAlpha, true, 'el PNG con relleno debe quedar con transparencia')
+  assert.equal(auditSticker(stillOut).valid, true)
+
+  // GIF animado: mismo número de cuadros y flag ALPHA intacto.
+  const anim = await convertToSticker(gif, { extension: 'gif', animated: true, settings: {} })
+  const before = webpInfo(anim.buffer)
+  const animOut = await writeStickerMetadata(anim.buffer, { packName: 'Bug', packAuthor: 'Tomi' })
+  const after = webpInfo(animOut)
+  assert.equal(after.frameCount, before.frameCount)
+  assert.equal(after.totalDelay, before.totalDelay)
+  assert.equal(after.hasAlpha, true, 'el sticker animado no puede perder el alfa')
+  assert.ok(after.flags & 0x10, 'VP8X debe conservar el flag ALPHA')
+  assert.equal(auditSticker(animOut).valid, true)
 })
 
 test('conversiones de sticker a imagen, video y tray', async (t) => {

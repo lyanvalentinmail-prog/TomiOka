@@ -1,5 +1,12 @@
 import crypto from 'node:crypto'
 import webpmux from 'node-webpmux'
+import {
+  auditSticker,
+  injectExif,
+  isWebpBuffer,
+  readExifPayload,
+  webpInfo
+} from './webp.js'
 
 const { Image } = webpmux
 
@@ -37,28 +44,39 @@ export function buildExifPayload({
   }
 }
 
-/** Lee dimensiones / animación / metadatos de un WebP */
+/**
+ * Lee dimensiones / animación / metadatos de un WebP.
+ * Usa el parser de chunks propio y, si algo falla, cae a node-webpmux.
+ */
 export async function readSticker(buffer) {
-  const image = new Image()
-  await image.load(buffer)
-  const exif = image.exif
-  let metadata = null
-  if (exif && exif.length > EXIF_HEADER.length) {
-    try {
-      metadata = JSON.parse(exif.subarray(EXIF_HEADER.length).toString('utf8'))
-    } catch {
-      metadata = null
+  const info = webpInfo(buffer)
+  if (info) {
+    return {
+      animated: Boolean(info.animated),
+      width: info.width,
+      height: info.height,
+      frameCount: info.frameCount,
+      hasAlpha: info.hasAlpha,
+      metadata: readExifPayload(buffer, EXIF_HEADER.length)
     }
   }
+
+  // Respaldo con webpmux
+  const image = new Image()
+  await image.load(buffer)
   return {
     animated: Boolean(image.hasAnim),
     width: image.width,
     height: image.height,
-    metadata
+    frameCount: image.frames?.length ?? 0,
+    hasAlpha: Boolean(image.hasAlpha),
+    metadata: readExifPayload(buffer, EXIF_HEADER.length)
   }
 }
 
 export async function isAnimatedWebp(buffer) {
+  const info = webpInfo(buffer)
+  if (info) return Boolean(info.animated)
   try {
     const image = new Image()
     await image.load(buffer)
@@ -70,29 +88,52 @@ export async function isAnimatedWebp(buffer) {
 
 /**
  * Inserta/reemplaza los metadatos EXIF del sticker.
+ *
+ * Importante: NO re-muxea el archivo. Escribir los metadatos con node-webpmux
+ * borraba el flag ALPHA del VP8X en los stickers animados y WhatsApp los
+ * mostraba con fondo negro. Acá se copian todos los chunks tal cual y solo se
+ * reemplaza el EXIF (corrigiendo el flag ALPHA y el fondo de la animación).
+ *
  * @returns {Promise<Buffer>} nuevo webp
  */
 export async function writeStickerMetadata(buffer, options = {}) {
-  const image = new Image()
-  await image.load(buffer)
-  const payload = buildExifPayload({ ...options, isAnimated: Boolean(image.hasAnim) })
-  const json = Buffer.from(JSON.stringify(payload), 'utf8')
-  image.exif = Buffer.concat([EXIF_HEADER, json])
-  const out = await image.save(null, { exif: true })
-  if (!out || !Buffer.isBuffer(out)) {
-    throw new Error('No se pudo escribir el sticker (webpmux devolvió un resultado vacío)')
+  if (!isWebpBuffer(buffer)) {
+    throw new Error('El archivo no es un WebP válido: no se le pueden escribir metadatos.')
   }
+
+  const info = webpInfo(buffer)
+  const payload = buildExifPayload({
+    ...options,
+    isAnimated: options.isAnimated ?? Boolean(info?.animated)
+  })
+  const exif = Buffer.concat([EXIF_HEADER, Buffer.from(JSON.stringify(payload), 'utf8')])
+
+  const out = injectExif(buffer, exif)
+
+  // Verificación: el sticker debe seguir siendo válido y conservar los cuadros
+  const audit = auditSticker(out, { maxBytes: options.maxBytes ?? null })
+  const framesOk = !info?.animated || audit.info?.frameCount === info.frameCount
+  if (!audit.info || !framesOk) {
+    throw new Error(
+      `No se pudieron escribir los metadatos sin romper el sticker (${audit.issues.join(', ') || 'cuadros perdidos'})`
+    )
+  }
+  if (audit.issues.length) {
+    throw new Error(`El sticker quedó inválido: ${audit.issues.join(', ')}`)
+  }
+
   return out
 }
 
 /**
  * Separa un WebP animado en cuadros individuales (WebP independientes).
- * Sirve de respaldo cuando FFmpeg no sabe leer WebP animados.
+ * Respaldo para cuando FFmpeg no sabe leer WebP animados.
  */
 export async function demuxWebpFrames(buffer) {
+  const info = webpInfo(buffer)
   const image = new Image()
   await image.load(buffer)
-  if (!image.hasAnim) {
+  if (!info?.animated && !image.hasAnim) {
     return { animated: false, frames: [buffer], delays: [100] }
   }
   const frames = await image.demux({ buffers: true })
@@ -102,12 +143,7 @@ export async function demuxWebpFrames(buffer) {
 
 /** Comprueba que el buffer sea realmente un WebP */
 export function isWebp(buffer) {
-  return (
-    Buffer.isBuffer(buffer) &&
-    buffer.length > 12 &&
-    buffer.toString('ascii', 0, 4) === 'RIFF' &&
-    buffer.toString('ascii', 8, 12) === 'WEBP'
-  )
+  return isWebpBuffer(buffer)
 }
 
 export function formatBytes(bytes) {
@@ -117,3 +153,5 @@ export function formatBytes(bytes) {
   const value = bytes / 1024 ** index
   return `${value.toFixed(value >= 10 || index === 0 ? 0 : 1)} ${units[index]}`
 }
+
+export { auditSticker }

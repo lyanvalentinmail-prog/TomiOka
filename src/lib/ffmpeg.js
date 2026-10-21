@@ -1,10 +1,12 @@
 import { execFile } from 'node:child_process'
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, statSync } from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
 import { createRequire } from 'node:module'
 import { ROOT } from '../config.js'
 import { withWorkDir } from './tmp.js'
+import { DEFAULT_AUTHOR, DEFAULT_PACK, writeStickerMetadata } from './sticker.js'
+import { auditSticker } from './webp.js'
 
 const execFileAsync = promisify(execFile)
 const require = createRequire(import.meta.url)
@@ -318,6 +320,7 @@ export function isAnimatedExtension(ext = '') {
  */
 export async function selfTestFfmpeg({ logger } = {}) {
   const steps = []
+  let sticker = null
   const info = await resolveFfmpeg({ force: true })
 
   if (!info) {
@@ -404,6 +407,36 @@ export async function selfTestFfmpeg({ logger } = {}) {
         }
       }
 
+      // Metadatos: el mismo camino que usan .sticker/.take/.steal
+      if (existsSync(staticWebp)) {
+        try {
+          sticker = await writeStickerMetadata(readFileSync(staticWebp), { packname: DEFAULT_PACK, author: DEFAULT_AUTHOR })
+          const audit = auditSticker(sticker)
+          steps.push({ name: 'metadatos del sticker', ok: audit.valid, error: audit.issues[0] })
+        } catch (error) {
+          steps.push({ name: 'metadatos del sticker', ok: false, error: error.message })
+        }
+      }
+
+      if (existsSync(animWebp)) {
+        try {
+          const frameCount = auditSticker(readFileSync(animWebp)).info.frameCount
+          const animated = await writeStickerMetadata(readFileSync(animWebp), {
+            packname: DEFAULT_PACK,
+            author: DEFAULT_AUTHOR
+          })
+          const audit = auditSticker(animated)
+          const kept = audit.info.frameCount === frameCount && frameCount > 1
+          steps.push({
+            name: 'metadatos del sticker animado',
+            ok: audit.valid && kept && audit.info.hasAlpha,
+            error: kept ? audit.issues[0] : `perdió cuadros (${frameCount} → ${audit.info.frameCount})`
+          })
+        } catch (error) {
+          steps.push({ name: 'metadatos del sticker animado', ok: false, error: error.message })
+        }
+      }
+
       if (existsSync(staticWebp)) {
         await run('sticker → png', buildToImageArgs({ input: staticWebp, output: backPng }))
         await run(
@@ -430,6 +463,7 @@ export async function selfTestFfmpeg({ logger } = {}) {
       webpAnim: info.webpAnim
     },
     steps,
+    sticker,
     hint: ok
       ? undefined
       : firstFailure?.error?.includes('codificador WebP')

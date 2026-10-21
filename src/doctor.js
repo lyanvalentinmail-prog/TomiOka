@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { existsSync, statSync, statfsSync, accessSync, constants } from 'node:fs'
+import { existsSync, statfsSync, accessSync, constants } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
 import { ensureDirs, loadConfig } from './config.js'
@@ -7,6 +7,7 @@ import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
 import { canWrite, tempInfo } from './lib/tmp.js'
 import { indexInfo } from './lib/emojimix.js'
 import { driveFileId, loadMenuImage } from './lib/banner.js'
+import { describeSession, inspectSession } from './lib/session.js'
 import { commandList, visibleCommands } from './commands/index.js'
 import { box, c, error, info, ok, title, warn } from './lib/ui.js'
 
@@ -109,9 +110,12 @@ export async function runDoctor({ config = loadConfig() } = {}) {
   }
 
   // Sesión
-  const creds = `${config.paths.session}/creds.json`
-  if (existsSync(creds)) {
-    ok(`sesión vinculada (${humanBytes(statSync(creds).size)})`)
+  const session = inspectSession(config.paths.session)
+  if (session.valid) {
+    ok(`${describeSession(session)} — conectará sola, sin QR`)
+  } else if (session.hasCreds) {
+    warn(`sesión inválida (${session.reason}): se pedirá vincular de nuevo`)
+    recommendations.push('La sesión guardada no sirve: se moverá a un respaldo y habrá que vincular otra vez.')
   } else {
     info('sesión: aún no vinculada (se pedirá pairing/QR al iniciar)')
   }
