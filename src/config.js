@@ -56,30 +56,17 @@ export const DEFAULTS = {
   },
   menu: {
     image: '',
-    showDescriptions: true,
+    showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
+    // Una sola categoría con todos los comandos (commands: [] = todos)
     categories: [
       {
-        emoji: '🫧',
-        description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌 𝗒 𝗉𝖺𝖼𝗄𝗌',
-        kaomoji: '(｡•̀ᴗ-)✧',
+        emoji: '🌊',
+        description: '𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌',
+        kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['💧', '🌊'],
-        commands: ['sticker', 'gif', 'steal']
-      },
-      {
-        emoji: '🌀',
-        description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇 𝖽𝖾 𝖺𝗋𝖼𝗁𝗂𝗏𝗈𝗌',
-        kaomoji: '(๑˃̵ᴗ˂̵)و',
-        divider: ['🌊', '💧'],
-        commands: ['toimg', 'tovideo', 'take']
-      },
-      {
-        emoji: '💧',
-        description: '𝖤𝗑𝗍𝗋𝖺𝗌 𝗒 𝖺𝗒𝗎𝖽𝖺',
-        kaomoji: '( ੭ ˙ᗜ˙ )੭',
-        divider: ['🌀', '🌊'],
-        commands: ['emojimix', 'pack', 'help']
+        commands: []
       }
     ]
   },

@@ -20,7 +20,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🏷️ **Metadatos**: `.take` y `.steal` cambian el nombre/autor del sticker.
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
-- 🧾 **Menú configurable** desde `config.json` (categorías, frases, emojis).
+- 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (88 pruebas) y `npm run doctor` para diagnóstico.
 
@@ -211,10 +211,18 @@ El archivo `.wasticker` se puede importar con apps de packs de stickers (por eje
   },
   "menu": {
     "image": "",                    // URL opcional para enviar el menú como imagen
-    "showDescriptions": true,
+    "showDescriptions": false,      // el menú muestra solo el comando, sin descripción
     "showUser": true,
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
-    "categories": [ /* categorías, emoji, descripción, kaomoji y comandos */ ]
+    "categories": [
+      {
+        "emoji": "🌊",
+        "description": "𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌",
+        "kaomoji": "( ᵕ ᵗ ᵕ )",
+        "divider": ["💧", "🌊"],
+        "commands": []              // [] = todos los comandos registrados
+      }
+    ]
   }
 }
 ```
