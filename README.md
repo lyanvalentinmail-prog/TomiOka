@@ -24,7 +24,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (153 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (156 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -311,7 +311,7 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (153 pruebas)
+├── tests/                   # node --test (156 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -321,7 +321,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 153 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 156 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
@@ -392,6 +392,7 @@ npm run emojimix:sync
 | `.take`/`.steal` con una foto dicen "Bad header" | Versión anterior: ahora aceptan fotos y videos y los convierten antes |
 | Todo lo que usa FFmpeg falla en Termux | `TMPDIR` inválido: el bot usa `data/tmp` como respaldo; verifica con `.debug` o `npm run selftest` |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
+| WhatsApp dice "no se puede ver la información del sticker" | Corregido: el bloque EXIF ahora declara el largo del JSON (antes quedaba en 0 y WhatsApp no leía el nombre/autor). Generá el sticker de nuevo |
 | Los stickers salían con fondo negro o cortados | Corregido: los metadatos se escriben sin re-muxear, así que el sticker mantiene la transparencia y todos los cuadros del GIF/video |
 | Antes pedía código/QR aunque ya había sesión | Corregido: ahora detecta `sessions/creds.json`, conecta solo y respalda la sesión si está dañada |
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |

@@ -15,7 +15,7 @@ import {
   stripExif,
   webpInfo
 } from '../src/lib/webp.js'
-import { writeStickerMetadata } from '../src/lib/sticker.js'
+import { EXIF_HEADER, buildExifChunk, buildExifPayload, writeStickerMetadata } from '../src/lib/sticker.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const staticSticker = await readFile(path.join(here, 'fixtures/sticker-static.webp'))
@@ -104,6 +104,46 @@ test('writeStickerMetadata no rompe los cuadros ni el alfa', async () => {
   assert.ok(after.flags & VP8X_FLAGS.ALPHA)
   assert.ok(after.flags & VP8X_FLAGS.EXIF)
   assert.equal(auditSticker(out).valid, true)
+})
+
+test('el EXIF declara el largo del JSON (si no, WhatsApp no lee el pack)', () => {
+  const payload = buildExifPayload({ packName: 'TomiOka', packAuthor: '◢🌊◣ Tomi' })
+  const exif = buildExifChunk(payload)
+  const json = Buffer.from(JSON.stringify(payload), 'utf8')
+
+  assert.equal(exif.readUInt32LE(14), json.length, 'el campo 14-17 debe ser el largo en bytes')
+  assert.equal(exif.readUInt32LE(18), 22, 'el valor empieza justo después de la cabecera')
+  assert.equal(exif.length, 22 + json.length)
+  assert.equal(exif.subarray(22).toString('utf8'), json.toString('utf8'))
+  // Los emojis ocupan más bytes que caracteres: el largo tiene que ser en bytes.
+  assert.ok(json.length > JSON.stringify(payload).length)
+
+  // El sticker completo también tiene que llevar el campo bien puesto.
+  const out = injectExif(staticSticker, exif)
+  const stored = parseWebp(out).chunks.find((chunk) => chunk.id === 'EXIF').data
+  assert.equal(stored.readUInt32LE(14), stored.length - 22)
+  assert.equal(auditSticker(out).valid, true)
+})
+
+test('auditSticker detecta metadatos EXIF sin largo (el bug del "no se puede ver la información")', () => {
+  const payload = buildExifPayload({ packName: 'Roto' })
+  // Cabecera antigua: el largo queda en 0 y WhatsApp lee los metadatos vacíos.
+  const broken = Buffer.concat([EXIF_HEADER, Buffer.from(JSON.stringify(payload), 'utf8')])
+  assert.equal(broken.readUInt32LE(14), 0)
+
+  const out = injectExif(staticSticker, broken)
+  const audit = auditSticker(out)
+  assert.equal(audit.valid, false)
+  assert.ok(audit.issues.some((issue) => /EXIF/.test(issue)))
+})
+
+test('auditSticker detecta metadatos EXIF truncados', () => {
+  const exif = buildExifChunk(buildExifPayload({ packName: 'Cortado' }))
+  const truncated = exif.subarray(0, exif.length - 10) // el largo declarado ya no entra
+  const out = injectExif(staticSticker, truncated)
+  const audit = auditSticker(out)
+  assert.equal(audit.valid, false)
+  assert.ok(audit.issues.some((issue) => /truncad|EXIF/.test(issue)))
 })
 
 test('injectExif agrega VP8X cuando el WebP es simple', async () => {

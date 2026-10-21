@@ -317,6 +317,28 @@ export function auditSticker(buffer, { maxSize = 512, maxBytes = null } = {}) {
     if (info.loops === null) warnings.push('no tiene chunk ANIM (loop)')
   }
 
+  // El bloque EXIF de WhatsApp es un TIFF mínimo: bytes 14-17 = largo del
+  // JSON y 18-21 = offset del valor (22). Si el largo queda en 0, WhatsApp no
+  // puede mostrar el nombre del pack ("no se puede ver la información").
+  const exifChunk = info.parsed.chunks.find((chunk) => chunk.id === EXIF_CHUNK)
+  if (exifChunk) {
+    const data = exifChunk.data
+    const isStickerExif =
+      data.length >= 22 && data[0] === 0x49 && data[1] === 0x49 && data[2] === 0x2a && data.readUInt16LE(10) === 0x5741
+    if (isStickerExif) {
+      const length = data.readUInt32LE(14)
+      const offset = data.readUInt32LE(18)
+      if (offset < 22 || offset > data.length) {
+        issues.push('los metadatos EXIF apuntan fuera del bloque')
+      } else if (length === 0) {
+        issues.push('los metadatos EXIF no declaran su tamaño (WhatsApp no puede leerlos)')
+      } else if (offset + length > data.length) {
+        issues.push('los metadatos EXIF están truncados')
+      }
+    }
+    if (!(info.flags & VP8X_FLAGS.EXIF)) warnings.push('tiene EXIF pero el flag EXIF está apagado')
+  }
+
   if (info.hasAlphaChunk && !info.hasAlpha) {
     issues.push('tiene transparencia pero el flag ALPHA está apagado (se vería con fondo negro)')
   }
