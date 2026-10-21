@@ -300,6 +300,32 @@ test('.help deja los menús anteriores como "Menu eliminado."', async () => {
   assert.equal(edits[1].content.edit.id, 'msg-3')
 })
 
+test('.help con banner elimina el menú anterior al pedir otro (no lo edita a texto)', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  const store = createStore(config, silentLogger)
+  const sock = fakeSock()
+
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+
+  // Cada menú nuevo elimina para todos el banner anterior: una foto no se
+  // puede editar hasta convertirla en el texto "Menu eliminado."
+  const deletions = sock.sent.filter((item) => item.content?.delete)
+  assert.deepEqual(
+    deletions.map((item) => item.content.delete.id),
+    ['msg-1', 'msg-3'],
+    'se eliminan todos los banners anteriores'
+  )
+  assert.equal(
+    sock.sent.filter((item) => item.content?.text === 'Menu eliminado.').length,
+    0,
+    'el banner no se "edita" a texto (WhatsApp lo ignoraría)'
+  )
+  assert.equal(sentOf(sock, 'image').length, 3, 'cada .help manda su menú con banner')
+})
+
 test('.help <comando> no retira el menú', async () => {
   const config = testConfig()
   config.menu = { ...config.menu, image: 'no-existe/banner.png' }

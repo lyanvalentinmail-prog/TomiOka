@@ -53,7 +53,7 @@ export function fakeSock() {
  */
 export function withLiveMessages(ctx, sock) {
   if (sock) ctx.sock = sock
-  ctx.rememberLive = (slot, sent) => ctx.store?.messages?.remember(ctx.chatJid, slot, sent) || []
+  ctx.rememberLive = (slot, sent, meta) => ctx.store?.messages?.remember(ctx.chatJid, slot, sent, meta) || []
   ctx.sendLive = (slot, text, options) => sendLiveMessage(ctx, slot, text, options)
   ctx.retireLive = (slot, text) => retireLiveMessages(ctx, slot, text)
   ctx.finishLive = (slot, text) => finishLiveMessage(ctx, slot, text)

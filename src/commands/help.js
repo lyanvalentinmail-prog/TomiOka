@@ -27,8 +27,10 @@ export default {
       return `help ${command.name}`
     }
 
-    // El menú anterior queda como "Menu eliminado." (editado o borrado) para
-    // que no se acumulen menús viejos en el chat.
+    // Todos los menús anteriores se retiran para que no se acumulen en el
+    // chat: los de texto quedan editados como "Menu eliminado." y los que
+    // llevan banner (foto) se eliminan para todos, porque WhatsApp no
+    // permite editar una foto hasta convertirla en texto.
     await ctx.retireLive('menu', RETIRED_MENU_TEXT)
 
     const menu = buildMenu({
@@ -43,17 +45,19 @@ export default {
       const asCaption = ctx.config.menu.sendAsCaption !== false
       if (asCaption && menu.length <= CAPTION_LIMIT) {
         const sent = await ctx.sendImage(banner.buffer, menu)
-        ctx.rememberLive('menu', sent)
+        // Es una foto: al pedir otro menú se elimina, no se edita a texto
+        ctx.rememberLive('menu', sent, { kind: 'media' })
         return `menu con imagen (${banner.type}, ${banner.fromCache ? 'caché' : 'descargada'})`
       }
       const image = await ctx.sendImage(banner.buffer, '')
       const text = await ctx.reply(menu)
-      ctx.rememberLive('menu', [image, text])
+      ctx.rememberLive('menu', image, { kind: 'media' })
+      ctx.rememberLive('menu', text, { kind: 'text' })
       return `menu con imagen aparte (${banner.type})`
     }
 
     const sent = await ctx.reply(menu)
-    ctx.rememberLive('menu', sent)
+    ctx.rememberLive('menu', sent, { kind: 'text' })
     return 'menu (sin imagen)'
   }
 }

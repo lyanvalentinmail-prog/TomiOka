@@ -1,3 +1,4 @@
+import path from 'node:path'
 import { CommandContext } from './lib/context.js'
 import { getContentType } from '@whiskeysockets/baileys'
 import { PackStore } from './lib/sessions.js'
@@ -9,7 +10,7 @@ import { c, sym } from './lib/colors.js'
 
 const IGNORED_JID_SUFFIXES = ['@broadcast', '@newsletter', 'status@broadcast']
 
-export function createStore(config, logger) {
+export function createStore(config, logger, { persistLiveMessages = false } = {}) {
   return {
     packs: new PackStore({
       ttlMinutes: config.pack.sessionMinutes,
@@ -17,8 +18,14 @@ export function createStore(config, logger) {
       logger
     }),
     cooldowns: new Map(),
-    // Mensajes "vivos" (menú, progreso de .pack) que se editan en vez de repetirse
-    messages: new LiveMessages(),
+    // Mensajes "vivos" (menú, progreso de .pack) que se editan en vez de repetirse.
+    // En producción el menú se persiste en disco: si el bot se reinicia, el
+    // próximo .menu igual retira los menús de la ejecución anterior.
+    messages: new LiveMessages({
+      persistFile: persistLiveMessages
+        ? path.join(config.paths.data, 'live-messages.json')
+        : null
+    }),
     // IDs de mensajes enviados por el bot: evita procesar sus propias respuestas
     sentIds: new Set()
   }
