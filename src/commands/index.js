@@ -1,3 +1,4 @@
+import debug from './debug.js'
 import emojimix from './emojimix.js'
 import gif from './gif.js'
 import help from './help.js'
@@ -8,7 +9,10 @@ import take from './take.js'
 import toimg from './toimg.js'
 import tovideo from './tovideo.js'
 
-export const commandList = [sticker, gif, toimg, tovideo, take, steal, emojimix, pack, help]
+export const commandList = [sticker, gif, toimg, tovideo, take, steal, emojimix, pack, help, debug]
+
+/** Comandos que NO se muestran en el menú */
+export const visibleCommands = commandList.filter((command) => !command.hidden)
 
 /** Mapa nombre/alias -> comando */
 export const commands = new Map()

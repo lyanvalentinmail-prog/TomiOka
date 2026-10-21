@@ -10,14 +10,15 @@ const SEPARATOR = `${FILLER}${FILLER}࿚ׄ࿙ֹ࿚᮫᜔۬፟֟࿙ֹ࿚ׄ࿙`
  * @returns {Array<object>} comandos sin duplicados y en orden de registro
  */
 export function resolveCategoryCommands(category, commands = new Map()) {
-  const all = [...new Set((commands ?? new Map()).values())]
+  // Los comandos "hidden" (como .debug) no se listan en el menú
+  const all = [...new Set((commands ?? new Map()).values())].filter((command) => !command.hidden)
   const wanted = Array.isArray(category?.commands) ? category.commands.filter(Boolean) : []
   if (!wanted.length) return all
 
   const selected = []
   for (const name of wanted) {
     const command = commands.get(String(name).toLowerCase())
-    if (command && !selected.includes(command)) selected.push(command)
+    if (command && !command.hidden && !selected.includes(command)) selected.push(command)
   }
   return selected
 }

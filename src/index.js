@@ -5,7 +5,8 @@ import { ensureDirs, isValidPhone, loadConfig, normalizePhone } from './config.j
 import { loadMenuImage } from './lib/banner.js'
 import { commands } from './commands/index.js'
 import { startBot } from './connection.js'
-import { resolveFfmpeg } from './lib/ffmpeg.js'
+import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
+import { canWrite, tempInfo } from './lib/tmp.js'
 import { createLogger } from './lib/logger.js'
 import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
 
@@ -95,11 +96,32 @@ async function main() {
   step(`Sesión: ${config.sessionDir}`)
   step(`Prefijo: ${config.prefixes.join(' ')} · Comandos: ${new Set(commands.values()).size}`)
 
+  const tempOk = await canWrite(config.paths.tmp)
+  if (tempOk) info(`Carpeta temporal: ${config.paths.tmp}`)
+  else {
+    warn(`No puedo escribir en ${config.paths.tmp}`)
+    warn('Define TOMIOKA_TMPDIR (ej: export TOMIOKA_TMPDIR="$HOME/tomioka-tmp")')
+  }
+  logger.debug?.(JSON.stringify(tempInfo()))
+
   const ffmpeg = await resolveFfmpeg()
   if (ffmpeg) {
     info(`FFmpeg: ${ffmpeg.version.split(' ').slice(0, 3).join(' ')}${ffmpeg.webp ? '' : c.yellow(' (sin WebP)')}`)
     if (!ffmpeg.webp) {
       warn('Tu FFmpeg no tiene el codificador WebP: los stickers no se podrán crear.')
+      warn('Termux: pkg install ffmpeg libwebp')
+    } else {
+      // Prueba real: genera un sticker de 96px y lo convierte de vuelta
+      const test = await selfTestFfmpeg({ logger })
+      if (test.ok) info('Conversión de stickers verificada (FFmpeg OK)')
+      else {
+        warn('La conversión de stickers falló en la prueba:')
+        for (const step of test.steps.filter((item) => !item.ok).slice(0, 3)) {
+          warn(`  · ${step.name}: ${step.error}`)
+        }
+        if (test.hint) warn(`  ${test.hint}`)
+        warn('Ejecuta "npm run selftest" para ver el detalle.')
+      }
     }
   } else {
     warn('FFmpeg no encontrado. Los comandos de stickers no funcionarán.')

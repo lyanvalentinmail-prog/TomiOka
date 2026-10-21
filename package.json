@@ -17,7 +17,8 @@
     "doctor": "node src/doctor.js",
     "test": "node --test tests/*.test.js",
     "emojimix:sync": "node src/tools/sync-emojimix.js",
-    "verify": "node scripts/verify-commands.js"
+    "verify": "node scripts/verify-commands.js",
+    "selftest": "node scripts/selftest.js"
   },
   "keywords": [
     "whatsapp",

@@ -1,16 +1,16 @@
-import { mkdtemp, writeFile, readFile, rm } from 'node:fs/promises'
-import os from 'node:os'
+import { writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
-  buildStickerArgs,
   buildToImageArgs,
   buildToVideoArgs,
   buildStillVideoArgs,
   buildTrayArgs,
   ffmpeg,
-  resolveFfmpeg
+  resolveFfmpeg,
+  stickerArgVariants
 } from './ffmpeg.js'
 import { demuxWebpFrames, isAnimatedWebp } from './sticker.js'
+import { withWorkDir } from './tmp.js'
 
 const DEFAULT_SETTINGS = {
   size: 512,
@@ -20,15 +20,6 @@ const DEFAULT_SETTINGS = {
   lossless: false,
   maxStaticKB: 100,
   maxAnimatedKB: 500
-}
-
-async function withTempDir(callback) {
-  const dir = await mkdtemp(path.join(os.tmpdir(), 'tomioka-'))
-  try {
-    return await callback(dir)
-  } finally {
-    await rm(dir, { recursive: true, force: true }).catch(() => {})
-  }
 }
 
 function fileNameFor(extension) {
@@ -88,7 +79,7 @@ export async function convertToSticker(input, options = {}) {
   const settings = { ...DEFAULT_SETTINGS, ...custom }
   await assertFfmpeg()
 
-  return withTempDir(async (dir) => {
+  return withWorkDir(async (dir) => {
     const inputFile = path.join(dir, `input.${fileNameFor(extension)}`)
     await writeFile(inputFile, input)
 
@@ -101,50 +92,80 @@ export async function convertToSticker(input, options = {}) {
 
     let best = null
     let lastError = null
+    let fallbackEstatico = false
+    let usedVariant = null
+    let attempt = 0
 
-    for (const plan of plans) {
-      const outputFile = path.join(dir, `sticker-${plan.quality}-${plan.fps}.webp`)
-      try {
-        await ffmpeg(
-          buildStickerArgs({
-            input: inputFile,
-            output: outputFile,
-            animated,
-            size: settings.size,
-            fps: plan.fps,
-            quality: plan.quality,
-            lossless: settings.lossless,
-            maxSeconds: settings.maxAnimatedSeconds
-          }),
-          { timeout: 120000 }
-        )
-        const buffer = await readFile(outputFile)
-        best = { buffer, ...plan, bytes: buffer.length }
-        if (buffer.length <= limitKB * 1024) break
-        logger?.debug?.(
-          `sticker ${buffer.length} B > ${limitKB} KB, reintentando con calidad ${plan.quality}`
-        )
-      } catch (error) {
-        lastError = error
+    /** Prueba una lista de variantes y devuelve true si consiguió un sticker válido */
+    const tryVariants = async (onlyFallback) => {
+      for (const plan of plans) {
+        const variants = stickerArgVariants({
+          input: inputFile,
+          output: path.join(dir, 'sticker.webp'),
+          animated,
+          size: settings.size,
+          fps: plan.fps,
+          quality: plan.quality,
+          lossless: settings.lossless,
+          maxSeconds: settings.maxAnimatedSeconds
+        }).filter((variant) => Boolean(variant.staticFallback) === onlyFallback)
+
+        for (const variant of variants) {
+          attempt += 1
+          const outputFile = path.join(dir, `sticker-${attempt}.webp`)
+          const plannedOutput = path.join(dir, 'sticker.webp')
+          const args = variant.args.map((arg) => (arg === plannedOutput ? outputFile : arg))
+          try {
+            await ffmpeg(args, { timeout: 120000 })
+            const buffer = await readFile(outputFile)
+
+            if (!best || buffer.length < best.bytes) {
+              best = { buffer, ...plan, bytes: buffer.length }
+              usedVariant = variant.label
+              fallbackEstatico = Boolean(variant.staticFallback)
+            }
+            if (buffer.length <= limitKB * 1024) return true
+            logger?.debug?.(`sticker ${buffer.length} B > ${limitKB} KB, bajando calidad`)
+          } catch (error) {
+            lastError = error
+            logger?.debug?.(`Variante "${variant.label}" falló: ${error.message}`)
+          }
+        }
+
+        if (best && best.bytes <= limitKB * 1024) return true
       }
+      return false
     }
+
+    // 1) Intentos normales (animado si corresponde). 2) Respaldo estático solo
+    // si ningún intento normal funcionó en este FFmpeg.
+    await tryVariants(false)
+    if (!best) await tryVariants(true)
 
     if (!best) {
       throw lastError || new Error('No se pudo crear el sticker')
     }
 
-    const warning =
-      best.bytes > limitKB * 1024
-        ? `El sticker pesa ${Math.round(best.bytes / 1024)} KB (WhatsApp recomienda ≤ ${limitKB} KB).`
-        : undefined
+    const warnings = []
+    if (best.bytes > limitKB * 1024) {
+      warnings.push(
+        `El sticker pesa ${Math.round(best.bytes / 1024)} KB (WhatsApp recomienda ≤ ${limitKB} KB).`
+      )
+    }
+    if (fallbackEstatico) {
+      warnings.push('Tu FFmpeg no soporta WebP animado: se creó un sticker estático.')
+    }
+
+    logger?.debug?.(`sticker ok con variante "${usedVariant}" (${best.bytes} B)`)
 
     return {
       buffer: best.buffer,
       bytes: best.bytes,
-      animated,
+      animated: fallbackEstatico ? false : animated,
       quality: best.quality,
       fps: best.fps,
-      warning
+      variant: usedVariant,
+      warning: warnings.length ? warnings.join(' ') : undefined
     }
   })
 }
@@ -155,7 +176,7 @@ export async function convertToSticker(input, options = {}) {
  */
 export async function stickerToImage(buffer) {
   await assertFfmpeg()
-  return withTempDir(async (dir) => {
+  return withWorkDir(async (dir) => {
     const inputFile = path.join(dir, 'input.webp')
     const outputFile = path.join(dir, 'output.png')
     await writeFile(inputFile, buffer)
@@ -178,7 +199,7 @@ export async function stickerToImage(buffer) {
 export async function stickerToVideo(buffer) {
   await assertFfmpeg()
   const animated = await isAnimatedWebp(buffer)
-  return withTempDir(async (dir) => {
+  return withWorkDir(async (dir) => {
     const inputFile = path.join(dir, 'input.webp')
     const outputFile = path.join(dir, 'output.mp4')
     await writeFile(inputFile, buffer)
@@ -234,7 +255,7 @@ export async function stickerToVideo(buffer) {
 /** Genera la imagen "tray" (vista previa del pack) */
 export async function stickerToTray(buffer, { size = 96 } = {}) {
   await assertFfmpeg()
-  return withTempDir(async (dir) => {
+  return withWorkDir(async (dir) => {
     const inputFile = path.join(dir, 'input.webp')
     const outputFile = path.join(dir, 'tray.png')
     await writeFile(inputFile, buffer)

@@ -138,11 +138,12 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.gif` | `.stikergif`, `.togif` | Convierte un GIF o video en sticker **animado** |
 | `.toimg` | `.toimage`, `.img` | Pasa un sticker a imagen PNG (en animados usa el primer cuadro) |
 | `.tovideo` | `.tomp4` | Pasa un sticker a video MP4 (los estáticos se convierten en un video de 2 s) |
-| `.take Nombre \| Autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; sin argumentos vuelve a los del bot |
-| `.steal` | `.robar`, `.copy` | Copia el sticker con el nombre del bot |
+| `.take Nombre \| Autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; también acepta fotos/videos (los convierte antes) |
+| `.steal` | `.robar`, `.copy` | Copia el sticker (o una foto/video) con el nombre del bot |
 | `.emojimix 😺 🐼` | `.mix` | Combina dos emojis (o sin argumentos para una mezcla aleatoria) |
 | `.pack Nombre \| Autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
 | `.help` | `.menu`, `.comandos` | Muestra el menú; `.help sticker` muestra la ayuda de un comando |
+| `.debug` | `.diag` | Diagnóstico del bot en el chat (FFmpeg, carpetas, sesión y una conversión real). No aparece en el menú |
 
 ### Ejemplos rápidos
 
@@ -287,6 +288,7 @@ TomiOka/
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
 │   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
+│   │   ├── tmp.js           # carpetas temporales con respaldo para Termux
 │   │   ├── emojimix.js      # catálogo Emoji Kitchen con caché
 │   │   ├── zip.js           # generador ZIP sin dependencias
 │   │   ├── sessions.js      # sesiones de packs con expiración
@@ -295,8 +297,9 @@ TomiOka/
 ├── scripts/
 │   ├── setup-termux.sh      # instalación automática en Termux
 │   ├── start.sh             # arranque con wake-lock
+│   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (88 pruebas)
+├── tests/                   # node --test (133 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -306,10 +309,35 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 113 pruebas (menú, banner, ZIP, stickers, packs, handler)
+npm test           # 133 pruebas (menú, banner, ZIP, stickers, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp
-npm run doctor     # FFmpeg, dependencias, banner, carpetas, espacio, sesión
+npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
+npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
 ```
+
+### Si algo no convierte (stickers, toimg, tovideo…)
+
+Desde el propio chat:
+
+```
+.debug
+```
+
+Responde con versión de Node, ruta y capacidades de FFmpeg, carpeta temporal,
+banner, sesión y **una conversión real** paso a paso. En la terminal:
+
+```bash
+npm run selftest
+```
+
+Qué revisa y cómo se arregla:
+
+| Paso que falla | Causa | Solución |
+|----------------|-------|----------|
+| `ffmpeg disponible` | FFmpeg no instalado | `pkg install ffmpeg` (Termux) |
+| `codificador WebP` | FFmpeg sin libwebp | `pkg install ffmpeg libwebp` y reiniciar |
+| `carpeta temporal` | `TMPDIR` apunta a algo inexistente (típico en Termux) | `export TOMIOKA_TMPDIR="$HOME/tomioka-tmp"` |
+| `estático` / `animado` | opciones no soportadas | el bot ya reintenta con variantes compatibles (`-preset`, `-loop` y `-quality` opcionales) |
 
 `npm run verify` recorre el handler real con fixtures locales (no necesita cuenta de WhatsApp):
 
@@ -348,6 +376,9 @@ npm run emojimix:sync
 | `Connection Closed` en bucle | Borra `sessions/`, revisa internet y vuelve a vincular |
 | `logged out` | La sesión se cerró desde el teléfono: borra `sessions/` y vincula de nuevo |
 | Los stickers pesan demasiado | Baja `stickers.quality` o `maxStaticKB` en `config.json` |
+| `.take` no cambia el nombre | WhatsApp cachea el pack: el bot ya genera un `pack-id` nuevo; borra el sticker del chat y reenvíalo |
+| `.take`/`.steal` con una foto dicen "Bad header" | Versión anterior: ahora aceptan fotos y videos y los convierten antes |
+| Todo lo que usa FFmpeg falla en Termux | `TMPDIR` inválido: el bot usa `data/tmp` como respaldo; verifica con `.debug` o `npm run selftest` |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |
 | `.help` llega sin la imagen del banner | El archivo de Drive debe ser público ("cualquiera con el enlace"); revisa `npm run doctor`. También puedes usar una ruta local: `"image": "banner.jpg"` |
