@@ -324,7 +324,23 @@ async function main() {
       store,
       sock,
       msg: textMessage('.take Olas | Tomi', MEDIA.sticker.message),
-      expect: /take/
+      expect: /Sticker actualizado/
+    })
+    await step({
+      name: '.take sobre una foto (convierte y renombra)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.take Foto | Tomi', MEDIA.image.message),
+      expect: /Convertido a sticker/
+    })
+    await step({
+      name: '.steal sobre una foto',
+      config,
+      store,
+      sock,
+      msg: textMessage('.steal', MEDIA.image.message),
+      expect: /Sticker copiado/
     })
 
     // ---------- emojimix ----------
@@ -475,6 +491,16 @@ async function main() {
       expect: /Responde a una \*imagen\*/,
       allowError: true
     })
+    // ---------- diagnóstico ----------
+    await step({
+      name: '.debug (diagnóstico del entorno)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.debug'),
+      expect: /Diagnóstico de TomiOka/
+    })
+
     // Mensaje normal: no debe responder nada
     const before = sock.sent.length
     await handleMessage({

@@ -90,9 +90,12 @@ async function runCommand(ctx, command) {
   } catch (error) {
     if (config.behavior.reactToCommands) await ctx.react('❌')
     ctx.logger.error(`${sym.err} ${label} · ${error.message}`)
-    await ctx
-      .reply(`❌ *No se pudo completar*\n${truncate(error.message || 'Error inesperado', 400)}`)
-      .catch(() => {})
+    const message = truncate(error.message || 'Error inesperado', 400)
+    const hint =
+      /FFmpeg|codificador WebP|conversión|temporal/i.test(message)
+        ? '\n\n💡 Envía *.debug* para ver qué está fallando en tu equipo.'
+        : ''
+    await ctx.reply(`❌ *No se pudo completar*\n${message}${hint}`).catch(() => {})
   } finally {
     await ctx.typing('paused')
   }

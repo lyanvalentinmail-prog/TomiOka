@@ -63,7 +63,7 @@ test('el menú no tiene líneas vacías ni espacios sobrantes', () => {
 
 test('el menú muestra solo el comando, sin descripciones', () => {
   const menu = buildMenu({ config, commands, sender: {} })
-  for (const command of commandList) {
+  for (const command of commandList.filter((item) => !item.hidden)) {
     assert.ok(menu.includes(`୨ৎㅤ${config.prefixes[0]}${command.name}`), `falta ${command.name}`)
     if (command.description) {
       assert.ok(!menu.includes(command.description), `no debe mostrarse la descripción de ${command.name}`)
@@ -77,7 +77,8 @@ test('el menú agrupa todo en una sola categoría', () => {
   assert.equal((menu.match(/◢ /g) || []).length, 1, 'un solo bloque de categoría')
   assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 1)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
-  assert.equal(commandLines.length, commandList.length, 'una línea por comando, sin separación')
+  const visible = commandList.filter((command) => !command.hidden)
+  assert.equal(commandLines.length, visible.length, 'una línea por comando visible, sin separación')
 })
 
 test('el menú respeta las categorías configuradas', () => {

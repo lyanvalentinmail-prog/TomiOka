@@ -262,3 +262,126 @@ test('.help cae al texto si el banner no existe', async () => {
   assert.equal(sentOf(sock, 'image').length, 0)
   assert.equal(sentOf(sock, 'text').length, 1)
 })
+
+test('.take avisa por chat lo que cambió', async () => {
+  const { ctx, sock } = makeContext('.take Olas | Tomi', { quotedKind: 'sticker', buffer: animatedSticker })
+  await findCommand('take').run(ctx)
+  const texts = sentOf(sock, 'text')
+  assert.equal(texts.length, 1)
+  assert.match(texts[0].content.text, /Sticker actualizado/)
+  assert.match(texts[0].content.text, /Olas/)
+  assert.match(texts[0].content.text, /Tomi/)
+})
+
+test('.take usa un pack-id nuevo (para que WhatsApp refresque el nombre)', async () => {
+  const original = await readSticker(staticSticker)
+  const before = original.metadata?.['sticker-pack-id']
+  const { ctx, sock } = makeContext('.take Nuevo | Autor', { quotedKind: 'sticker', buffer: staticSticker })
+  await findCommand('take').run(ctx)
+  const out = await readSticker(sentOf(sock, 'sticker')[0].content.sticker)
+  assert.equal(out.metadata['sticker-pack-name'], 'Nuevo')
+  assert.notEqual(out.metadata['sticker-pack-id'], before)
+})
+
+test('.take acepta una foto y la convierte en sticker', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const { ctx, sock } = makeContext('.take Foto | Tomi', {
+    quotedKind: 'image',
+    mimetype: 'image/png',
+    buffer: png
+  })
+  await findCommand('take').run(ctx)
+  const stickers = sentOf(sock, 'sticker')
+  assert.equal(stickers.length, 1)
+  const info = await readSticker(stickers[0].content.sticker)
+  assert.equal(info.metadata['sticker-pack-name'], 'Foto')
+  assert.equal(info.metadata['sticker-pack-publisher'], 'Tomi')
+  assert.match(sentOf(sock, 'text')[0].content.text, /Convertido a sticker/)
+})
+
+test('.take acepta un video y crea un sticker animado', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const { ctx, sock } = makeContext('.take Video | Tomi', {
+    quotedKind: 'video',
+    mimetype: 'video/mp4',
+    buffer: mp4
+  })
+  await findCommand('take').run(ctx)
+  const info = await readSticker(sentOf(sock, 'sticker')[0].content.sticker)
+  assert.equal(info.animated, true)
+  assert.equal(info.metadata['sticker-pack-name'], 'Video')
+})
+
+test('.take sin media explica cómo usarlo', async () => {
+  const { ctx } = makeContext('.take x | y')
+  await assert.rejects(() => findCommand('take').run(ctx), /Responde a un \*sticker\*/)
+})
+
+test('.steal copia una foto como sticker del bot', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const { ctx, sock } = makeContext('.steal', {
+    quotedKind: 'image',
+    mimetype: 'image/png',
+    buffer: png
+  })
+  await findCommand('steal').run(ctx)
+  const stickers = sentOf(sock, 'sticker')
+  assert.equal(stickers.length, 1)
+  const info = await readSticker(stickers[0].content.sticker)
+  assert.equal(info.metadata['sticker-pack-name'], ctx.config.stickers.packName)
+  assert.match(sentOf(sock, 'text')[0].content.text, /Sticker copiado/)
+})
+
+test('.debug devuelve un diagnóstico legible', async () => {
+  const { ctx, sock } = makeContext('.debug')
+  await findCommand('debug').run(ctx)
+  const texts = sentOf(sock, 'text')
+  assert.ok(texts.length >= 2)
+  const report = texts.at(-1).content.text
+  assert.match(report, /Diagnóstico de TomiOka/)
+  assert.match(report, /Node:/)
+  assert.match(report, /FFmpeg:/)
+  assert.match(report, /Carpeta temporal:/)
+  assert.match(report, /Prueba de conversión/)
+})
+
+test('.debug no aparece en el menú', async () => {
+  const { buildMenu } = await import('../src/menu.js')
+  const menu = buildMenu({ config: testConfig(), commands, sender: {} })
+  assert.ok(!menu.includes('.debug'))
+  assert.ok(menu.includes('.help'))
+})
+
+test('.take funciona aunque el sticker traiga un EXIF raro (sin cabecera)', async () => {
+  const webpmux = (await import('node-webpmux')).default
+  const image = new webpmux.Image()
+  await image.load(staticSticker)
+  image.exif = Buffer.from('{"sticker-pack-name":"hecho por otra app"}', 'utf8')
+  const weird = await image.save(null, { exif: true })
+
+  const { ctx, sock } = makeContext('.take Mío | Tomi', { quotedKind: 'sticker', buffer: weird })
+  await findCommand('take').run(ctx)
+  const stickers = sentOf(sock, 'sticker')
+  assert.equal(stickers.length, 1, 'igual devuelve el sticker')
+  const info = await readSticker(stickers[0].content.sticker)
+  assert.equal(info.metadata['sticker-pack-name'], 'Mío')
+})
+
+test('.take rechaza un documento que no es imagen ni video', async () => {
+  const { ctx } = makeContext('.take X | Y', {
+    quotedKind: 'document',
+    mimetype: 'application/pdf',
+    buffer: Buffer.from('%PDF-1.4 documento')
+  })
+  await assert.rejects(() => findCommand('take').run(ctx), /no es una imagen ni un video/)
+})
+
+test('.steal rechaza un media que no se pudo convertir en WebP', async () => {
+  const { ctx } = makeContext('.steal', {
+    quotedKind: 'image',
+    mimetype: 'image/png',
+    buffer: Buffer.from('esto no es una imagen')
+  })
+  // Sin FFmpeg el error viene de la conversión; con FFmpeg, del formato
+  await assert.rejects(() => findCommand('steal').run(ctx), /FFmpeg|sticker|imagen|compatible/i)
+})

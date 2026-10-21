@@ -97,25 +97,51 @@ export function extensionFor({ mimetype, fileName } = {}) {
 }
 
 /**
- * Descarga el media indicado.
+ * Descarga el media indicado, con un reintento para los medios "viejos"
+ * que WhatsApp a veces no entrega a la primera.
  * @param {{message:object, key?:object}} source
  */
-export async function downloadMedia(source, { sock, logger, maxBytes } = {}) {
+export async function downloadMedia(source, { sock, logger, maxBytes, retries = 1 } = {}) {
   if (!source?.message) throw new Error('No hay contenido multimedia para descargar')
-  const buffer = await downloadMediaMessage(
-    { key: source.key || {}, message: source.message },
-    'buffer',
-    {},
-    {
-      logger,
-      reuploadRequest: sock?.updateMediaMessage
+
+  let lastError = null
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const buffer = await downloadMediaMessage(
+        { key: source.key || {}, message: source.message },
+        'buffer',
+        {},
+        {
+          logger,
+          reuploadRequest:
+            typeof sock?.updateMediaMessage === 'function'
+              ? sock.updateMediaMessage.bind(sock)
+              : undefined
+        }
+      )
+      if (!buffer || !buffer.length) throw new Error('descarga vacía')
+      if (maxBytes && buffer.length > maxBytes) {
+        throw new Error(
+          `El archivo pesa ${(buffer.length / 1048576).toFixed(1)} MB y el límite es ` +
+            `${Math.round(maxBytes / 1048576)} MB (config: stickers.maxInputMB).`
+        )
+      }
+      return buffer
+    } catch (error) {
+      lastError = error
+      // No reintentar si el archivo es demasiado grande
+      if (String(error.message).includes('el límite es')) throw error
+      logger?.warn?.(`Descarga falló (intento ${attempt + 1}/${retries + 1}): ${error.message}`)
+      if (attempt < retries) await new Promise((resolve) => setTimeout(resolve, 800))
     }
-  )
-  if (!buffer || !buffer.length) throw new Error('La descarga del archivo quedó vacía')
-  if (maxBytes && buffer.length > maxBytes) {
-    throw new Error(`El archivo supera el límite permitido (${Math.round(maxBytes / 1048576)} MB)`)
   }
-  return buffer
+
+  const detail = String(lastError?.message || lastError || '').slice(0, 160)
+  throw new Error(
+    `No pude descargar el archivo de WhatsApp${detail ? ` (${detail})` : ''}. ` +
+      'Suele pasar con medios muy viejos o reenviados: reenvíalo otra vez, o guárdalo y mándalo como documento. ' +
+      'Si se repite con todo, revisa que la sesión siga activa (npm run doctor).'
+  )
 }
 
 /** Tipo de media de un mensaje citado o del mensaje actual */

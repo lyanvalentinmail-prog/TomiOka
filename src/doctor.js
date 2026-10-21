@@ -1,11 +1,13 @@
 #!/usr/bin/env node
 import { existsSync, statSync, statfsSync, accessSync, constants } from 'node:fs'
+import path from 'node:path'
 import { createRequire } from 'node:module'
 import { ensureDirs, loadConfig } from './config.js'
-import { resolveFfmpeg } from './lib/ffmpeg.js'
+import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
+import { canWrite, tempInfo } from './lib/tmp.js'
 import { indexInfo } from './lib/emojimix.js'
 import { driveFileId, loadMenuImage } from './lib/banner.js'
-import { commandList } from './commands/index.js'
+import { commandList, visibleCommands } from './commands/index.js'
 import { box, c, error, info, ok, title, warn } from './lib/ui.js'
 
 const require = createRequire(import.meta.url)
@@ -71,6 +73,18 @@ export async function runDoctor({ config = loadConfig() } = {}) {
     problems.push('Termux: pkg install ffmpeg  ·  Debian: sudo apt install ffmpeg')
   }
 
+  // Carpeta temporal (causa típica de fallos en Termux)
+  const temp = tempInfo()
+  const tempOk = await canWrite(path.join(config.paths.data, 'tmp'))
+  if (tempOk) ok(`carpeta temporal escribible: ${path.join(config.paths.data, 'tmp')}`)
+  else {
+    error('no hay carpeta temporal escribible: las conversiones van a fallar')
+    problems.push('Define TOMIOKA_TMPDIR con una ruta válida, por ejemplo "$HOME/tomioka-tmp".')
+  }
+  if (temp.env.TMPDIR && !existsSync(temp.env.TMPDIR)) {
+    warn(`TMPDIR apunta a una carpeta inexistente (${temp.env.TMPDIR}); se usará data/tmp`)
+  }
+
   // Carpetas y espacio
   try {
     ensureDirs(config)
@@ -128,7 +142,23 @@ export async function runDoctor({ config = loadConfig() } = {}) {
   // Config
   info(`prefijo: ${config.prefixes.join(' ')} · login: ${config.login}`)
   info(`dueños: ${config.owner.numbers.length ? config.owner.numbers.join(', ') : 'ninguno (opcional)'}`)
-  info(`comandos: ${commandList.length}`)
+  info(`comandos: ${commandList.filter((command) => !command.hidden).length} en el menú`)
+  info(`extra: .debug (diagnóstico, no aparece en el menú)`)
+
+  // Prueba real de conversión (genera y convierte un archivo de prueba)
+  if (ffmpeg?.webp) {
+    info('probando conversiones reales (puede tardar unos segundos)...')
+    const test = await selfTestFfmpeg({ logger: { warn: warn, debug: () => {}, info: () => {}, error: () => {} } })
+    const failed = test.steps.filter((step) => !step.ok)
+    if (test.ok) ok(`pipeline de stickers funcionando (${test.steps.length} pasos)`)
+    else {
+      error(`pipeline de stickers con fallas (${failed.length} pasos)`)
+      for (const step of failed.slice(0, 3)) {
+        error(`  ${step.name}: ${step.error || 'error'}`)
+      }
+      problems.push('Ejecuta "npm run selftest" y revisa el detalle.')
+    }
+  }
 
   box(
     [
