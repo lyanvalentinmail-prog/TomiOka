@@ -11,7 +11,7 @@ import {
   stickerToVideo
 } from '../src/lib/media.js'
 import { readSticker, writeStickerMetadata } from '../src/lib/sticker.js'
-import { auditSticker, webpInfo } from '../src/lib/webp.js'
+import { auditSticker, parseWebp, webpInfo } from '../src/lib/webp.js'
 import { buildStickerArgs, buildToImageArgs, buildToVideoArgs, buildTrayArgs } from '../src/lib/ffmpeg.js'
 import { ffmpegAvailable } from './helpers.js'
 
@@ -98,6 +98,11 @@ test('el sticker final conserva transparencia y cuadros (bug del fondo negro)', 
   assert.equal(stillInfo.height, 512)
   assert.equal(stillInfo.hasAlpha, true, 'el PNG con relleno debe quedar con transparencia')
   assert.equal(auditSticker(stillOut).valid, true)
+
+  // WhatsApp lee el pack desde el TIFF del chunk EXIF: el largo tiene que estar puesto.
+  const exif = parseWebp(stillOut).chunks.find((chunk) => chunk.id === 'EXIF').data
+  assert.equal(exif.readUInt32LE(14), exif.length - 22)
+  assert.ok(exif.subarray(22).toString('utf8').includes('sticker-pack-name'))
 
   // GIF animado: mismo número de cuadros y flag ALPHA intacto.
   const anim = await convertToSticker(gif, { extension: 'gif', animated: true, settings: {} })

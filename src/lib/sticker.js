@@ -10,11 +10,36 @@ import {
 
 const { Image } = webpmux
 
-/** Cabecera EXIF que WhatsApp espera antes del JSON del sticker */
+/**
+ * Cabecera EXIF (TIFF/UserComment) que WhatsApp espera antes del JSON.
+ *
+ * Los bytes 14-17 son el *largo* del valor y los 18-21 el offset del valor
+ * (22, justo después de esta cabecera). La cabecera de acá es la plantilla con
+ * el largo en 0: hay que usar `buildExifChunk`, que lo completa. Si el largo
+ * queda en 0, WhatsApp muestra "no se puede ver la información del sticker".
+ */
 export const EXIF_HEADER = Buffer.from([
   0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00, 0x01, 0x00, 0x41, 0x57, 0x07, 0x00, 0x00, 0x00,
   0x00, 0x00, 0x16, 0x00, 0x00, 0x00
 ])
+
+/** Offset del campo "largo del valor" dentro de la cabecera EXIF */
+export const EXIF_LENGTH_OFFSET = 14
+
+/**
+ * Arma el contenido del chunk EXIF: cabecera + JSON del sticker, con el campo
+ * de largo completado (en bytes UTF-8, no en caracteres).
+ * @param {object} payload metadatos del sticker
+ * @returns {Buffer}
+ */
+export function buildExifChunk(payload) {
+  const json = Buffer.from(JSON.stringify(payload), 'utf8')
+  const exif = Buffer.alloc(EXIF_HEADER.length + json.length)
+  EXIF_HEADER.copy(exif, 0)
+  exif.writeUInt32LE(json.length, EXIF_LENGTH_OFFSET)
+  json.copy(exif, EXIF_HEADER.length)
+  return exif
+}
 
 export const DEFAULT_PACK = 'TomiOka'
 export const DEFAULT_AUTHOR = '◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆'
@@ -106,7 +131,7 @@ export async function writeStickerMetadata(buffer, options = {}) {
     ...options,
     isAnimated: options.isAnimated ?? Boolean(info?.animated)
   })
-  const exif = Buffer.concat([EXIF_HEADER, Buffer.from(JSON.stringify(payload), 'utf8')])
+  const exif = buildExifChunk(payload)
 
   const out = injectExif(buffer, exif)
 
