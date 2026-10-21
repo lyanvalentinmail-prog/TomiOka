@@ -35,7 +35,10 @@ export const DEFAULTS = {
     sessionMinutes: 10,
     defaultName: 'TomiOka Pack',
     defaultAuthor: '◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆',
-    traySize: 96
+    traySize: 96,
+    acceptPhotos: true, // las fotos se convierten en sticker al vuelo
+    acceptVideos: true, // los videos/GIF se convierten en sticker animado
+    autoDoneAfter: 0 // 0 = solo con .pack done
   },
   emojimix: {
     enabled: true,
@@ -55,31 +58,21 @@ export const DEFAULTS = {
     ignoreFromMe: false
   },
   menu: {
-    image: '',
-    showDescriptions: true,
+    image: '', // URL (Drive incluido), ruta local o data URI del banner
+    imageCacheMinutes: 720,
+    imageTimeoutMs: 25000,
+    sendAsCaption: true, // manda el menú como pie de foto del banner
+    showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
+    // Una sola categoría con todos los comandos (commands: [] = todos)
     categories: [
       {
-        emoji: '🫧',
-        description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌 𝗒 𝗉𝖺𝖼𝗄𝗌',
-        kaomoji: '(｡•̀ᴗ-)✧',
+        emoji: '🌊',
+        description: '𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌',
+        kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['💧', '🌊'],
-        commands: ['sticker', 'gif', 'steal']
-      },
-      {
-        emoji: '🌀',
-        description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇 𝖽𝖾 𝖺𝗋𝖼𝗁𝗂𝗏𝗈𝗌',
-        kaomoji: '(๑˃̵ᴗ˂̵)و',
-        divider: ['🌊', '💧'],
-        commands: ['toimg', 'tovideo', 'take']
-      },
-      {
-        emoji: '💧',
-        description: '𝖤𝗑𝗍𝗋𝖺𝗌 𝗒 𝖺𝗒𝗎𝖽𝖺',
-        kaomoji: '( ੭ ˙ᗜ˙ )੭',
-        divider: ['🌀', '🌊'],
-        commands: ['emojimix', 'pack', 'help']
+        commands: []
       }
     ]
   },

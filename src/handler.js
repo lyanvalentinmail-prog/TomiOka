@@ -117,12 +117,11 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
   }
 
   if (!parsed) {
-    if (ctx.current?.kind === 'sticker') {
-      const packCommand = findCommand('pack')
-      if (packCommand?.onSticker) {
-        const handled = await packCommand.onSticker(ctx)
-        if (handled) logger.debug?.(`📥 sticker agregado al pack de ${ctx.displayName}`)
-      }
+    // Fotos, videos, GIFs o stickers con un pack en curso se agregan solos
+    const packCommand = findCommand('pack')
+    if (ctx.current && packCommand?.onMedia) {
+      const handled = await packCommand.onMedia(ctx)
+      if (handled) logger.debug?.(`📥 ${ctx.current.kind} agregado al pack de ${ctx.displayName}`)
     }
     return
   }

@@ -20,7 +20,9 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🏷️ **Metadatos**: `.take` y `.steal` cambian el nombre/autor del sticker.
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
-- 🧾 **Menú configurable** desde `config.json` (categorías, frases, emojis).
+  Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
+- 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
+- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (88 pruebas) y `npm run doctor` para diagnóstico.
 
@@ -139,7 +141,7 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.take Nombre \| Autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; sin argumentos vuelve a los del bot |
 | `.steal` | `.robar`, `.copy` | Copia el sticker con el nombre del bot |
 | `.emojimix 😺 🐼` | `.mix` | Combina dos emojis (o sin argumentos para una mezcla aleatoria) |
-| `.pack Nombre \| Autor` | `.packsticker` | Inicia un pack; luego `.pack add`, `.pack done`, `.pack cancel` |
+| `.pack Nombre \| Autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
 | `.help` | `.menu`, `.comandos` | Muestra el menú; `.help sticker` muestra la ayuda de un comando |
 
 ### Ejemplos rápidos
@@ -157,19 +159,36 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 .emojimix 😺 🐼
 .emojimix           ← aleatorio
 
-# pack de stickers
+# pack de stickers con fotos
 .pack Gatitos | Tomi
-(sticker)
-(sticker)
+(foto)              ← se agrega sola (convertida a sticker)
+(foto)
+(foto)
 .pack done          ← devuelve Gatitos.wasticker
+
+# también sirve con el comando como pie de foto
+(foto con pie: ".pack Gatitos | Tomi")   ← inicia el pack y agrega esa foto
+(foto) (foto) (foto)
+.pack done
 ```
 
 ### Cómo funciona `.pack`
 
 1. `.pack Nombre | Autor` abre una sesión (10 minutos de inactividad).
-2. Envía stickers normalmente: se agregan solos (máx. 30 por pack) y el bot reacciona con el número.
-3. `.pack done` genera un ZIP `.wasticker` con `contents.json`, los stickers y la vista previa.
-4. `.pack cancel` descarta la sesión.
+2. Envía **varias fotos**, videos, GIFs o stickers: se agregan solos (máx. 30 por pack), las fotos y videos
+   se convierten a sticker al vuelo y el bot va reaccionando con el número (1️⃣, 2️⃣, 3️⃣…).
+   También puedes mandar el comando como **pie de foto**: esa imagen entra directo al pack.
+3. `.pack done` genera un ZIP `.wasticker` con `contents.json`, todos los stickers y la vista previa.
+4. `.pack cancel` descarta la sesión · `.pack status` muestra el avance · `.pack add` (respondiendo a un archivo).
+
+Configurable en `pack`:
+
+| Opción | Por defecto | Qué hace |
+|--------|-------------|----------|
+| `acceptPhotos` | `true` | Las fotos se convierten en sticker automáticamente |
+| `acceptVideos` | `true` | Los videos y GIFs también (sticker animado) |
+| `maxStickers` | `30` | Tope de stickers por pack |
+| `autoDoneAfter` | `0` | `0` = cierra solo con `.pack done`; con `N` descarga el pack al llegar a N |
 
 El archivo `.wasticker` se puede importar con apps de packs de stickers (por ejemplo Sticker Maker).
 
@@ -199,7 +218,13 @@ El archivo `.wasticker` se puede importar con apps de packs de stickers (por eje
     "maxStaticKB": 100,
     "maxAnimatedKB": 500
   },
-  "pack": { "maxStickers": 30, "sessionMinutes": 10 },
+  "pack": {
+    "maxStickers": 30,
+    "sessionMinutes": 10,
+    "acceptPhotos": true,           // fotos → sticker automáticamente
+    "acceptVideos": true,           // videos/GIFs → sticker animado
+    "autoDoneAfter": 0              // 0 = cerrar solo con .pack done
+  },
   "emojimix": { "enabled": true },
   "behavior": {
     "cooldownMs": 2500,             // anti-spam por usuario
@@ -210,11 +235,21 @@ El archivo `.wasticker` se puede importar con apps de packs de stickers (por eje
     "ignoreFromMe": false           // el bot ignora sus propios envíos por ID
   },
   "menu": {
-    "image": "",                    // URL opcional para enviar el menú como imagen
-    "showDescriptions": true,
+    "image": "https://drive.google.com/file/d/1dt870fo7a7X2DRsqY1DiK55NDKKA5JOV/view", // banner
+    "imageCacheMinutes": 720,       // 0 = vuelve a descargar en cada menú
+    "sendAsCaption": true,          // menú como pie de foto del banner
+    "showDescriptions": false,      // el menú muestra solo el comando, sin descripción
     "showUser": true,
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
-    "categories": [ /* categorías, emoji, descripción, kaomoji y comandos */ ]
+    "categories": [
+      {
+        "emoji": "🌊",
+        "description": "𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌",
+        "kaomoji": "( ᵕ ᵗ ᵕ )",
+        "divider": ["💧", "🌊"],
+        "commands": []              // [] = todos los comandos registrados
+      }
+    ]
   }
 }
 ```
@@ -230,7 +265,7 @@ El archivo `.wasticker` se puede importar con apps de packs de stickers (por eje
 | `OWNER_NUMBERS` | `5989...,5989...` | Dueños separados por coma |
 | `FFMPEG_PATH` | `/data/.../ffmpeg` | Usar un FFmpeg específico |
 | `LOG_LEVEL` | `debug` | Nivel de logs |
-| `MENU_IMAGE` | `https://.../menu.jpg` | Imagen del menú |
+| `MENU_IMAGE` | `https://.../menu.jpg` | Banner del menú (URL, Drive o ruta local) |
 
 ---
 
@@ -251,6 +286,7 @@ TomiOka/
 │   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
+│   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
 │   │   ├── emojimix.js      # catálogo Emoji Kitchen con caché
 │   │   ├── zip.js           # generador ZIP sin dependencias
 │   │   ├── sessions.js      # sesiones de packs con expiración
@@ -258,7 +294,8 @@ TomiOka/
 │   │   └── context.js       # helpers que usan los comandos
 ├── scripts/
 │   ├── setup-termux.sh      # instalación automática en Termux
-│   └── start.sh             # arranque con wake-lock
+│   ├── start.sh             # arranque con wake-lock
+│   └── verify-commands.js   # prueba end-to-end de todos los comandos
 ├── tests/                   # node --test (88 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
@@ -269,8 +306,25 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 88 pruebas (helpers, menú, ZIP, stickers, packs, handler)
-npm run doctor     # FFmpeg, dependencias, carpetas, espacio, sesión
+npm test           # 113 pruebas (menú, banner, ZIP, stickers, packs, handler)
+npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp
+npm run doctor     # FFmpeg, dependencias, banner, carpetas, espacio, sesión
+```
+
+`npm run verify` recorre el handler real con fixtures locales (no necesita cuenta de WhatsApp):
+
+```
+✔ .help (menú con banner)                     OK react×2 image×1
+✔ .sticker (foto)                             OK react×2 sticker×1
+✔ .gif (GIF animado)                          OK react×2 sticker×1
+✔ .toimg (sticker → PNG)                      OK react×2 image×1
+✔ .tovideo (sticker → MP4)                    OK react×2 video×1
+✔ .take Olas | Tomi (metadatos)               OK react×2 sticker×1
+✔ .steal (copia con metadatos del bot)        OK react×2 sticker×1
+✔ .emojimix 😀 🔥 (catálogo en caché)         OK react×2 sticker×1
+✔ .pack done (genera .wasticker)              OK react×2 document×1
+✔ .wasticker válido (3 stickers + vista previa)   contents.json + 3 webp
+✔ 29/29 verificaciones OK
 ```
 
 Los tests de conversión se saltan solos si no hay FFmpeg disponible.
@@ -296,6 +350,8 @@ npm run emojimix:sync
 | Los stickers pesan demasiado | Baja `stickers.quality` o `maxStaticKB` en `config.json` |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |
+| `.help` llega sin la imagen del banner | El archivo de Drive debe ser público ("cualquiera con el enlace"); revisa `npm run doctor`. También puedes usar una ruta local: `"image": "banner.jpg"` |
+| Cambié el banner y sigue el viejo | Pon `"imageCacheMinutes": 0` o borra `data/cache/menu-image-*` |
 | Los comandos no responden en grupos | Verifica el prefijo (`.` por defecto) y `behavior.respondInGroups` |
 
 ---

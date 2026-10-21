@@ -2,6 +2,7 @@
 import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { ensureDirs, isValidPhone, loadConfig, normalizePhone } from './config.js'
+import { loadMenuImage } from './lib/banner.js'
 import { commands } from './commands/index.js'
 import { startBot } from './connection.js'
 import { resolveFfmpeg } from './lib/ffmpeg.js'
@@ -103,6 +104,15 @@ async function main() {
   } else {
     warn('FFmpeg no encontrado. Los comandos de stickers no funcionarán.')
     warn('En Termux: pkg install ffmpeg')
+  }
+
+  if (config.menu.image) {
+    loadMenuImage(config, { logger })
+      .then((banner) => {
+        if (banner) info(`Banner del menú listo (${banner.type}${banner.fromCache ? ', caché' : ''})`)
+        else warn('No se pudo cargar el banner del menú: el menú se enviará solo como texto.')
+      })
+      .catch((error_) => warn(`Banner del menú: ${error_.message}`))
   }
 
   const sessionExists = existsSync(path.join(config.sessionDir, 'creds.json'))

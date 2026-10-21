@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url'
 import { readFile } from 'node:fs/promises'
 import { CommandContext } from '../src/lib/context.js'
 import { createStore } from '../src/handler.js'
-import { findCommand } from '../src/commands/index.js'
+import { commands, findCommand } from '../src/commands/index.js'
 import { readSticker } from '../src/lib/sticker.js'
 import { resetIndexCache } from '../src/lib/emojimix.js'
 import { fakeSock, ffmpegAvailable, silentLogger, testConfig } from './helpers.js'
@@ -47,6 +47,7 @@ function makeContext(commandText, { quotedKind = null, mimetype, buffer = null, 
     }
   }
   const ctx = new CommandContext({ sock, msg, config, logger: silentLogger, store, text: commandText })
+  ctx.commands = commands
   if (buffer) ctx.download = async () => buffer
   return { ctx, sock }
 }
@@ -223,4 +224,41 @@ test('.emojimix explica cuando la combinación no existe', async () => {
 test('.emojimix pide dos emojis cuando recibe uno solo', async () => {
   const { ctx } = makeContext('.emojimix 😺')
   await assert.rejects(() => findCommand('emojimix').run(ctx), /dos\* emojis/)
+})
+
+test('.help envía el menú con el banner como pie de foto', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  const { ctx, sock } = makeContext('.help', { config })
+  await findCommand('help').run(ctx)
+
+  const images = sentOf(sock, 'image')
+  assert.equal(images.length, 1, 'se envía una imagen')
+  assert.equal(images[0].content.image.subarray(1, 4).toString('ascii'), 'PNG')
+  assert.match(images[0].content.caption, /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/)
+  assert.equal(sentOf(sock, 'text').length, 0, 'el menú va como pie de foto')
+})
+
+test('.help manda imagen y menú aparte si el pie sería muy largo', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  const manyCommands = new Map()
+  for (let i = 0; i < 120; i += 1) {
+    manyCommands.set(`cmd${i}`, { name: `comando-largo-${i}`, description: '' })
+  }
+  const { ctx, sock } = makeContext('.help', { config })
+  ctx.commands = manyCommands
+  await findCommand('help').run(ctx)
+
+  assert.equal(sentOf(sock, 'image').length, 1)
+  assert.equal(sentOf(sock, 'text').length, 1, 'el menú se envía como texto aparte')
+})
+
+test('.help cae al texto si el banner no existe', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  const { ctx, sock } = makeContext('.help', { config })
+  await findCommand('help').run(ctx)
+  assert.equal(sentOf(sock, 'image').length, 0)
+  assert.equal(sentOf(sock, 'text').length, 1)
 })

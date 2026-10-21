@@ -151,3 +151,52 @@ test('un dueño escribiendo desde su propio número es reconocido', async () => 
   await handleMessage({ sock, msg: own, config, logger, store, commands })
   assert.equal(sentTexts(sock).length, 1)
 })
+
+test('el handler pasa fotos y videos al pack en curso', async () => {
+  const { config, logger, store, sock } = setup({ behavior: { cooldownMs: 0 } })
+  const packCommand = commands.get('pack')
+  const original = packCommand.onMedia
+  const seen = []
+  packCommand.onMedia = async (ctx) => {
+    seen.push(ctx.current?.kind)
+    return true
+  }
+
+  try {
+    const jid = '59891111111@s.whatsapp.net'
+    for (const [id, media] of [
+      ['foto-1', { imageMessage: { mimetype: 'image/png', fileLength: 1000, caption: '' } }],
+      ['video-1', { videoMessage: { mimetype: 'video/mp4', fileLength: 1000, caption: '' } }],
+      ['sticker-1', { stickerMessage: { mimetype: 'image/webp', fileLength: 1000 } }]
+    ]) {
+      await handleMessage({
+        sock,
+        msg: { key: { remoteJid: jid, fromMe: false, id }, pushName: 'Tester', message: media },
+        config,
+        logger,
+        store,
+        commands
+      })
+    }
+  } finally {
+    packCommand.onMedia = original
+  }
+
+  assert.deepEqual(seen, ['image', 'video', 'sticker'], 'el handler entrega fotos, videos y stickers')
+})
+
+test('el handler ignora captions sueltas cuando no hay pack en curso', async () => {
+  const { config, logger, store, sock } = setup({ behavior: { cooldownMs: 0 } })
+  await handleMessage({
+    sock,
+    msg: {
+      key: { remoteJid: '59891111111@s.whatsapp.net', fromMe: false, id: 'foto-x' },
+      message: { imageMessage: { mimetype: 'image/png', caption: 'hola' } }
+    },
+    config,
+    logger,
+    store,
+    commands
+  })
+  assert.equal(sentTexts(sock).length, 0)
+})

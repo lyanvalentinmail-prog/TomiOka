@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { commands, commandList, findCommand } from '../src/commands/index.js'
-import { buildCommandHelp, buildMenu } from '../src/menu.js'
+import { buildCommandHelp, buildMenu, resolveCategoryCommands } from '../src/menu.js'
 import { testConfig } from './helpers.js'
 
 const config = testConfig()
@@ -19,12 +19,25 @@ test('los alias apuntan al mismo comando', () => {
   assert.equal(findCommand('noexiste'), null)
 })
 
-test('todos los comandos del menú están registrados', () => {
-  for (const category of config.menu.categories) {
-    for (const name of category.commands) {
-      assert.ok(commands.get(name), `el menú referencia el comando inexistente ${name}`)
-    }
-  }
+test('el menú usa una sola categoría con todos los comandos', () => {
+  assert.equal(config.menu.categories.length, 1)
+  assert.deepEqual(config.menu.categories[0].commands, [], 'la categoría sin lista muestra todos')
+  const resolved = resolveCategoryCommands(config.menu.categories[0], commands)
+  assert.deepEqual(
+    resolved.map((command) => command.name),
+    ['sticker', 'gif', 'toimg', 'tovideo', 'take', 'steal', 'emojimix', 'pack', 'help']
+  )
+})
+
+test('resolveCategoryCommands filtra por nombre y evita duplicados', () => {
+  const resolved = resolveCategoryCommands(
+    { commands: ['sticker', 's', 'STICKER', 'inexistente', 'help'] },
+    commands
+  )
+  assert.deepEqual(
+    resolved.map((command) => command.name),
+    ['sticker', 'help']
+  )
 })
 
 test('el menú incluye la info del bot y todos los comandos', () => {
@@ -38,6 +51,33 @@ test('el menú incluye la info del bot y todos los comandos', () => {
     assert.ok(menu.includes(`${config.prefixes[0]}${name}`), `el menú no muestra ${name}`)
   }
   assert.ok(menu.length > 500)
+})
+
+test('el menú no tiene líneas vacías ni espacios sobrantes', () => {
+  const menu = buildMenu({ config, commands, sender: { label: 'Tester' } })
+  const lines = menu.split('\n')
+  assert.equal(lines.filter((line) => line.trim() === '').length, 0, 'no hay líneas en blanco')
+  assert.equal(lines.filter((line) => line !== line.trimEnd()).length, 0, 'no hay espacios al final')
+  assert.ok(!/\n\s*\n/.test(menu), 'no hay saltos dobles')
+})
+
+test('el menú muestra solo el comando, sin descripciones', () => {
+  const menu = buildMenu({ config, commands, sender: {} })
+  for (const command of commandList) {
+    assert.ok(menu.includes(`୨ৎㅤ${config.prefixes[0]}${command.name}`), `falta ${command.name}`)
+    if (command.description) {
+      assert.ok(!menu.includes(command.description), `no debe mostrarse la descripción de ${command.name}`)
+    }
+  }
+  assert.ok(!menu.includes('›'), 'no usa el separador de descripción')
+})
+
+test('el menú agrupa todo en una sola categoría', () => {
+  const menu = buildMenu({ config, commands, sender: {} })
+  assert.equal((menu.match(/◢ /g) || []).length, 1, 'un solo bloque de categoría')
+  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 1)
+  const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
+  assert.equal(commandLines.length, commandList.length, 'una línea por comando, sin separación')
 })
 
 test('el menú respeta las categorías configuradas', () => {
@@ -65,4 +105,10 @@ test('buildCommandHelp muestra uso y alias', () => {
 test('commandList no tiene nombres duplicados', () => {
   const names = commandList.map((command) => command.name)
   assert.equal(new Set(names).size, names.length)
+})
+
+test('el menú por defecto usa el banner de Drive configurado', () => {
+  const image = config.menu.image
+  assert.ok(image, 'menu.image debe tener el banner')
+  assert.match(image, /drive\.google\.com\/file\/d\/[\w-]+/)
 })
