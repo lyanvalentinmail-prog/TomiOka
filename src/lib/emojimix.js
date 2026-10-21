@@ -1,8 +1,24 @@
-import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync, statSync } from 'node:fs'
+import {
+  createReadStream,
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  statSync,
+  writeFileSync
+} from 'node:fs'
 import path from 'node:path'
-import { fetchBuffer } from './http.js'
+import { downloadToFile, fetchBuffer } from './http.js'
 
-const INDEX_VERSION = 1
+const INDEX_VERSION = 2
+
+/**
+ * Formato de las URLs del catálogo:
+ * https://www.gstatic.com/android/keyboard/emojikitchen/20201001/u1f600/u1f600_u1f525.png
+ */
+const KITCHEN_URL =
+  /emojikitchen\/(\d{8})\/(u[0-9a-z-]+)\/(u[0-9a-z-]+)_(u[0-9a-z-]+)\.png/gi
 
 /** "😀" -> "1f600" · "👨‍👩‍👧" -> "1f468-200d-1f469-200d-1f467" */
 export function emojiToCodePoint(emoji) {
@@ -47,11 +63,67 @@ export function pairKey(left, right) {
   return `${normalizeCode(left)}_${normalizeCode(right)}`
 }
 
+/**
+ * Extrae combinaciones de un fragmento de texto del metadata.json.
+ * Es tolerante a cortes: solo descarta los últimos caracteres (overlap).
+ * @param {string} text
+ * @param {Map<string,{url:string,date:string}>} combos
+ */
+export function collectCombos(text, combos = new Map()) {
+  if (!text) return combos
+  KITCHEN_URL.lastIndex = 0
+  for (const match of text.matchAll(KITCHEN_URL)) {
+    const [, date, folder, left, right] = match
+    const leftCode = normalizeCode(left)
+    const rightCode = normalizeCode(right)
+    const key = `${leftCode}_${rightCode}`
+    const current = combos.get(key)
+    if (!current || date > current.date) {
+      combos.set(key, {
+        url: `https://www.gstatic.com/android/keyboard/emojikitchen/${date}/${folder}/${left}_${right}.png`,
+        left: leftCode,
+        right: rightCode,
+        date
+      })
+    }
+  }
+  return combos
+}
+
+/**
+ * Lee el metadata.json en streaming y arma el índice de combinaciones.
+ * No carga el archivo completo en memoria.
+ */
+export async function parseMetadataFile(file, { combos = new Map(), onProgress } = {}) {
+  const total = statSync(file).size
+  const stream = createReadStream(file, { encoding: 'utf8', highWaterMark: 1024 * 1024 })
+  let carry = ''
+  let read = 0
+
+  for await (const chunk of stream) {
+    read += Buffer.byteLength(chunk, 'utf8')
+    const text = carry + chunk
+    const cut = Math.max(0, text.length - 512)
+    collectCombos(text.slice(0, cut), combos)
+    carry = text.slice(cut)
+    onProgress?.(read, total)
+  }
+  collectCombos(carry, combos)
+  return combos
+}
+
+function serializeCombos(combos) {
+  const out = {}
+  for (const [key, value] of combos) {
+    out[key] = { url: value.url, date: value.date }
+  }
+  return out
+}
+
 function readIndex(file, logger) {
   if (!existsSync(file)) return null
   try {
-    const size = statSync(file).size
-    if (size < 20) return null
+    if (statSync(file).size < 20) return null
     const parsed = JSON.parse(readFileSync(file, 'utf8'))
     if (!parsed || typeof parsed !== 'object' || !parsed.combos) return null
     return parsed
@@ -62,74 +134,72 @@ function readIndex(file, logger) {
 }
 
 /**
- * Construye un índice liviano a partir del metadata.json de Emoji Kitchen.
- * Se guarda en caché para no volver a descargar 50 MB.
+ * Descarga (en streaming) y comprime el catálogo de Emoji Kitchen en un índice liviano.
  */
 export async function buildIndex({
   metadataUrl,
   mirrors = [],
   cacheFile,
   logger,
-  timeoutMs = 180000
+  timeoutMs = 600000
 } = {}) {
   const urls = [metadataUrl, ...mirrors].filter(Boolean)
-  let raw = null
-  let usedUrl = null
-  let lastError = null
+  const dir = cacheFile ? path.dirname(cacheFile) : path.join(process.cwd(), 'data')
+  mkdirSync(dir, { recursive: true })
+  const tempFile = path.join(dir, 'emojimix-metadata.json.tmp')
 
-  logger?.info?.('Descargando catálogo de Emoji Kitchen (solo la primera vez, ~50 MB)...')
+  let lastError = null
+  let usedUrl = null
+  let combos = new Map()
 
   for (const url of urls) {
+    logger?.info?.('Descargando catálogo de Emoji Kitchen (una sola vez, ~95 MB)...')
+    let lastLog = 0
     try {
-      raw = await fetchBuffer(url, { timeoutMs, maxBytes: 160 * 1024 * 1024, retries: 0 })
+      await downloadToFile(url, tempFile, {
+        timeoutMs,
+        onProgress: (received, total) => {
+          if (!total) return
+          const percent = Math.floor((received / total) * 100)
+          if (percent >= lastLog + 10 || percent === 100) {
+            lastLog = percent - (percent % 10)
+            logger?.info?.(
+              `  ${percent}% (${(received / 1048576).toFixed(1)}/${(total / 1048576).toFixed(1)} MB)`
+            )
+          }
+        }
+      })
+      logger?.info?.('  procesando catálogo...')
+      combos = await parseMetadataFile(tempFile, { combos: new Map() })
       usedUrl = url
-      break
+      if (combos.size > 0) break
+      throw new Error('el catálogo llegó vacío o con un formato desconocido')
     } catch (error) {
       lastError = error
-      logger?.warn?.(`No se pudo descargar ${url}: ${error.message}`)
+      logger?.warn?.(`No se pudo preparar el catálogo desde ${url}: ${error.message}`)
+      combos = new Map()
+    } finally {
+      rmSync(tempFile, { force: true })
     }
   }
-  if (!raw) {
+
+  if (!usedUrl || combos.size === 0) {
     throw new Error(
       `No se pudo descargar el catálogo de emojimix: ${lastError?.message || 'sin conexión'}`
     )
-  }
-
-  let json
-  try {
-    json = JSON.parse(raw.toString('utf8'))
-  } catch (error) {
-    throw new Error(`El catálogo de emojimix no es JSON válido: ${error.message}`)
-  }
-  raw = null
-
-  const combos = {}
-  const data = json?.data && typeof json.data === 'object' ? json.data : {}
-  for (const [code, entry] of Object.entries(data)) {
-    const combinations = entry?.combinations
-    if (!combinations || typeof combinations !== 'object') continue
-    for (const [other, list] of Object.entries(combinations)) {
-      if (!Array.isArray(list) || list.length === 0) continue
-      const latest = list.find((item) => item?.isLatest) || list[list.length - 1]
-      if (!latest?.gStaticUrl) continue
-      const left = normalizeCode(latest.leftEmojiCodepoint || code)
-      const right = normalizeCode(latest.rightEmojiCodepoint || other)
-      const key = `${left}_${right}`
-      combos[key] = { url: latest.gStaticUrl, date: String(latest.date || '') }
-    }
   }
 
   const index = {
     version: INDEX_VERSION,
     createdAt: new Date().toISOString(),
     source: usedUrl,
-    total: Object.keys(combos).length,
-    combos
+    total: combos.size,
+    combos: serializeCombos(combos)
   }
+  // Libera el Map: el índice ya está en un objeto plano más compacto
+  combos.clear()
 
   if (cacheFile) {
-    const dir = path.dirname(cacheFile)
-    mkdirSync(dir, { recursive: true })
     const tmp = `${cacheFile}.tmp`
     writeFileSync(tmp, JSON.stringify(index))
     renameSync(tmp, cacheFile)
@@ -151,7 +221,7 @@ export async function ensureIndex(options = {}) {
   const { cacheFile, metadataUrl, mirrors = [], logger, timeoutMs } = options
   state.loading = (async () => {
     const cached = cacheFile ? readIndex(cacheFile, logger) : null
-    if (cached && cached.version === INDEX_VERSION) {
+    if (cached && cached.version >= 1 && cached.combos) {
       state.index = cached
       return cached
     }
@@ -174,7 +244,7 @@ export function resetIndexCache() {
 
 /**
  * Busca la combinación de dos emojis.
- * @returns {{url:string, key:string}|null}
+ * @returns {{url:string, key:string, date:string}|null}
  */
 export async function findMix(leftEmoji, rightEmoji, options = {}) {
   const index = await ensureIndex(options)

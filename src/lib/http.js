@@ -1,3 +1,7 @@
+import { createWriteStream } from 'node:fs'
+import { Readable } from 'node:stream'
+import { pipeline } from 'node:stream/promises'
+
 /** Descarga buffers con timeout, reintentos y límite de tamaño */
 
 const DEFAULT_TIMEOUT = 30000
@@ -69,6 +73,45 @@ export async function fetchBuffer(url, options = {}) {
     }
   }
   throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
+
+/**
+ * Descarga una URL directamente a un archivo (streaming, sin cargar todo en memoria).
+ * @returns {Promise<{bytes:number, total:number}>}
+ */
+export async function downloadToFile(url, destination, options = {}) {
+  const { timeoutMs = 300000, onProgress, headers = {} } = options
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
+  try {
+    const response = await fetch(url, {
+      signal: controller.signal,
+      redirect: 'follow',
+      headers: {
+        'user-agent':
+          'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36',
+        accept: '*/*',
+        ...headers
+      }
+    })
+    if (!response.ok) {
+      throw new HttpError(`HTTP ${response.status} al descargar ${url}`, {
+        status: response.status,
+        url
+      })
+    }
+    const total = Number(response.headers.get('content-length') || 0)
+    let received = 0
+    const source = Readable.fromWeb(response.body)
+    source.on('data', (chunk) => {
+      received += chunk.length
+      onProgress?.(received, total)
+    })
+    await pipeline(source, createWriteStream(destination))
+    return { bytes: received, total: total || received }
+  } finally {
+    clearTimeout(timer)
+  }
 }
 
 /** Descarga JSON */

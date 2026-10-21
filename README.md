@@ -22,7 +22,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
 - 🧾 **Menú configurable** desde `config.json` (categorías, frases, emojis).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (84 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (88 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -32,7 +32,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 |-----------|----------------|
 | Node.js | **20 o superior** (Termux: `pkg install nodejs-lts`) |
 | FFmpeg | con codificador **libwebp** (`pkg install ffmpeg`) |
-| Espacio | ~150 MB con dependencias + 50 MB si usas `.emojimix` (solo la primera vez) |
+| Espacio | ~150 MB con dependencias + 95 MB si usas `.emojimix` (solo la primera vez) |
 | Cuenta de WhatsApp | número que actuará como bot (puede ser tu número personal) |
 
 > Sin FFmpeg el bot arranca igual, pero los comandos de stickers/conversión responden con un aviso.
@@ -259,7 +259,7 @@ TomiOka/
 ├── scripts/
 │   ├── setup-termux.sh      # instalación automática en Termux
 │   └── start.sh             # arranque con wake-lock
-├── tests/                   # node --test (84 pruebas)
+├── tests/                   # node --test (88 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -269,11 +269,18 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 84 pruebas (helpers, menú, ZIP, stickers, packs, handler)
+npm test           # 88 pruebas (helpers, menú, ZIP, stickers, packs, handler)
 npm run doctor     # FFmpeg, dependencias, carpetas, espacio, sesión
 ```
 
 Los tests de conversión se saltan solos si no hay FFmpeg disponible.
+
+El catálogo de emojis (~95 MB, usa ~300 MB de RAM mientras se procesa una sola vez) se puede pre-descargar
+para no esperar en el primer `.emojimix`:
+
+```bash
+npm run emojimix:sync
+```
 
 ---
 
@@ -287,7 +294,7 @@ Los tests de conversión se saltan solos si no hay FFmpeg disponible.
 | `Connection Closed` en bucle | Borra `sessions/`, revisa internet y vuelve a vincular |
 | `logged out` | La sesión se cerró desde el teléfono: borra `sessions/` y vincula de nuevo |
 | Los stickers pesan demasiado | Baja `stickers.quality` o `maxStaticKB` en `config.json` |
-| `.emojimix` tarda la primera vez | Está descargando el catálogo (~50 MB); luego queda en `data/emojimix-index.json` |
+| `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |
 | Los comandos no responden en grupos | Verifica el prefijo (`.` por defecto) y `behavior.respondInGroups` |
 

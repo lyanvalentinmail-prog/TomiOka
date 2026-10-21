@@ -1,0 +1,62 @@
+{
+  "knownSupportedEmoji": ["1f600", "1f525", "1f43c", "2764-fe0f"],
+  "data": {
+    "1f600": {
+      "alt": "grinning face",
+      "emoji": "😀",
+      "emojiCodepoint": "1f600",
+      "combinations": {
+        "1f525": [
+          {
+            "gStaticUrl": "https://www.gstatic.com/android/keyboard/emojikitchen/20201001/u1f600/u1f600_u1f525.png",
+            "alt": "grinning face-fire",
+            "leftEmoji": "😀",
+            "leftEmojiCodepoint": "1f600",
+            "rightEmoji": "🔥",
+            "rightEmojiCodepoint": "1f525",
+            "date": "20201001",
+            "isLatest": true
+          }
+        ]
+      }
+    },
+    "2764-fe0f": {
+      "alt": "red heart",
+      "emoji": "❤️",
+      "emojiCodepoint": "2764-fe0f",
+      "combinations": {
+        "1f525": [
+          {
+            "gStaticUrl": "https://www.gstatic.com/android/keyboard/emojikitchen/20230821/u2764-ufe0f/u2764-ufe0f_u1f525.png",
+            "alt": "heart-fire",
+            "leftEmoji": "❤️",
+            "leftEmojiCodepoint": "2764-fe0f",
+            "rightEmoji": "🔥",
+            "rightEmojiCodepoint": "1f525",
+            "date": "20230821",
+            "isLatest": true
+          }
+        ]
+      }
+    },
+    "1f43c": {
+      "alt": "panda",
+      "emoji": "🐼",
+      "emojiCodepoint": "1f43c",
+      "combinations": {
+        "1f43c": [
+          {
+            "gStaticUrl": "https://www.gstatic.com/android/keyboard/emojikitchen/20201001/u1f43c/u1f43c_u1f43c.png",
+            "alt": "panda-panda",
+            "leftEmoji": "🐼",
+            "leftEmojiCodepoint": "1f43c",
+            "rightEmoji": "🐼",
+            "rightEmojiCodepoint": "1f43c",
+            "date": "20201001",
+            "isLatest": true
+          }
+        ]
+      }
+    }
+  }
+}

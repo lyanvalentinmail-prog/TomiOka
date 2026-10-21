@@ -32,7 +32,7 @@ export default {
     const firstRun = !indexInfo(options).loaded && !indexInfo(options).cached
     if (firstRun) {
       await ctx.reply(
-        '⏳ Preparando el catálogo de *Emoji Kitchen* (solo la primera vez, ~50 MB). Dame un momento...'
+        '⏳ Preparando el catálogo de *Emoji Kitchen* (solo la primera vez, ~95 MB). Dame un momento...'
       )
     }
 

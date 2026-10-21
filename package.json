@@ -15,7 +15,8 @@
     "qr": "node src/index.js --qr",
     "pair": "node src/index.js --pair",
     "doctor": "node src/doctor.js",
-    "test": "node --test tests/*.test.js"
+    "test": "node --test tests/*.test.js",
+    "emojimix:sync": "node src/tools/sync-emojimix.js"
   },
   "keywords": [
     "whatsapp",

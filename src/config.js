@@ -42,7 +42,7 @@ export const DEFAULTS = {
     metadataUrl:
       'https://raw.githubusercontent.com/xsalazar/emoji-kitchen-backend/main/app/metadata.json',
     cacheFile: 'data/emojimix-index.json',
-    timeoutMs: 180000
+    timeoutMs: 600000
   },
   behavior: {
     cooldownMs: 2500,

@@ -106,7 +106,7 @@ export async function runDoctor({ config = loadConfig() } = {}) {
   if (emojiIndex.loaded || emojiIndex.cached) {
     ok(`catálogo emojimix disponible${emojiIndex.total ? ` (${emojiIndex.total} combinaciones)` : ''}`)
   } else {
-    info('catálogo emojimix: se descargará en el primer uso (~50 MB)')
+    info('catálogo emojimix: se descargará en el primer uso (~95 MB)')
   }
 
   // Config
