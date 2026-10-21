@@ -1,6 +1,7 @@
 import { CommandContext } from './lib/context.js'
 import { getContentType } from '@whiskeysockets/baileys'
 import { PackStore } from './lib/sessions.js'
+import { LiveMessages } from './lib/live-messages.js'
 import { findCommand } from './commands/index.js'
 import { getContent, getText } from './lib/message.js'
 import { truncate } from './lib/text.js'
@@ -16,6 +17,8 @@ export function createStore(config, logger) {
       logger
     }),
     cooldowns: new Map(),
+    // Mensajes "vivos" (menú, progreso de .pack) que se editan en vez de repetirse
+    messages: new LiveMessages(),
     // IDs de mensajes enviados por el bot: evita procesar sus propias respuestas
     sentIds: new Set()
   }

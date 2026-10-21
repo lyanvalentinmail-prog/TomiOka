@@ -22,9 +22,10 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
 - 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
-- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local).
+- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, los anteriores quedan como **"Menu eliminado."** (editados; si son muy viejos se eliminan).
+- ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (164 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (175 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -189,6 +190,8 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 2. Envía **varias fotos**, videos, GIFs o stickers: se agregan solos (máx. 30 por pack), las fotos y videos
    se convierten a sticker al vuelo y el bot va reaccionando con el número (1️⃣, 2️⃣, 3️⃣…).
    También puedes mandar el comando como **pie de foto**: esa imagen entra directo al pack.
+   El avance se muestra **editando el mismo mensaje** (`📥 3/30`), así el chat no se llena de mensajes:
+   `.pack status`, `.pack cancel` y `.pack done` también actualizan ese mensaje.
 3. `.pack done` envía el **paquete nativo de WhatsApp**: aparece la tarjeta del pack con el botón para
    agregarlo a tus stickers (con nombre, autor y vista previa). No hace falta descargar ni importar nada.
    - Si el envío nativo falla (por ejemplo, un WhatsApp muy viejo), el bot manda el `.wasticker` como
@@ -304,6 +307,7 @@ TomiOka/
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
 │   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
 │   │   ├── session.js       # detecta/valida/respalda la sesión guardada
+│   │   ├── live-messages.js # edita el menú/progreso en vez de repetir mensajes
 │   │   ├── sticker-pack.js  # envía el paquete nativo de stickers a WhatsApp
 │   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
 │   │   ├── tmp.js           # carpetas temporales con respaldo para Termux
@@ -317,7 +321,7 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (164 pruebas)
+├── tests/                   # node --test (175 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -327,7 +331,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 164 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 175 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

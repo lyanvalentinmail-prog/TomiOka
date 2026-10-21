@@ -10,6 +10,12 @@ const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop'])
 const ADD = new Set(['add', 'agregar', 'añadir', 'anadir', '+'])
 const STATUS = new Set(['status', 'estado', 'info', 'lista', 'list'])
 
+/**
+ * Ranura del mensaje de progreso del pack: una por chat y remitente, así dos
+ * personas del mismo grupo no se pisan el mensaje.
+ */
+const packSlot = (ctx) => `pack:${ctx.senderJid}`
+
 const COUNT_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
 
 const KIND_LABEL = {
@@ -197,6 +203,9 @@ async function finishPack(ctx, session) {
     )
   }
 
+  // El mensaje de progreso queda cerrado con el resultado
+  await ctx.finishLive(packSlot(ctx), `✅ *${session.name}* enviado · ${pack.stickers.length} sticker(s).`)
+
   // La sesión se descarta recién cuando se envió bien
   ctx.store.packs.finish(session)
 
@@ -245,20 +254,16 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
   const label = KIND_LABEL[target.kind] || 'Sticker'
   const extra = count === max ? `\n🎉 ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack.` : ''
 
-  if (!silent || count === 1) {
-    await ctx.reply(
-      `📥 ${label} *${count}/${max}* agregada a *${session.name}*` +
-        `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
-        `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
-    )
-  } else {
-    await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '📥')
-    if (count === max) {
-      await ctx.reply(
-        `🎉 *${max}/${max}* stickers en *${session.name}*. Envía *.pack done* para enviar el pack.`
-      )
-    }
-  }
+  if (silent) await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '📥')
+
+  // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno por
+  // cada foto/sticker.
+  await ctx.sendLive(
+    packSlot(ctx),
+    `📥 ${label} *${count}/${max}* agregada a *${session.name}*` +
+      `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
+      `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
+  )
 
   // Descarga automática opcional: pack.autoDoneAfter = N (> 0)
   const autoDoneAfter = Number(ctx.config.pack.autoDoneAfter) || 0
@@ -284,7 +289,7 @@ const command = {
     if (CANCEL.has(first)) {
       if (!session) throw new Error('No hay ningún pack en curso.')
       ctx.store.packs.cancel(session)
-      await ctx.reply('🚫 Pack cancelado. Los stickers en memoria fueron descartados.')
+      await ctx.finishLive(packSlot(ctx), '🚫 Pack cancelado. Los stickers en memoria fueron descartados.')
       return 'pack cancelado'
     }
 
@@ -300,7 +305,7 @@ const command = {
 
     if (STATUS.has(first)) {
       if (!session) throw new Error('No hay ningún pack en curso.')
-      await ctx.reply(statusMessage(session, config))
+      await ctx.sendLive(packSlot(ctx), statusMessage(session, config))
       return 'pack status'
     }
 
@@ -311,7 +316,8 @@ const command = {
       if (hasMedia) {
         return addMediaToSession(ctx, session).then((count) => `pack + media (${count})`)
       }
-      await ctx.reply(
+      await ctx.sendLive(
+        packSlot(ctx),
         `⚠️ Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n` +
           `✅ *.pack done* para enviarlo · 🚫 *.pack cancel* para descartarlo\n` +
           acceptedKindsMessage(config)
@@ -332,17 +338,18 @@ const command = {
       author
     })
 
-    await ctx.reply(
+    const started = await ctx.reply(
       [
         '📦 *Nuevo pack iniciado*',
         `▸ Nombre: *${name}*`,
         `▸ Autor: *${author}*`,
         acceptedKindsMessage(config),
         `Máximo *${config.pack.maxStickers}* stickers.`,
-        'Termina con *.pack done* y recibirás el archivo *.wasticker*.',
+        'Termina con *.pack done* y recibirás el paquete de stickers.',
         `_La sesión expira en ${config.pack.sessionMinutes} minutos de inactividad._`
       ].join('\n')
     )
+    ctx.rememberLive(packSlot(ctx), started)
 
     // Si el comando vino como pie de foto/video, esa imagen ya entra al pack
     if (hasMedia) {

@@ -24,9 +24,12 @@ function quotedMessageFor(kind, mimetype = 'image/webp') {
   return { [key]: { mimetype, fileLength: 1000 } }
 }
 
-function makeContext(commandText, { quotedKind = null, mimetype, buffer = null, config = testConfig() } = {}) {
-  const sock = fakeSock()
-  const store = createStore(config, silentLogger)
+function makeContext(
+  commandText,
+  { quotedKind = null, mimetype, buffer = null, config = testConfig(), store = null, sock = null } = {}
+) {
+  const activeSock = sock || fakeSock()
+  const activeStore = store || createStore(config, silentLogger)
   const quoted = quotedKind ? quotedMessageFor(quotedKind, mimetype) : undefined
   const msg = {
     key: { remoteJid: '59891111111@s.whatsapp.net', fromMe: false, id: 'cmd-1' },
@@ -46,10 +49,17 @@ function makeContext(commandText, { quotedKind = null, mimetype, buffer = null, 
       }
     }
   }
-  const ctx = new CommandContext({ sock, msg, config, logger: silentLogger, store, text: commandText })
+  const ctx = new CommandContext({
+    sock: activeSock,
+    msg,
+    config,
+    logger: silentLogger,
+    store: activeStore,
+    text: commandText
+  })
   ctx.commands = commands
   if (buffer) ctx.download = async () => buffer
-  return { ctx, sock }
+  return { ctx, sock: activeSock }
 }
 
 const sentOf = (sock, kind) => sock.sent.filter((item) => item.content?.[kind])
@@ -261,6 +271,102 @@ test('.help cae al texto si el banner no existe', async () => {
   await findCommand('help').run(ctx)
   assert.equal(sentOf(sock, 'image').length, 0)
   assert.equal(sentOf(sock, 'text').length, 1)
+})
+
+test('.help deja los menús anteriores como "Menu eliminado."', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  const store = createStore(config, silentLogger)
+  const sock = fakeSock()
+
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+
+  const retired = sock.sent.filter((item) => item.content?.text === 'Menu eliminado.')
+  assert.equal(retired.length, 1, 'solo el menú anterior se retira')
+  assert.ok(retired[0].content.edit, 'se edita el mensaje viejo')
+  assert.equal(retired[0].content.edit.id, 'msg-1')
+
+  const menus = sock.sent.filter(
+    (item) => typeof item.content?.text === 'string' && !item.content.edit && item.content.text.includes('𝓜𝓮𝓷𝓾')
+  )
+  assert.equal(menus.length, 2, 'cada .help manda su menú')
+
+  // Un tercer menú retira el segundo, no el primero
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+  const edits = sock.sent.filter((item) => item.content?.edit)
+  assert.equal(edits.length, 2)
+  // El tercer menú retira el segundo (msg-3), no el primero
+  assert.equal(edits[1].content.edit.id, 'msg-3')
+})
+
+test('.help <comando> no retira el menú', async () => {
+  const config = testConfig()
+  config.menu = { ...config.menu, image: 'no-existe/banner.png' }
+  const store = createStore(config, silentLogger)
+  const sock = fakeSock()
+
+  await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
+  await findCommand('help').run(makeContext('.help pack', { config, store, sock }).ctx)
+
+  assert.equal(sock.sent.filter((item) => item.content?.edit).length, 0)
+})
+
+test('.pack edita el mensaje de progreso en vez de mandar uno por sticker', async () => {
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const sock = fakeSock()
+
+  await findCommand('pack').run(makeContext('.pack Olas | Tomi', { config, store, sock }).ctx)
+
+  for (let i = 0; i < 2; i += 1) {
+    await findCommand('pack').run(
+      makeContext('.pack add', {
+        config,
+        store,
+        sock,
+        quotedKind: 'sticker',
+        mimetype: 'image/webp',
+        buffer: staticSticker
+      }).ctx
+    )
+  }
+
+  const standalone = sock.sent.filter(
+    (item) => typeof item.content?.text === 'string' && !item.content.edit
+  )
+  assert.equal(standalone.length, 1, 'solo el mensaje inicial (los avances lo editan)')
+
+  const progressEdits = sock.sent.filter(
+    (item) => item.content?.edit && item.content.text.includes('📥')
+  )
+  assert.equal(progressEdits.length, 2, 'cada sticker edita el mismo mensaje')
+  assert.equal(new Set(progressEdits.map((item) => item.content.edit.id)).size, 1)
+  assert.match(progressEdits.at(-1).content.text, /2\/30/)
+})
+
+test('.pack done cierra el mensaje de progreso', async () => {
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const sock = fakeSock()
+
+  await findCommand('pack').run(makeContext('.pack Olas | Tomi', { config, store, sock }).ctx)
+  await findCommand('pack').run(
+    makeContext('.pack add', {
+      config,
+      store,
+      sock,
+      quotedKind: 'sticker',
+      mimetype: 'image/webp',
+      buffer: staticSticker
+    }).ctx
+  )
+  await findCommand('pack').run(makeContext('.pack done', { config, store, sock }).ctx)
+
+  const final = sock.sent.filter((item) => item.content?.edit && /enviado/i.test(item.content.text))
+  assert.equal(final.length, 1)
+  const slot = 'pack:59891111111@s.whatsapp.net'
+  assert.equal(store.messages.entries('59891111111@s.whatsapp.net', slot).length, 0)
 })
 
 test('.take avisa por chat lo que cambió', async () => {
