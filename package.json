@@ -1,0 +1,39 @@
+{
+  "name": "tomioka-bot",
+  "version": "1.0.0",
+  "description": "Bot de WhatsApp (Baileys) con stickers, packs y menu Tomioka. Compatible con Termux.",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "tomioka-bot": "src/index.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "qr": "node src/index.js --qr",
+    "pair": "node src/index.js --pair",
+    "doctor": "node src/doctor.js",
+    "test": "node --test tests/*.test.js"
+  },
+  "keywords": [
+    "whatsapp",
+    "baileys",
+    "bot",
+    "termux",
+    "stickers"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "@whiskeysockets/baileys": "6.7.24",
+    "node-webpmux": "^3.2.1",
+    "pino": "^9.6.0",
+    "qrcode-terminal": "^0.12.0"
+  },
+  "author": "Tomióka Team",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lyanvalentinmail-prog/TomiOka.git"
+  }
+}

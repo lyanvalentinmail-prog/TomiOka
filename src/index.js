@@ -1,0 +1,129 @@
+#!/usr/bin/env node
+import { existsSync } from 'node:fs'
+import path from 'node:path'
+import { ensureDirs, isValidPhone, loadConfig, normalizePhone } from './config.js'
+import { commands } from './commands/index.js'
+import { startBot } from './connection.js'
+import { resolveFfmpeg } from './lib/ffmpeg.js'
+import { createLogger } from './lib/logger.js'
+import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
+
+const VERSION = '1.0.0'
+
+function parseArgs(argv) {
+  const options = { login: null, phone: '', help: false, version: false, doctor: false }
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i]
+    if (arg === '--qr' || arg === 'qr') options.login = 'qr'
+    else if (arg === '--pair' || arg === '--pairing' || arg === 'pair') options.login = 'pairing'
+    else if (arg === '--phone' || arg === '--numero') {
+      options.phone = argv[i + 1] || ''
+      i += 1
+    } else if (arg.startsWith('--phone=')) options.phone = arg.split('=')[1]
+    else if (arg === '--help' || arg === '-h') options.help = true
+    else if (arg === '--version' || arg === '-v') options.version = true
+    else if (arg === '--doctor' || arg === 'doctor') options.doctor = true
+  }
+  return options
+}
+
+function printHelp() {
+  box(
+    [
+      `${c.bold('TomiOka Bot')} ${c.gray(`v${VERSION}`)}`,
+      '',
+      `${c.bold('Uso')}: npm start [opciones]`,
+      '',
+      `${c.cyan('--pair')}            Vincular con código de vinculación`,
+      `${c.cyan('--qr')}              Vincular con código QR`,
+      `${c.cyan('--phone <numero>')}  Número para el pairing (ej: 59891234567)`,
+      `${c.cyan('--doctor')}          Diagnóstico de FFmpeg y dependencias`,
+      `${c.cyan('-h, --help')}        Esta ayuda`,
+      `${c.cyan('-v, --version')}     Versión`,
+      '',
+      `${c.gray('También puedes editar config.json: login = "ask" | "qr" | "pairing"')}`
+    ],
+    { color: c.cyan }
+  )
+}
+
+async function main() {
+  const options = parseArgs(process.argv.slice(2))
+
+  if (options.version) {
+    console.log(`tomioka-bot v${VERSION}`)
+    return
+  }
+  if (options.help) {
+    printHelp()
+    return
+  }
+
+  const config = loadConfig()
+  if (options.login) config.login = options.login
+  if (options.phone) config.pairingPhone = normalizePhone(options.phone)
+  if (config.pairingPhone && !isValidPhone(config.pairingPhone)) {
+    warn('El número de pairing no parece válido (usa código de país, ejemplo: 59891234567).')
+  }
+
+  const { logger, baileysLogger } = createLogger(
+    config.logging.level || 'info',
+    config.logging.baileys || 'silent'
+  )
+
+  banner({
+    name: config.bot.name,
+    team: config.bot.team,
+    version: config.bot.version,
+    prefix: config.prefixes,
+    login: config.login === 'ask' ? 'preguntar al iniciar' : config.login
+  })
+
+  if (options.doctor) {
+    const { runDoctor } = await import('./doctor.js')
+    await runDoctor({ config })
+    return
+  }
+
+  const major = Number(process.versions.node.split('.')[0])
+  if (major < 20) {
+    warn(`Node.js ${process.versions.node} es antiguo. Este bot usa Node 20 o superior.`)
+  }
+
+  ensureDirs(config)
+  step(`Sesión: ${config.sessionDir}`)
+  step(`Prefijo: ${config.prefixes.join(' ')} · Comandos: ${new Set(commands.values()).size}`)
+
+  const ffmpeg = await resolveFfmpeg()
+  if (ffmpeg) {
+    info(`FFmpeg: ${ffmpeg.version.split(' ').slice(0, 3).join(' ')}${ffmpeg.webp ? '' : c.yellow(' (sin WebP)')}`)
+    if (!ffmpeg.webp) {
+      warn('Tu FFmpeg no tiene el codificador WebP: los stickers no se podrán crear.')
+    }
+  } else {
+    warn('FFmpeg no encontrado. Los comandos de stickers no funcionarán.')
+    warn('En Termux: pkg install ffmpeg')
+  }
+
+  const sessionExists = existsSync(path.join(config.sessionDir, 'creds.json'))
+  if (!sessionExists) {
+    info('No hay sesión guardada: hay que vincular el dispositivo.')
+  }
+
+  await startBot({ config, logger, baileysLogger })
+  info('Bot en ejecución. Presiona Ctrl+C para detenerlo.')
+}
+
+main().catch((error_) => {
+  error(error_?.stack || error_?.message || String(error_))
+  console.error('')
+  console.error(`${sym.err} Revisa la configuración y vuelve a intentarlo.`)
+  process.exit(1)
+})
+
+process.on('unhandledRejection', (reason) => {
+  console.error(`${sym.warn} Promesa rechazada sin manejar:`, reason?.message || reason)
+})
+process.on('uncaughtException', (error_) => {
+  console.error(`${sym.warn} Excepción no capturada:`, error_?.stack || error_)
+})

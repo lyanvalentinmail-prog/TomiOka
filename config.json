@@ -1,0 +1,111 @@
+{
+  "bot": {
+    "name": "@𝐓͠ᨵ꯭꯭ׁׅׅ𝐌𝐈𖣠꙰𝐊𝐀",
+    "team": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆 ࿙💧࿚",
+    "prefix": ".",
+    "version": "1.0",
+    "status": "ᴏɴʟɪɴᴇ",
+    "year": "2026"
+  },
+  "login": "ask",
+  "pairingPhone": "",
+  "owner": {
+    "numbers": [],
+    "allowFromMe": false
+  },
+  "session": {
+    "dir": "sessions"
+  },
+  "stickers": {
+    "packName": "TomiOka",
+    "packAuthor": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆",
+    "size": 512,
+    "fps": 15,
+    "maxAnimatedSeconds": 6.5,
+    "quality": 82,
+    "lossless": false,
+    "maxStaticKB": 100,
+    "maxAnimatedKB": 500,
+    "maxInputMB": 30
+  },
+  "pack": {
+    "maxStickers": 30,
+    "sessionMinutes": 10,
+    "defaultName": "TomiOka Pack",
+    "defaultAuthor": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆",
+    "traySize": 96
+  },
+  "emojimix": {
+    "enabled": true,
+    "metadataUrl": "https://raw.githubusercontent.com/xsalazar/emoji-kitchen-backend/main/app/metadata.json",
+    "cacheFile": "data/emojimix-index.json",
+    "timeoutMs": 180000
+  },
+  "behavior": {
+    "cooldownMs": 2500,
+    "reactToCommands": true,
+    "sendTyping": true,
+    "markOnline": true,
+    "respondInGroups": true,
+    "requirePrefixInDM": true,
+    "replyUnknownCommand": true,
+    "ignoreFromMe": false
+  },
+  "menu": {
+    "image": "",
+    "showDescriptions": true,
+    "showUser": true,
+    "phrases": [
+      "El océano también guarda secretos 🌊",
+      "Un sticker vale más que mil palabras 💧"
+    ],
+    "categories": [
+      {
+        "emoji": "🫧",
+        "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌 𝗒 𝗉𝖺𝖼𝗄𝗌",
+        "kaomoji": "(｡•̀ᴗ-)✧",
+        "divider": [
+          "💧",
+          "🌊"
+        ],
+        "commands": [
+          "sticker",
+          "gif",
+          "steal"
+        ]
+      },
+      {
+        "emoji": "🌀",
+        "description": "𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇 𝖽𝖾 𝖺𝗋𝖼𝗁𝗂𝗏𝗈𝗌",
+        "kaomoji": "(๑˃̵ᴗ˂̵)و",
+        "divider": [
+          "🌊",
+          "💧"
+        ],
+        "commands": [
+          "toimg",
+          "tovideo",
+          "take"
+        ]
+      },
+      {
+        "emoji": "💧",
+        "description": "𝖤𝗑𝗍𝗋𝖺𝗌 𝗒 𝖺𝗒𝗎𝖽𝖺",
+        "kaomoji": "( ੭ ˙ᗜ˙ )੭",
+        "divider": [
+          "🌀",
+          "🌊"
+        ],
+        "commands": [
+          "emojimix",
+          "pack",
+          "help"
+        ]
+      }
+    ]
+  },
+  "logging": {
+    "level": "info",
+    "baileys": "silent"
+  }
+}
