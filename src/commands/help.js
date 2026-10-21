@@ -1,5 +1,11 @@
-import { fetchBuffer } from '../lib/http.js'
+import { loadMenuImage } from '../lib/banner.js'
 import { buildCommandHelp, buildMenu } from '../menu.js'
+
+/**
+ * Límite de texto que WhatsApp acepta como pie de foto.
+ * Si el menú es más largo, la imagen se envía aparte.
+ */
+const CAPTION_LIMIT = 1000
 
 export default {
   name: 'help',
@@ -26,17 +32,20 @@ export default {
       sender: { label: ctx.pushName || ctx.senderNumber, jid: ctx.senderJid }
     })
 
-    if (ctx.config.menu.image) {
-      try {
-        const image = await fetchBuffer(ctx.config.menu.image, { timeoutMs: 20000, retries: 1 })
-        await ctx.sendImage(image, menu)
-        return 'menu con imagen'
-      } catch (error) {
-        ctx.logger?.warn?.(`No se pudo enviar la imagen del menú: ${error.message}`)
+    // Menú con banner (imagen de Drive, URL o archivo local)
+    const banner = await loadMenuImage(ctx.config, { logger: ctx.logger })
+    if (banner) {
+      const asCaption = ctx.config.menu.sendAsCaption !== false
+      if (asCaption && menu.length <= CAPTION_LIMIT) {
+        await ctx.sendImage(banner.buffer, menu)
+        return `menu con imagen (${banner.type}, ${banner.fromCache ? 'caché' : 'descargada'})`
       }
+      await ctx.sendImage(banner.buffer, '')
+      await ctx.reply(menu)
+      return `menu con imagen aparte (${banner.type})`
     }
 
     await ctx.reply(menu)
-    return 'menu'
+    return 'menu (sin imagen)'
   }
 }

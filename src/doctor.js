@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { ensureDirs, loadConfig } from './config.js'
 import { resolveFfmpeg } from './lib/ffmpeg.js'
 import { indexInfo } from './lib/emojimix.js'
+import { driveFileId, loadMenuImage } from './lib/banner.js'
 import { commandList } from './commands/index.js'
 import { box, c, error, info, ok, title, warn } from './lib/ui.js'
 
@@ -107,6 +108,21 @@ export async function runDoctor({ config = loadConfig() } = {}) {
     ok(`catálogo emojimix disponible${emojiIndex.total ? ` (${emojiIndex.total} combinaciones)` : ''}`)
   } else {
     info('catálogo emojimix: se descargará en el primer uso (~95 MB)')
+  }
+
+  // Banner del menú
+  if (config.menu.image) {
+    const id = driveFileId(config.menu.image)
+    info(`banner del menú: ${id ? `Drive (${id})` : config.menu.image}`)
+    const banner = await loadMenuImage(config, {})
+    if (banner) {
+      ok(`  banner disponible (${banner.type}${banner.fromCache ? ', caché' : ', descargado'})`)
+    } else {
+      warn('  no se pudo cargar el banner: el menú irá solo como texto')
+      recommendations.push('Publica el banner en Drive como "cualquiera con el enlace" o usa una ruta local.')
+    }
+  } else {
+    info('banner del menú: sin imagen configurada (menu.image vacío)')
   }
 
   // Config

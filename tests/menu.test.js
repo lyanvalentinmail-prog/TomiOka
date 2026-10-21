@@ -106,3 +106,9 @@ test('commandList no tiene nombres duplicados', () => {
   const names = commandList.map((command) => command.name)
   assert.equal(new Set(names).size, names.length)
 })
+
+test('el menú por defecto usa el banner de Drive configurado', () => {
+  const image = config.menu.image
+  assert.ok(image, 'menu.image debe tener el banner')
+  assert.match(image, /drive\.google\.com\/file\/d\/[\w-]+/)
+})

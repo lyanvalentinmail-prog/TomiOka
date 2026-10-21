@@ -1,5 +1,7 @@
-import { stickerToTray } from '../lib/media.js'
-import { readSticker, writeStickerMetadata } from '../lib/sticker.js'
+import { convertToSticker, stickerToTray } from '../lib/media.js'
+import { extensionFor } from '../lib/message.js'
+import { isAnimatedExtension } from '../lib/ffmpeg.js'
+import { isWebp, readSticker, writeStickerMetadata } from '../lib/sticker.js'
 import { splitNameAuthor } from '../lib/text.js'
 import { createZip } from '../lib/zip.js'
 
@@ -9,6 +11,13 @@ const ADD = new Set(['add', 'agregar', 'añadir', 'anadir', '+'])
 const STATUS = new Set(['status', 'estado', 'info', 'lista', 'list'])
 
 const COUNT_EMOJIS = ['1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟']
+
+const KIND_LABEL = {
+  sticker: 'Sticker',
+  image: 'Foto',
+  video: 'Video',
+  document: 'Archivo'
+}
 
 function safeFileName(name) {
   return (
@@ -21,19 +30,69 @@ function safeFileName(name) {
   )
 }
 
+/** Tipos de media que se pueden agregar al pack según la configuración */
+export function acceptedKinds(config) {
+  const kinds = ['sticker']
+  if (config.pack?.acceptPhotos !== false) kinds.push('image')
+  if (config.pack?.acceptVideos !== false) kinds.push('video')
+  if (config.pack?.acceptPhotos !== false || config.pack?.acceptVideos !== false) {
+    kinds.push('document')
+  }
+  return kinds
+}
+
+export function acceptedKindsMessage(config) {
+  const parts = ['*stickers*']
+  if (config.pack?.acceptPhotos !== false) parts.push('*fotos*')
+  if (config.pack?.acceptVideos !== false) parts.push('*videos* o *GIFs*')
+  return `Envía ${parts.join(', ')} (o responde con *.pack add*).`
+}
+
 function statusMessage(session, config) {
   const max = config.pack.maxStickers
-  const lines = [
+  return [
     '📦 *Pack en curso*',
     `▸ Nombre: *${session.name}*`,
     `▸ Autor: *${session.author}*`,
     `▸ Stickers: *${session.stickers.length}/${max}*`,
-    '',
-    '📥 Envía stickers (o responde con *.pack add*)',
+    acceptedKindsMessage(config),
     `✅ *.pack done* para descargar el ZIP`,
     `🚫 *.pack cancel* para cancelar`
-  ]
-  return lines.join('\n')
+  ].join('\n')
+}
+
+/** Convierte el media recibido en un sticker listo para el pack */
+async function toStickerBuffer(ctx, target) {
+  const buffer = await ctx.download(target)
+
+  if (target.kind === 'sticker' || isWebp(buffer)) {
+    const info = await readSticker(buffer).catch(() => ({ metadata: null, animated: false }))
+    return {
+      buffer,
+      emojis: info.metadata?.emojis || [],
+      converted: false,
+      animated: Boolean(info.animated)
+    }
+  }
+
+  if (target.kind === 'document' && !/^(image|video)\//.test(target.media?.mimetype || '')) {
+    throw new Error('El documento no es una imagen ni un video compatible.')
+  }
+
+  const extension = extensionFor(target.media)
+  const animated =
+    target.kind === 'video' ||
+    isAnimatedExtension(extension) ||
+    String(target.media?.mimetype || '').includes('gif')
+
+  const result = await convertToSticker(buffer, {
+    extension,
+    animated,
+    settings: ctx.config.stickers,
+    logger: ctx.logger
+  })
+
+  return { buffer: result.buffer, emojis: [], converted: true, animated }
 }
 
 async function finishPack(ctx, session) {
@@ -44,7 +103,7 @@ async function finishPack(ctx, session) {
     )
   }
   if (!session.stickers.length) {
-    throw new Error('El pack está vacío. Envía al menos un sticker antes de usar *.pack done*.')
+    throw new Error('El pack está vacío. Envía al menos una foto o un sticker antes de usar *.pack done*.')
   }
 
   await ctx.typing()
@@ -135,37 +194,69 @@ async function finishPack(ctx, session) {
   return `pack "${session.name}" ${stickers.length} stickers ${Math.round(zip.length / 1024)}KB`
 }
 
-async function addStickerToSession(ctx, session, { silent = false } = {}) {
+/**
+ * Agrega al pack el media del mensaje (o del citado).
+ * Acepta stickers tal cual y convierte fotos / videos / GIFs a sticker.
+ */
+async function addMediaToSession(ctx, session, { silent = false } = {}) {
+  if (!session) throw new Error('No hay una sesión de pack activa.')
+
+  const kinds = acceptedKinds(ctx.config)
   const target = ctx.requireMedia(
-    ['sticker'],
-    'Responde a un *sticker* (o envíalo) para agregarlo al pack.'
+    kinds,
+    'Envía una *foto*, *video*, *GIF* o *sticker* para agregarlo al pack (o responde a uno con *.pack add*).'
   )
-  const buffer = await ctx.download(target)
-  const info = await readSticker(buffer).catch(() => ({ metadata: null }))
+
+  const max = ctx.config.pack.maxStickers
+  if (session.stickers.length >= max) {
+    throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para descargarlo.`)
+  }
+
+  const isSticker = target.kind === 'sticker'
+  if (!isSticker && !silent) await ctx.typing('composing')
+  if (!isSticker && silent) await ctx.react('⏳')
+
+  const converted = await toStickerBuffer(ctx, target)
   const result = ctx.store.packs.add(session, {
-    buffer,
-    emojis: info.metadata?.emojis || [],
+    buffer: converted.buffer,
+    emojis: converted.emojis,
+    animated: converted.animated,
+    kind: target.kind,
     addedAt: Date.now()
   })
 
   if (!result.ok) {
     if (result.reason === 'lleno') {
-      throw new Error(
-        `El pack llegó al máximo de *${ctx.config.pack.maxStickers}* stickers. Usa *.pack done* para descargarlo.`
-      )
+      throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para descargarlo.`)
     }
     throw new Error('No hay una sesión de pack activa.')
   }
 
   const count = result.count
+  const label = KIND_LABEL[target.kind] || 'Sticker'
+  const extra = count === max ? `\n🎉 ¡Completaste los *${max}* stickers! Envía *.pack done* para descargar el pack.` : ''
+
   if (!silent || count === 1) {
     await ctx.reply(
-      `📥 Sticker *${count}/${ctx.config.pack.maxStickers}* agregado a *${session.name}*.\n` +
-        `Cuando termines: *.pack done* · cancelar: *.pack cancel*`
+      `📥 ${label} *${count}/${max}* agregada a *${session.name}*` +
+        `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
+        `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
     )
   } else {
     await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '📥')
+    if (count === max) {
+      await ctx.reply(
+        `🎉 *${max}/${max}* stickers en *${session.name}*. Envía *.pack done* para descargar el pack.`
+      )
+    }
   }
+
+  // Descarga automática opcional: pack.autoDoneAfter = N (> 0)
+  const autoDoneAfter = Number(ctx.config.pack.autoDoneAfter) || 0
+  if (autoDoneAfter > 0 && count >= autoDoneAfter) {
+    await finishPack(ctx, session)
+  }
+
   return count
 }
 
@@ -174,8 +265,8 @@ const command = {
   aliases: ['packsticker', 'stickerpack', 'packdone'],
   category: 'extras',
   description: 'Crear un paquete de stickers.',
-  usage: '.pack Nombre | Autor · .pack add · .pack done · .pack cancel',
-  examples: ['.pack Olas del mar | Tomi', '.pack done'],
+  usage: '.pack Nombre | Autor · envía fotos o stickers · .pack done · .pack cancel',
+  examples: ['.pack Olas del mar | Tomi', '(envía 3 fotos)', '.pack done'],
   async run(ctx) {
     const config = ctx.config
     const first = (ctx.args[0] || '').toLowerCase()
@@ -194,7 +285,7 @@ const command = {
 
     if (ADD.has(first)) {
       if (!session) throw new Error('Primero inicia un pack con *.pack Nombre | Autor*.')
-      await addStickerToSession(ctx, session)
+      await addMediaToSession(ctx, session)
       return 'pack add'
     }
 
@@ -204,10 +295,17 @@ const command = {
       return 'pack status'
     }
 
+    const hasMedia = Boolean(ctx.mediaTarget) && acceptedKinds(config).includes(ctx.mediaTarget.kind)
+
+    // ".pack" como pie de foto/video: inicia (o usa) el pack y agrega esa foto
     if (session) {
+      if (hasMedia) {
+        return addMediaToSession(ctx, session).then((count) => `pack + media (${count})`)
+      }
       await ctx.reply(
-        `⚠️ Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n\n` +
-          `✅ *.pack done* para descargarlo\n🚫 *.pack cancel* para descartarlo\n📥 envía stickers para agregarlos`
+        `⚠️ Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n` +
+          `✅ *.pack done* para descargarlo · 🚫 *.pack cancel* para descartarlo\n` +
+          acceptedKindsMessage(config)
       )
       return 'pack en curso'
     }
@@ -230,29 +328,49 @@ const command = {
         '📦 *Nuevo pack iniciado*',
         `▸ Nombre: *${name}*`,
         `▸ Autor: *${author}*`,
-        '',
-        '1. Envía los stickers que quieras incluir (o responde con *.pack add*)',
-        `2. Máximo *${config.pack.maxStickers}* stickers`,
-        '3. Termina con *.pack done* y recibirás el archivo *.wasticker*',
-        '',
+        acceptedKindsMessage(config),
+        `Máximo *${config.pack.maxStickers}* stickers.`,
+        'Termina con *.pack done* y recibirás el archivo *.wasticker*.',
         `_La sesión expira en ${config.pack.sessionMinutes} minutos de inactividad._`
       ].join('\n')
     )
+
+    // Si el comando vino como pie de foto/video, esa imagen ya entra al pack
+    if (hasMedia) {
+      const count = await addMediaToSession(ctx, created)
+      return `pack iniciado "${created.name}" con ${count} medio(s)`
+    }
+
     return `pack iniciado "${created.name}"`
   },
 
-  /** Se llama desde el handler cuando llega un sticker con una sesión activa */
-  async onSticker(ctx) {
+  /**
+   * Se llama desde el handler cuando llega una foto, video, GIF o sticker
+   * y el usuario tiene un pack en curso.
+   * @returns {Promise<boolean>} true si el mensaje fue consumido
+   */
+  async onMedia(ctx) {
     const session = ctx.store.packs.findByChat(ctx.chatJid, ctx.senderJid)
     if (!session) return false
+
+    const target = ctx.mediaTarget
+    if (!target) return false
+    if (!acceptedKinds(ctx.config).includes(target.kind)) return false
+
     try {
-      await addStickerToSession(ctx, session, { silent: true })
+      await addMediaToSession(ctx, session, { silent: true })
     } catch (error) {
       ctx.logger?.warn?.(`Auto-add al pack falló: ${error.message}`)
+      await ctx.reply(`❌ No se pudo agregar al pack: ${error.message}`).catch(() => {})
     }
     return true
+  },
+
+  /** Compatibilidad con la versión anterior */
+  async onSticker(ctx) {
+    return command.onMedia(ctx)
   }
 }
 
 export default command
-export { finishPack, statusMessage }
+export { finishPack, statusMessage, addMediaToSession, toStickerBuffer }

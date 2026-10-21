@@ -35,7 +35,10 @@ export const DEFAULTS = {
     sessionMinutes: 10,
     defaultName: 'TomiOka Pack',
     defaultAuthor: '◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆',
-    traySize: 96
+    traySize: 96,
+    acceptPhotos: true, // las fotos se convierten en sticker al vuelo
+    acceptVideos: true, // los videos/GIF se convierten en sticker animado
+    autoDoneAfter: 0 // 0 = solo con .pack done
   },
   emojimix: {
     enabled: true,
@@ -55,7 +58,10 @@ export const DEFAULTS = {
     ignoreFromMe: false
   },
   menu: {
-    image: '',
+    image: '', // URL (Drive incluido), ruta local o data URI del banner
+    imageCacheMinutes: 720,
+    imageTimeoutMs: 25000,
+    sendAsCaption: true, // manda el menú como pie de foto del banner
     showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],

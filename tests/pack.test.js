@@ -167,3 +167,122 @@ test('finishPack incluye la vista previa si hay FFmpeg', async (t) => {
   assert.equal(entries.get(pack.tray_image_file).subarray(1, 4).toString('ascii'), 'PNG')
   store.packs.destroy()
 })
+
+test('acceptedKinds incluye fotos y videos según la configuración', async () => {
+  const { acceptedKinds } = await import('../src/commands/pack.js')
+  const config = testConfig()
+  assert.deepEqual(acceptedKinds(config), ['sticker', 'image', 'video', 'document'])
+
+  const soloStickers = testConfig({ pack: { acceptPhotos: false, acceptVideos: false } })
+  assert.deepEqual(acceptedKinds(soloStickers), ['sticker'])
+})
+
+test('.pack accepta una foto y la convierte en sticker', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const { addMediaToSession } = await import('../src/commands/pack.js')
+  const { createStore } = await import('../src/handler.js')
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const image = await readFile(path.join(here, 'fixtures/sample.png'))
+
+  const base = fakeContext(config, store)
+  const session = store.packs.start({
+    chatJid: base.chatJid,
+    senderJid: base.senderJid,
+    name: 'Fotos',
+    author: 'Tomi'
+  })
+
+  const ctx = {
+    ...base,
+    mediaTarget: { kind: 'image', type: 'imageMessage', media: { mimetype: 'image/png' } },
+    requireMedia() {
+      return this.mediaTarget
+    },
+    async download() {
+      return image
+    }
+  }
+
+  const count = await addMediaToSession(ctx, session, { silent: true })
+  assert.equal(count, 1)
+  assert.equal(session.stickers.length, 1)
+  const info = await readSticker(session.stickers[0].buffer)
+  assert.equal(info.width, 512)
+  assert.equal(info.animated, false)
+  store.packs.destroy()
+})
+
+test('un pack con fotos genera el .wasticker con varios stickers', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const { addMediaToSession } = await import('../src/commands/pack.js')
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const base = fakeContext(config, store)
+  const session = store.packs.start({
+    chatJid: base.chatJid,
+    senderJid: base.senderJid,
+    name: 'Tres fotos',
+    author: 'Tomi'
+  })
+
+  for (const fixture of ['sample.png', 'sample.png', 'sample.png']) {
+    const image = await readFile(path.join(here, 'fixtures', fixture))
+    const ctx = {
+      ...base,
+      mediaTarget: { kind: 'image', type: 'imageMessage', media: { mimetype: 'image/png' } },
+      requireMedia() {
+        return this.mediaTarget
+      },
+      async download() {
+        return image
+      }
+    }
+    await addMediaToSession(ctx, session, { silent: true })
+  }
+
+  assert.equal(session.stickers.length, 3)
+  await finishPack(base, session)
+  const doc = base.output.documents[0]
+  const entries = readZipEntries(doc.buffer)
+  const contents = JSON.parse(entries.get('contents.json').toString('utf8'))
+  assert.equal(contents.sticker_packs[0].stickers.length, 3)
+  for (const sticker of contents.sticker_packs[0].stickers) {
+    assert.ok(entries.has(sticker.image_file))
+  }
+  store.packs.destroy()
+})
+
+test('.pack como pie de foto inicia el pack y agrega esa foto', async (t) => {
+  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
+  const image = await readFile(path.join(here, 'fixtures', 'sample.png'))
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const base = fakeContext(config, store)
+
+  const ctx = {
+    ...base,
+    args: [],
+    argsText: 'Gatitos | Tomi',
+    command: 'pack',
+    mediaTarget: { kind: 'image', type: 'imageMessage', media: { mimetype: 'image/png' } },
+    requireMedia() {
+      return this.mediaTarget
+    },
+    async download() {
+      return image
+    }
+  }
+
+  const { default: pack } = await import('../src/commands/pack.js')
+  await pack.run(ctx)
+  const session = store.packs.findByChat(ctx.chatJid, ctx.senderJid)
+  assert.ok(session, 'la sesión existe')
+  assert.equal(session.stickers.length, 1, 'la foto del caption entra al pack')
+  assert.equal(session.name, 'Gatitos')
+
+  // Otra foto con el mismo pie agrega al pack existente en lugar de fallar
+  await pack.run(ctx)
+  assert.equal(store.packs.findByChat(ctx.chatJid, ctx.senderJid).stickers.length, 2)
+  store.packs.destroy()
+})

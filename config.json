@@ -33,7 +33,10 @@
     "sessionMinutes": 10,
     "defaultName": "TomiOka Pack",
     "defaultAuthor": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆",
-    "traySize": 96
+    "traySize": 96,
+    "acceptPhotos": true,
+    "acceptVideos": true,
+    "autoDoneAfter": 0
   },
   "emojimix": {
     "enabled": true,
@@ -52,7 +55,7 @@
     "ignoreFromMe": false
   },
   "menu": {
-    "image": "",
+    "image": "https://drive.google.com/file/d/1dt870fo7a7X2DRsqY1DiK55NDKKA5JOV/view?usp=drivesdk",
     "showDescriptions": false,
     "showUser": true,
     "phrases": [
@@ -70,7 +73,10 @@
         ],
         "commands": []
       }
-    ]
+    ],
+    "imageCacheMinutes": 720,
+    "imageTimeoutMs": 25000,
+    "sendAsCaption": true
   },
   "logging": {
     "level": "info",

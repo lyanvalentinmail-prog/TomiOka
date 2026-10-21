@@ -9,8 +9,8 @@ const SEPARATOR = `${FILLER}${FILLER}࿚ׄ࿙ֹ࿚᮫᜔۬፟֟࿙ֹ࿚ׄ࿙`
  * (o la lista está vacía) se muestran TODOS los comandos registrados.
  * @returns {Array<object>} comandos sin duplicados y en orden de registro
  */
-export function resolveCategoryCommands(category, commands) {
-  const all = [...new Set(commands.values())]
+export function resolveCategoryCommands(category, commands = new Map()) {
+  const all = [...new Set((commands ?? new Map()).values())]
   const wanted = Array.isArray(category?.commands) ? category.commands.filter(Boolean) : []
   if (!wanted.length) return all
 
@@ -99,7 +99,7 @@ function footer({ config }) {
  * agrupados en las categorías definidas en config.json.
  * @param {{config:object, commands:Map<string,object>, sender?:{label?:string, jid?:string}}} options
  */
-export function buildMenu({ config, commands, sender = {} }) {
+export function buildMenu({ config, commands = new Map(), sender = {} }) {
   const categories = config.menu.categories?.length
     ? config.menu.categories
     : [{ emoji: '🌊', description: '𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌', kaomoji: '( ᵕ ᵗ ᵕ )', commands: [] }]
