@@ -1,8 +1,9 @@
-import { existsSync } from 'node:fs'
 import path from 'node:path'
 import { resolveFfmpeg, selfTestFfmpeg } from '../lib/ffmpeg.js'
 import { tempInfo, canWrite } from '../lib/tmp.js'
 import { indexInfo } from '../lib/emojimix.js'
+import { describeSession, inspectSession } from '../lib/session.js'
+import { auditSticker } from '../lib/sticker.js'
 import { loadMenuImage } from '../lib/banner.js'
 import { truncate } from '../lib/text.js'
 import { commandList, visibleCommands } from './index.js'
@@ -27,6 +28,7 @@ export default {
     const config = ctx.config
     const info = await resolveFfmpeg()
     const temp = tempInfo()
+    const session = inspectSession(config.sessionDir)
     const tempOk = await canWrite(path.join(config.paths.data, 'tmp'))
 
     const lines = [
@@ -37,7 +39,7 @@ export default {
       `▸ WebP animado: ${info ? yes(info.webpAnim) : '❌'}`,
       `▸ Carpeta temporal: ${temp.base ? truncate(temp.base, 40) : 'no disponible'} ${yes(Boolean(temp.base))}`,
       `▸ data/tmp escribible: ${yes(tempOk)}`,
-      `▸ Sesión: ${yes(existsSync(path.join(config.sessionDir, 'creds.json')))}`,
+      `▸ Sesión: ${yes(session.valid)} ${describeSession(session)}`,
       `▸ Prefijo: ${config.prefixes.join(' ')} · Comandos: ${visibleCommands.length}`,
       `▸ Packs activos: ${ctx.store?.packs?.size ?? 0}`
     ]
@@ -60,6 +62,18 @@ export default {
       if (!step.ok && step.error) lines.push(`   ⚠️ ${truncate(step.error, 120)}`)
     }
     if (test.hint) lines.push(`💡 ${test.hint}`)
+
+    // Auditoría del WebP generado (transparencia + animación)
+    const audit = test.sticker ? auditSticker(test.sticker) : null
+    if (audit) {
+      lines.push(
+        '',
+        `🧩 *Sticker de prueba*: ${audit.valid ? '✅ válido' : '❌ inválido'} · ` +
+          `${audit.info.width}×${audit.info.height} · ${audit.info.frameCount} cuadros · ` +
+          `${audit.info.hasAlpha ? 'con alfa' : 'SIN alfa'}`
+      )
+      for (const issue of audit.issues) lines.push(`   ❌ ${issue}`)
+    }
 
     await ctx.reply(lines.join('\n'))
     return `debug ${test.ok ? 'ok' : 'con fallas'}`

@@ -24,7 +24,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (88 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (153 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -94,6 +94,10 @@ npm start
 
 La primera vez no existe sesión, así que el bot pregunta cómo vincular.
 
+> ♻️ **Si ya hay sesión guardada, el bot conecta solo**: no pregunta nada, no muestra QR
+> ni pide código. Esto es lo normal en Termux: cerrás la terminal, volvés a `npm start`
+> y el bot vuelve a entrar con la sesión de `sessions/`.
+
 ### Opción A · Pairing code (recomendado)
 
 ```bash
@@ -123,8 +127,14 @@ Escanea el QR de la terminal con **WhatsApp → Dispositivos vinculados → Vinc
 ### Sesión guardada
 
 - Las credenciales quedan en `sessions/` (ignorada por Git).
-- Para desvincular: borra la carpeta `rm -rf sessions` y vuelve a iniciar.
-- Si WhatsApp cierra la sesión (logout), el bot borra `sessions/` automáticamente y pide re-vincular.
+- Al arrancar, el bot revisa `sessions/creds.json`:
+  - **válida** → conecta automáticamente (ignora `--qr`, `--pair` y `login` de `config.json`);
+  - **inválida o dañada** → la mueve a `sessions.invalid-<fecha>/` (no se pierde nada) y pide vincular de nuevo;
+  - **no existe** → pregunta cómo vincular.
+- Para desvincular: `npm start -- --relink` (mueve la sesión a un respaldo y vuelve a pedir vinculación)
+  o directamente `rm -rf sessions`.
+- Si WhatsApp cierra la sesión (logout desde el teléfono), el bot lo detecta, avisa y pide re-vincular.
+- El comando `.debug` muestra el estado de la sesión y audita un sticker de prueba (alfa, cuadros, tamaño).
 
 ---
 
@@ -276,7 +286,7 @@ El archivo `.wasticker` se puede importar con apps de packs de stickers (por eje
 TomiOka/
 ├── config.json              # configuración del bot y del menú
 ├── src/
-│   ├── index.js             # entrada + CLI (--pair, --qr, --phone, --doctor)
+│   ├── index.js             # entrada + CLI (--pair, --qr, --phone, --relink, --doctor)
 │   ├── connection.js        # Baileys, pairing/QR, reconexión
 │   ├── handler.js           # enrutado de mensajes, cooldowns, errores
 │   ├── menu.js              # menú aesthetic y ayuda por comando
@@ -287,6 +297,8 @@ TomiOka/
 │   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
+│   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
+│   │   ├── session.js       # detecta/valida/respalda la sesión guardada
 │   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
 │   │   ├── tmp.js           # carpetas temporales con respaldo para Termux
 │   │   ├── emojimix.js      # catálogo Emoji Kitchen con caché
@@ -299,7 +311,7 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (133 pruebas)
+├── tests/                   # node --test (153 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -309,7 +321,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 133 pruebas (menú, banner, ZIP, stickers, packs, pipeline, handler)
+npm test           # 153 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
@@ -380,6 +392,8 @@ npm run emojimix:sync
 | `.take`/`.steal` con una foto dicen "Bad header" | Versión anterior: ahora aceptan fotos y videos y los convierten antes |
 | Todo lo que usa FFmpeg falla en Termux | `TMPDIR` inválido: el bot usa `data/tmp` como respaldo; verifica con `.debug` o `npm run selftest` |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
+| Los stickers salían con fondo negro o cortados | Corregido: los metadatos se escriben sin re-muxear, así que el sticker mantiene la transparencia y todos los cuadros del GIF/video |
+| Antes pedía código/QR aunque ya había sesión | Corregido: ahora detecta `sessions/creds.json`, conecta solo y respalda la sesión si está dañada |
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |
 | `.help` llega sin la imagen del banner | El archivo de Drive debe ser público ("cualquiera con el enlace"); revisa `npm run doctor`. También puedes usar una ruta local: `"image": "banner.jpg"` |
 | Cambié el banner y sigue el viejo | Pon `"imageCacheMinutes": 0` o borra `data/cache/menu-image-*` |

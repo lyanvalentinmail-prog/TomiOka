@@ -8,6 +8,8 @@
 import { loadConfig } from '../src/config.js'
 import { getFfmpegInfo, resolveFfmpeg, selfTestFfmpeg } from '../src/lib/ffmpeg.js'
 import { tempInfo } from '../src/lib/tmp.js'
+import { auditSticker } from '../src/lib/webp.js'
+import { describeSession, inspectSession } from '../src/lib/session.js'
 import { c, sym } from '../src/lib/colors.js'
 
 const config = loadConfig()
@@ -40,6 +42,16 @@ if (!info) {
   console.log('')
 }
 
+const session = inspectSession(config.paths.session)
+console.log(c.bold('Sesión'))
+console.log(`   ${describeSession(session)}`)
+console.log(
+  session.valid
+    ? c.gray('   → al iniciar conecta sola, sin código ni QR')
+    : c.gray('   → al iniciar habrá que vincular el dispositivo')
+)
+console.log('')
+
 console.log(c.bold('Pruebas reales de conversión'))
 const test = await selfTestFfmpeg({ logger: { warn() {}, debug() {}, info() {}, error() {} } })
 
@@ -48,6 +60,18 @@ for (const step of test.steps) {
   const time = step.ms !== undefined ? c.gray(` (${step.ms} ms)`) : ''
   console.log(`   ${icon} ${step.name}${time}`)
   if (!step.ok && step.error) console.log(`      ${c.red(step.error)}`)
+}
+
+if (test.sticker) {
+  const audit = auditSticker(test.sticker)
+  const icon = audit.valid ? c.green('✔') : c.red('✖')
+  console.log('')
+  console.log(c.bold('Sticker final (con metadatos)'))
+  console.log(
+    `   ${icon} ${audit.info.width}×${audit.info.height} · ${audit.info.frameCount} cuadros · ` +
+      `${audit.info.hasAlpha ? 'alfa OK' : 'alfa: no aplica'} · ${audit.info.bytes} bytes`
+  )
+  for (const issue of audit.issues) console.log(`      ${c.red(issue)}`)
 }
 
 console.log('')

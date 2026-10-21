@@ -1,7 +1,6 @@
 #!/usr/bin/env node
-import { existsSync } from 'node:fs'
-import path from 'node:path'
 import { ensureDirs, isValidPhone, loadConfig, normalizePhone } from './config.js'
+import { describeSession, inspectSession } from './lib/session.js'
 import { loadMenuImage } from './lib/banner.js'
 import { commands } from './commands/index.js'
 import { startBot } from './connection.js'
@@ -13,7 +12,7 @@ import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
 const VERSION = '1.0.0'
 
 function parseArgs(argv) {
-  const options = { login: null, phone: '', help: false, version: false, doctor: false }
+  const options = { login: null, phone: '', help: false, version: false, doctor: false, relink: false }
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i]
     if (arg === '--qr' || arg === 'qr') options.login = 'qr'
@@ -25,6 +24,7 @@ function parseArgs(argv) {
     else if (arg === '--help' || arg === '-h') options.help = true
     else if (arg === '--version' || arg === '-v') options.version = true
     else if (arg === '--doctor' || arg === 'doctor') options.doctor = true
+    else if (arg === '--relink' || arg === '--revincular') options.relink = true
   }
   return options
 }
@@ -39,6 +39,7 @@ function printHelp() {
       `${c.cyan('--pair')}            Vincular con código de vinculación`,
       `${c.cyan('--qr')}              Vincular con código QR`,
       `${c.cyan('--phone <numero>')}  Número para el pairing (ej: 59891234567)`,
+      `${c.cyan('--relink')}          Olvida la sesión guardada y vincula de nuevo`,
       `${c.cyan('--doctor')}          Diagnóstico de FFmpeg y dependencias`,
       `${c.cyan('-h, --help')}        Esta ayuda`,
       `${c.cyan('-v, --version')}     Versión`,
@@ -63,6 +64,7 @@ async function main() {
 
   const config = loadConfig()
   if (options.login) config.login = options.login
+  if (options.relink) config.relink = true
   if (options.phone) config.pairingPhone = normalizePhone(options.phone)
   if (config.pairingPhone && !isValidPhone(config.pairingPhone)) {
     warn('El número de pairing no parece válido (usa código de país, ejemplo: 59891234567).')
@@ -137,8 +139,11 @@ async function main() {
       .catch((error_) => warn(`Banner del menú: ${error_.message}`))
   }
 
-  const sessionExists = existsSync(path.join(config.sessionDir, 'creds.json'))
-  if (!sessionExists) {
+  const session = inspectSession(config.sessionDir)
+  if (session.valid) {
+    // El mensaje definitivo lo da connection.js al conectar.
+    step(`Sesión: ${describeSession(session)}`)
+  } else if (!session.hasCreds) {
     info('No hay sesión guardada: hay que vincular el dispositivo.')
   }
 

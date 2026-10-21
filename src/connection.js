@@ -12,6 +12,7 @@ import { isValidPhone, normalizePhone } from './config.js'
 import { commands } from './commands/index.js'
 import { createStore, createUpsertHandler } from './handler.js'
 import { ask, choose, isInteractive } from './lib/prompt.js'
+import { backupSession, describeSession, inspectSession } from './lib/session.js'
 import { c, sym } from './lib/colors.js'
 import { box, error, info, ok, pairCode, raw, step, warn } from './lib/ui.js'
 
@@ -84,14 +85,40 @@ export async function startBot({ config, logger, baileysLogger }) {
   let registered = false
   let lastQr = null
   let mode = 'qr'
+  let modeChosen = false // true cuando ya se decidió pairing/QR
 
-  // ¿Ya hay sesión vinculada? Entonces no preguntamos nada.
-  const peek = await useMultiFileAuthState(config.sessionDir)
-  registered = Boolean(peek.creds?.registered)
+  // ¿Ya hay sesión? En Termux lo normal es reabrir el bot y que entre solo:
+  // no se pregunta nada, no se muestra QR y los flags --qr/--pair se ignoran.
+  const session = inspectSession(config.sessionDir)
+  registered = session.valid
 
-  if (!registered) {
+  if (config.relink && session.exists) {
+    const backup = backupSession(config.sessionDir)
+    registered = false
+    warn(
+      backup
+        ? `Se olvidó la sesión anterior (respaldo en ${backup}). Hay que vincular de nuevo.`
+        : 'Se pidió --relink pero no se pudo mover la sesión anterior.'
+    )
+  } else if (session.valid) {
+    ok(`Sesión encontrada: ${describeSession(session)}`)
+    step('Conectando automáticamente, sin pedir código ni mostrar QR...')
+  } else if (session.hasCreds) {
+    warn(`La sesión guardada no sirve (${session.reason}).`)
+    const backup = backupSession(config.sessionDir)
+    if (backup) warn(`Se guardó una copia en ${backup} y se pedirá vincular de nuevo.`)
+  }
+
+  if (registered && (config.login === 'pairing' || config.login === 'qr')) {
+    info(`Se ignora el método de vinculación (${config.login}) porque ya hay una sesión activa.`)
+  }
+
+  async function ensureLoginMode() {
+    if (modeChosen) return mode
     mode = await resolveLoginMode(config)
+    modeChosen = true
     step(`Método de vinculación: ${c.bold(mode === 'pairing' ? 'pairing code' : 'QR code')}`)
+    return mode
   }
 
   async function requestPairing() {
@@ -125,26 +152,40 @@ export async function startBot({ config, logger, baileysLogger }) {
   async function handleConnectionUpdate(update) {
     const { connection, lastDisconnect, qr } = update
 
+    if (qr && registered) {
+      // Había credenciales pero WhatsApp pidió QR: la sesión ya no vale.
+      registered = false
+      warn('La sesión guardada expiró o fue cerrada desde el teléfono: hay que vincular de nuevo.')
+    }
+
     if (qr) {
       lastQr = qr
-      if (mode === 'pairing' && !registered) await requestPairing()
-      else printQr(qr)
+      // Si ya hay sesión válida, nunca se muestra QR ni se pide pairing.
+      if (!registered) {
+        await ensureLoginMode()
+        if (mode === 'pairing') await requestPairing()
+        else printQr(qr)
+      }
     }
 
     if (connection === 'connecting') {
       logger.debug('conectando a WhatsApp...')
-      if (mode === 'pairing' && !registered && !pairingRequested) {
+      if (!registered && modeChosen && mode === 'pairing' && !pairingRequested) {
         setTimeout(() => requestPairing().catch(() => {}), 2000)
       }
     }
 
     if (connection === 'open') {
+      const wasRegistered = registered
       attempts = 0
       pairingRequested = false
       registered = true
       lastQr = null
       const me = sock.user
-      ok(`Conectado como ${me?.name || 'bot'} (${me?.id?.split('@')[0]})`)
+      ok(
+        `${wasRegistered ? 'Sesión restaurada' : 'Vinculación completada'} como ` +
+          `${me?.name || 'bot'} (${me?.id?.split('@')[0]})`
+      )
       box(
         [
           `${sym.wave} ${c.bold(config.bot.name)}`,
@@ -242,7 +283,9 @@ export async function startBot({ config, logger, baileysLogger }) {
       return result
     }
 
-    sock.ev.on('creds.update', saveCreds)
+    sock.ev.on('creds.update', () => {
+      saveCreds().catch((error_) => logger.debug?.(`No se pudieron guardar las credenciales: ${error_.message}`))
+    })
     sock.ev.on('connection.update', (update) => {
       handleConnectionUpdate(update).catch((error_) => {
         error(`Error en connection.update: ${error_.message}`)
