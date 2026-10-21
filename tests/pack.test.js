@@ -7,7 +7,7 @@ import { PackStore } from '../src/lib/sessions.js'
 import { finishPack } from '../src/commands/pack.js'
 import { createStore } from '../src/handler.js'
 import { readSticker } from '../src/lib/sticker.js'
-import { ffmpegAvailable, silentLogger, testConfig } from './helpers.js'
+import { fakeSock, ffmpegAvailable, silentLogger, testConfig, withLiveMessages } from './helpers.js'
 
 const here = path.dirname(fileURLToPath(import.meta.url))
 const animatedSticker = await readFile(path.join(here, 'fixtures/sticker-anim.webp'))
@@ -33,7 +33,7 @@ function readZipEntries(buffer) {
 
 function fakeContext(config, store) {
   const output = { documents: [], replies: [] }
-  return {
+  const ctx = {
     output,
     config,
     store,
@@ -49,6 +49,7 @@ function fakeContext(config, store) {
       output.documents.push({ buffer, fileName, mimetype, caption })
     }
   }
+  return withLiveMessages(ctx, fakeSock())
 }
 
 test('PackStore inicia, agrega y cierra sesiones', () => {

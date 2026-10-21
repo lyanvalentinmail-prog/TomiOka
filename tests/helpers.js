@@ -1,5 +1,6 @@
 import { loadConfig } from '../src/config.js'
 import { resolveFfmpeg } from '../src/lib/ffmpeg.js'
+import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../src/lib/live-messages.js'
 
 export function testConfig(overrides = {}) {
   const config = loadConfig()
@@ -44,6 +45,19 @@ export function fakeSock() {
       throw new Error('no soportado en tests')
     }
   }
+}
+
+/**
+ * Agrega a un contexto de prueba los helpers de mensajes "vivos"
+ * (editar el menú / el progreso del pack en vez de mandar otro mensaje).
+ */
+export function withLiveMessages(ctx, sock) {
+  if (sock) ctx.sock = sock
+  ctx.rememberLive = (slot, sent) => ctx.store?.messages?.remember(ctx.chatJid, slot, sent) || []
+  ctx.sendLive = (slot, text, options) => sendLiveMessage(ctx, slot, text, options)
+  ctx.retireLive = (slot, text) => retireLiveMessages(ctx, slot, text)
+  ctx.finishLive = (slot, text) => finishLiveMessage(ctx, slot, text)
+  return ctx
 }
 
 /** Solo los mensajes de texto enviados (ignora reacciones) */

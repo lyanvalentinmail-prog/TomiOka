@@ -1,4 +1,5 @@
 import { loadMenuImage } from '../lib/banner.js'
+import { RETIRED_MENU_TEXT } from '../lib/live-messages.js'
 import { buildCommandHelp, buildMenu } from '../menu.js'
 
 /**
@@ -26,6 +27,10 @@ export default {
       return `help ${command.name}`
     }
 
+    // El menú anterior queda como "Menu eliminado." (editado o borrado) para
+    // que no se acumulen menús viejos en el chat.
+    await ctx.retireLive('menu', RETIRED_MENU_TEXT)
+
     const menu = buildMenu({
       config: ctx.config,
       commands: ctx.commands,
@@ -37,15 +42,18 @@ export default {
     if (banner) {
       const asCaption = ctx.config.menu.sendAsCaption !== false
       if (asCaption && menu.length <= CAPTION_LIMIT) {
-        await ctx.sendImage(banner.buffer, menu)
+        const sent = await ctx.sendImage(banner.buffer, menu)
+        ctx.rememberLive('menu', sent)
         return `menu con imagen (${banner.type}, ${banner.fromCache ? 'caché' : 'descargada'})`
       }
-      await ctx.sendImage(banner.buffer, '')
-      await ctx.reply(menu)
+      const image = await ctx.sendImage(banner.buffer, '')
+      const text = await ctx.reply(menu)
+      ctx.rememberLive('menu', [image, text])
       return `menu con imagen aparte (${banner.type})`
     }
 
-    await ctx.reply(menu)
+    const sent = await ctx.reply(menu)
+    ctx.rememberLive('menu', sent)
     return 'menu (sin imagen)'
   }
 }

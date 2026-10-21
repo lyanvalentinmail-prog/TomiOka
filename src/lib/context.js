@@ -1,6 +1,7 @@
 import { getContent, getMediaContent, getQuoted, getText, downloadMedia, resolveMediaTarget } from './message.js'
 import { parseCommand, jidToNumber, truncate } from './text.js'
 import { writeStickerMetadata } from './sticker.js'
+import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from './live-messages.js'
 
 /**
  * Contexto de un mensaje recibido. Expone helpers cómodos para los comandos.
@@ -157,6 +158,29 @@ export class CommandContext {
       { video: buffer, caption, ...options },
       { quoted: this.msg }
     )
+  }
+
+  /**
+   * Guarda la key de un mensaje enviado en una ranura (para poder editarlo o
+   * retirarlo después).
+   */
+  rememberLive(slot, sent) {
+    return this.store?.messages?.remember(this.chatJid, slot, sent) || []
+  }
+
+  /** Edita el mensaje de la ranura o manda uno nuevo si no hay */
+  sendLive(slot, text, options = {}) {
+    return sendLiveMessage(this, slot, text, options)
+  }
+
+  /** Deja los mensajes de la ranura como "Menu eliminado." (o los elimina) */
+  retireLive(slot, text) {
+    return retireLiveMessages(this, slot, text)
+  }
+
+  /** Cierra la ranura con un texto final */
+  finishLive(slot, text) {
+    return finishLiveMessage(this, slot, text)
   }
 
   async sendDocument(buffer, fileName, mimetype = 'application/octet-stream', caption = '') {

@@ -23,7 +23,9 @@ export default {
   usage: '.debug',
   examples: ['.debug'],
   async run(ctx) {
-    await ctx.reply('🩺 Ejecutando diagnóstico... puede tardar unos segundos.')
+    // El mensaje de "ejecutando" se edita con el resultado (no se duplica).
+    const progress = await ctx.reply('🩺 Ejecutando diagnóstico... puede tardar unos segundos.')
+    ctx.rememberLive('debug', progress)
 
     const config = ctx.config
     const info = await resolveFfmpeg()
@@ -75,7 +77,7 @@ export default {
       for (const issue of audit.issues) lines.push(`   ❌ ${issue}`)
     }
 
-    await ctx.reply(lines.join('\n'))
+    await ctx.sendLive('debug', lines.join('\n'))
     return `debug ${test.ok ? 'ok' : 'con fallas'}`
   }
 }
