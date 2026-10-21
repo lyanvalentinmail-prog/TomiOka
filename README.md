@@ -22,10 +22,10 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
 - 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
-- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, los anteriores quedan como **"Menu eliminado."** (editados; si son muy viejos se eliminan).
+- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (175 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (180 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -321,9 +321,9 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (175 pruebas)
+├── tests/                   # node --test (180 pruebas)
 ├── sessions/                # credenciales (ignorada)
-└── data/                    # caché emojimix y temporales (ignorada)
+└── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
 
 ---
@@ -331,7 +331,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 175 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 180 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

@@ -74,7 +74,7 @@ function describeDisconnect(lastDisconnect) {
  * @returns {Promise<import('@whiskeysockets/baileys').WASocket>}
  */
 export async function startBot({ config, logger, baileysLogger }) {
-  const store = createStore(config, logger)
+  const store = createStore(config, logger, { persistLiveMessages: true })
   const onUpsert = createUpsertHandler({ config, logger, store, commands })
 
   let sock = null

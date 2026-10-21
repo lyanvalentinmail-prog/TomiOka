@@ -162,10 +162,11 @@ export class CommandContext {
 
   /**
    * Guarda la key de un mensaje enviado en una ranura (para poder editarlo o
-   * retirarlo después).
+   * retirarlo después). Con `{ kind: 'media' }` el mensaje se elimina al
+   * retirarlo en vez de editarse (una foto no se puede editar a texto).
    */
-  rememberLive(slot, sent) {
-    return this.store?.messages?.remember(this.chatJid, slot, sent) || []
+  rememberLive(slot, sent, meta) {
+    return this.store?.messages?.remember(this.chatJid, slot, sent, meta) || []
   }
 
   /** Edita el mensaje de la ranura o manda uno nuevo si no hay */
