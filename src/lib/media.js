@@ -1,6 +1,7 @@
 import { writeFile, readFile } from 'node:fs/promises'
 import path from 'node:path'
 import {
+  buildStickerArgs,
   buildToImageArgs,
   buildToVideoArgs,
   buildStillVideoArgs,
@@ -167,6 +168,24 @@ export async function convertToSticker(input, options = {}) {
       variant: usedVariant,
       warning: warnings.length ? warnings.join(' ') : undefined
     }
+  })
+}
+
+/**
+ * Convierte una imagen (PNG/JPEG) a WebP cuadrado y transparente.
+ * Se usa para el ícono de la bandeja del paquete de stickers nativo.
+ */
+export async function imageToWebp(input, { size = 96, quality = 80 } = {}) {
+  await assertFfmpeg()
+  return withWorkDir(async (dir) => {
+    const inputFile = path.join(dir, 'cover.png')
+    const outputFile = path.join(dir, 'cover.webp')
+    await writeFile(inputFile, input)
+    await ffmpeg(
+      buildStickerArgs({ input: inputFile, output: outputFile, animated: false, size, quality }),
+      { timeout: 60000 }
+    )
+    return readFile(outputFile)
   })
 }
 
