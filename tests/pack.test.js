@@ -164,7 +164,77 @@ test('finishPack incluye la vista previa si hay FFmpeg', async (t) => {
   const pack = contents.sticker_packs[0]
   assert.ok(pack.tray_image_file, 'contents.json referencia el tray')
   assert.ok(entries.has(pack.tray_image_file))
-  assert.equal(entries.get(pack.tray_image_file).subarray(1, 4).toString('ascii'), 'PNG')
+  const trayBuffer = entries.get(pack.tray_image_file)
+  const isPng = trayBuffer.subarray(1, 4).toString('ascii') === 'PNG'
+  const isWebp =
+    trayBuffer.subarray(0, 4).toString('ascii') === 'RIFF' &&
+    trayBuffer.subarray(8, 12).toString('ascii') === 'WEBP'
+  assert.ok(isPng || isWebp, 'el ícono del pack es PNG o WebP')
+  store.packs.destroy()
+})
+
+test('finishPack manda el pack nativo (no el archivo) si el socket lo soporta', async () => {
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const ctx = fakeContext(config, store)
+  const relayed = []
+  ctx.sock = {
+    async waUploadToServer() {
+      return { directPath: '/v/tomioka-test', mediaUrl: 'https://mmg.whatsapp.net/v/tomioka-test' }
+    },
+    async relayMessage(jid, message, options) {
+      relayed.push({ jid, message, options })
+      return 'msg-nativo'
+    }
+  }
+
+  const session = store.packs.start({
+    chatJid: ctx.chatJid,
+    senderJid: ctx.senderJid,
+    name: 'Nativo',
+    author: 'Tomi'
+  })
+  store.packs.add(session, { buffer: staticSticker, emojis: [] })
+  await finishPack(ctx, session)
+
+  assert.equal(ctx.output.documents.length, 0, 'no se manda el .wasticker como archivo')
+  assert.equal(relayed.length, 1)
+
+  const packMessage = relayed[0].message.stickerPackMessage
+  assert.equal(packMessage.name, 'Nativo')
+  assert.equal(packMessage.publisher, 'Tomi')
+  assert.equal(packMessage.stickers.length, 1)
+  assert.equal(packMessage.stickers[0].mimetype, 'image/webp')
+  assert.ok(packMessage.directPath)
+  assert.ok(packMessage.mediaKey.length > 0)
+  assert.ok(packMessage.fileLength > 0)
+  store.packs.destroy()
+})
+
+test('finishPack cae al .wasticker si el pack nativo falla', async () => {
+  const config = testConfig()
+  const store = createStore(config, silentLogger)
+  const ctx = fakeContext(config, store)
+  ctx.sock = {
+    async waUploadToServer() {
+      throw new Error('sin conexión')
+    },
+    async relayMessage() {
+      throw new Error('no debería llegar acá')
+    }
+  }
+
+  const session = store.packs.start({
+    chatJid: ctx.chatJid,
+    senderJid: ctx.senderJid,
+    name: 'Respaldo',
+    author: 'Tomi'
+  })
+  store.packs.add(session, { buffer: staticSticker, emojis: [] })
+  await finishPack(ctx, session)
+
+  assert.equal(ctx.output.documents.length, 1)
+  assert.match(ctx.output.documents[0].fileName, /\.wasticker$/)
   store.packs.destroy()
 })
 

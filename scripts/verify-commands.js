@@ -53,8 +53,25 @@ const results = []
 /** Socket falso que imita la API de Baileys y guarda lo enviado */
 function fakeSock() {
   const sent = []
-  return {
+  const relayed = []
+  const sock = {
     sent,
+    relayed,
+    // El envío "nativo" del pack se activa solo en su bloque de verificación.
+    enableNative() {
+      sock.waUploadToServer = async () => ({
+        directPath: '/v/tomioka-verify',
+        mediaUrl: 'https://mmg.whatsapp.net/v/tomioka-verify'
+      })
+      sock.relayMessage = async (jid, message, options) => {
+        relayed.push({ jid, message, options })
+        return `native-${relayed.length}`
+      }
+    },
+    disableNative() {
+      delete sock.waUploadToServer
+      delete sock.relayMessage
+    },
     user: { id: '59890000000:1@s.whatsapp.net', name: 'TomiOka' },
     async sendMessage(jid, content) {
       sent.push({ jid, ...content })
@@ -65,6 +82,7 @@ function fakeSock() {
       throw new Error('reupload no soportado en la verificación')
     }
   }
+  return sock
 }
 
 const kindsSent = (sent) => {
@@ -180,7 +198,7 @@ function record(name, ok, detail, sent) {
 }
 
 /** Ejecuta un paso y evalúa el resultado */
-async function step({ name, config, store, sock, msg, expect, allowError = false }) {
+async function step({ name, config, store, sock, msg, expect, allowError = false, allowEmpty = false }) {
   const before = sock.sent.length
   await handleMessage({ sock, msg, config, logger: noopLogger, store, commands })
   const sent = sock.sent.slice(before)
@@ -197,7 +215,9 @@ async function step({ name, config, store, sock, msg, expect, allowError = false
     return { sent, texts }
   }
 
-  const ok = expect ? texts.some((text) => expect.test(text)) || sent.length > 0 : sent.length > 0
+  const ok = expect
+    ? texts.some((text) => expect.test(text)) || sent.length > 0
+    : sent.length > 0 || allowEmpty
   record(name, ok, ok ? 'OK' : 'sin respuesta esperada', sent)
   return { sent, texts }
 }
@@ -437,8 +457,7 @@ async function main() {
       const valid =
         pack.stickers.length >= minimum &&
         stickersOk &&
-        webps.length === pack.stickers.length &&
-        // La vista previa necesita FFmpeg: solo se exige si está declarada.
+        // La vista previa se declara en contents.json: si está, tiene que existir.
         (!pack.tray_image_file || entries.has(pack.tray_image_file))
       record(
         `.wasticker válido (${pack.stickers.length} stickers${entries.has(pack.tray_image_file) ? ' + vista previa' : ''})`,
@@ -451,6 +470,55 @@ async function main() {
     } else {
       record('.wasticker válido', false, 'no se envió el documento', [])
     }
+    // ---------- pack nativo (mensaje de WhatsApp, no archivo) ----------
+    sock.enableNative()
+    await step({
+      name: '.pack nativo (inicia)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.pack Nativos | Tomi'),
+      expect: /Nuevo pack iniciado/
+    })
+    await step({
+      name: 'sticker → pack nativo',
+      config,
+      store,
+      sock,
+      msg: mediaMessage(MEDIA.sticker),
+      allowEmpty: true
+    })
+    await step({
+      name: 'sticker 2 → pack nativo',
+      config,
+      store,
+      sock,
+      msg: mediaMessage(MEDIA.sticker),
+      allowEmpty: true
+    })
+    const nativeBefore = sock.relayed.length
+    const nativeDone = await step({
+      name: '.pack done (pack nativo)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.pack done'),
+      allowEmpty: true
+    })
+    const nativeRelay = sock.relayed.slice(nativeBefore).at(-1)
+    const stickerPack = nativeRelay?.message?.stickerPackMessage
+    const nativeOk =
+      Boolean(stickerPack) &&
+      Number(stickerPack.stickers?.length) >= 2 &&
+      !nativeDone.sent.some((item) => item.document)
+    record(
+      'pack nativo (stickerPackMessage, sin archivo)',
+      nativeOk,
+      nativeOk ? `${Number(stickerPack.stickers.length)} stickers + paquete subido` : 'no se envió el pack nativo',
+      nativeDone.sent
+    )
+    sock.disableNative()
+
     await step({
       name: '.pack done sin sesión (error claro)',
       config,

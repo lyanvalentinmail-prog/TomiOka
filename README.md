@@ -24,7 +24,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local).
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (156 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (164 pruebas) y `npm run doctor` para diagnóstico.
 
 ---
 
@@ -175,7 +175,7 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 (foto)              ← se agrega sola (convertida a sticker)
 (foto)
 (foto)
-.pack done          ← devuelve Gatitos.wasticker
+.pack done          ← envía el paquete de stickers a WhatsApp
 
 # también sirve con el comando como pie de foto
 (foto con pie: ".pack Gatitos | Tomi")   ← inicia el pack y agrega esa foto
@@ -189,7 +189,10 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 2. Envía **varias fotos**, videos, GIFs o stickers: se agregan solos (máx. 30 por pack), las fotos y videos
    se convierten a sticker al vuelo y el bot va reaccionando con el número (1️⃣, 2️⃣, 3️⃣…).
    También puedes mandar el comando como **pie de foto**: esa imagen entra directo al pack.
-3. `.pack done` genera un ZIP `.wasticker` con `contents.json`, todos los stickers y la vista previa.
+3. `.pack done` envía el **paquete nativo de WhatsApp**: aparece la tarjeta del pack con el botón para
+   agregarlo a tus stickers (con nombre, autor y vista previa). No hace falta descargar ni importar nada.
+   - Si el envío nativo falla (por ejemplo, un WhatsApp muy viejo), el bot manda el `.wasticker` como
+     archivo de respaldo para importarlo con una app de packs.
 4. `.pack cancel` descarta la sesión · `.pack status` muestra el avance · `.pack add` (respondiendo a un archivo).
 
 Configurable en `pack`:
@@ -201,7 +204,9 @@ Configurable en `pack`:
 | `maxStickers` | `30` | Tope de stickers por pack |
 | `autoDoneAfter` | `0` | `0` = cierra solo con `.pack done`; con `N` descarga el pack al llegar a N |
 
-El archivo `.wasticker` se puede importar con apps de packs de stickers (por ejemplo Sticker Maker).
+El paquete viaja como ZIP cifrado (`contents.json` + stickers + vista previa), igual que un `.wasticker`,
+pero se envía como `stickerPackMessage` para que WhatsApp lo reconozca directamente. El mismo ZIP queda
+disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Maker.
 
 ---
 
@@ -299,6 +304,7 @@ TomiOka/
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
 │   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
 │   │   ├── session.js       # detecta/valida/respalda la sesión guardada
+│   │   ├── sticker-pack.js  # envía el paquete nativo de stickers a WhatsApp
 │   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
 │   │   ├── tmp.js           # carpetas temporales con respaldo para Termux
 │   │   ├── emojimix.js      # catálogo Emoji Kitchen con caché
@@ -311,7 +317,7 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (156 pruebas)
+├── tests/                   # node --test (164 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix y temporales (ignorada)
 ```
@@ -321,8 +327,8 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 156 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
-npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp
+npm test           # 164 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
 ```

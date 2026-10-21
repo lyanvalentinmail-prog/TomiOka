@@ -1,9 +1,9 @@
-import { convertToSticker, stickerToTray } from '../lib/media.js'
+import { convertToSticker, imageToWebp, stickerToTray } from '../lib/media.js'
 import { extensionFor } from '../lib/message.js'
 import { isAnimatedExtension } from '../lib/ffmpeg.js'
 import { isWebp, readSticker, writeStickerMetadata } from '../lib/sticker.js'
 import { splitNameAuthor } from '../lib/text.js'
-import { createZip } from '../lib/zip.js'
+import { buildStickerPackZip, prepareStickerPackMessage } from '../lib/sticker-pack.js'
 
 const DONE = new Set(['done', 'listo', 'fin', 'finish', 'terminar', 'zip'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop'])
@@ -56,7 +56,7 @@ function statusMessage(session, config) {
     `▸ Autor: *${session.author}*`,
     `▸ Stickers: *${session.stickers.length}/${max}*`,
     acceptedKindsMessage(config),
-    `✅ *.pack done* para descargar el ZIP`,
+    `✅ *.pack done* para enviar el pack`,
     `🚫 *.pack cancel* para cancelar`
   ].join('\n')
 }
@@ -109,9 +109,7 @@ async function finishPack(ctx, session) {
   await ctx.typing()
 
   const identifier = `tomioka_${Date.now().toString(36)}`
-  const files = []
-  const stickers = []
-  let anyAnimated = false
+  const prepared = []
 
   for (const [index, sticker] of session.stickers.entries()) {
     let buffer = sticker.buffer
@@ -126,72 +124,83 @@ async function finishPack(ctx, session) {
       ctx.logger?.warn?.(`No se pudo escribir metadatos en el sticker ${index + 1}: ${error.message}`)
     }
     const info = await readSticker(buffer).catch(() => ({ animated: false }))
-    anyAnimated = anyAnimated || info.animated
-
-    const fileName = `${identifier}_${index + 1}.webp`
-    files.push({ name: fileName, data: buffer })
-    stickers.push({
-      image_file: fileName,
-      emojis: sticker.emojis?.length ? sticker.emojis.slice(0, 3) : ['🌊']
+    prepared.push({
+      buffer,
+      emojis: sticker.emojis || [],
+      animated: Boolean(info.animated || sticker.animated)
     })
   }
 
-  let trayFile = ''
+  // Ícono de la bandeja: PNG de toda la vida y, si se puede, WebP (lo que usa
+  // WhatsApp en los packs nativos).
+  let tray = null
+  let trayFileName = null
   try {
-    const tray = await stickerToTray(session.stickers[0].buffer, { size: config.pack.traySize })
-    trayFile = `${identifier}_tray.png`
-    files.push({ name: trayFile, data: tray })
+    const trayPng = await stickerToTray(prepared[0].buffer, { size: config.pack.traySize })
+    trayFileName = `${identifier}.png`
+    tray = trayPng
+    try {
+      tray = await imageToWebp(trayPng, { size: config.pack.traySize, quality: 85 })
+      trayFileName = `${identifier}.webp`
+    } catch (error) {
+      ctx.logger?.debug?.(`El ícono del pack queda en PNG: ${error.message}`)
+    }
   } catch (error) {
     ctx.logger?.warn?.(`No se pudo generar la vista previa del pack: ${error.message}`)
   }
 
-  const contents = {
-    android_play_store_link: 'https://play.google.com/store/apps/details?id=com.whatsapp.stickers',
-    ios_app_download_link: 'https://apps.apple.com/app/whatsapp-messenger/id310633997',
-    image_data_version: '1',
-    avoid_cache: false,
-    sticker_packs: [
-      {
-        identifier,
-        name: session.name,
-        publisher: session.author,
-        publisher_email: '',
-        publisher_website: '',
-        privacy_policy_website: '',
-        license_agreement_website: '',
-        image_data_version: '1',
-        ...(trayFile ? { tray_image_file: trayFile } : {}),
-        animated_sticker_pack: anyAnimated,
-        stickers
-      }
-    ]
-  }
-
-  files.unshift({
-    name: 'contents.json',
-    data: Buffer.from(JSON.stringify(contents, null, 2), 'utf8')
+  const pack = buildStickerPackZip({
+    stickers: prepared,
+    tray,
+    trayFileName,
+    packId: identifier,
+    name: session.name,
+    publisher: session.author,
+    description: `Pack de ${session.name}`
   })
 
-  const zip = createZip(files)
-  const fileName = `${safeFileName(session.name)}.wasticker`
+  // 1) Intento principal: mensaje nativo de WhatsApp (tarjeta con "Agregar").
+  let sentNative = false
+  if (typeof ctx.sock?.waUploadToServer === 'function' && typeof ctx.sock?.relayMessage === 'function') {
+    try {
+      const message = await prepareStickerPackMessage({
+        packId: identifier,
+        name: session.name,
+        publisher: session.author,
+        description: `Pack de ${session.name}`,
+        zip: pack.zip,
+        stickers: pack.stickers,
+        trayIconFileName: pack.trayIconFileName,
+        logger: ctx.logger,
+        upload: (filePath, options) => ctx.sock.waUploadToServer(filePath, options)
+      })
+      await ctx.sock.relayMessage(ctx.chatJid, { stickerPackMessage: message }, {})
+      sentNative = true
+    } catch (error) {
+      ctx.logger?.warn?.(`No se pudo enviar el pack nativo (${error.message}); se manda el .wasticker.`)
+    }
+  }
 
-  await ctx.sendDocument(
-    zip,
-    fileName,
-    'application/zip',
-    [
-      '📦 *Pack listo*',
-      `▸ ${session.name}`,
-      `▸ ${stickers.length} sticker(s) · ${(zip.length / 1024).toFixed(0)} KB`,
-      '',
-      'Impórtalo con una app de packs (Sticker Maker / .wasticker)'
-    ].join('\n')
-  )
+  // 2) Respaldo: el .wasticker como documento (importable con apps de packs).
+  if (!sentNative) {
+    await ctx.sendDocument(
+      pack.zip,
+      `${safeFileName(session.name)}.wasticker`,
+      'application/zip',
+      [
+        '📦 *Pack listo*',
+        `▸ ${session.name}`,
+        `▸ ${pack.stickers.length} sticker(s) · ${(pack.zip.length / 1024).toFixed(0)} KB`,
+        '',
+        'Impórtalo con una app de packs (Sticker Maker / .wasticker)'
+      ].join('\n')
+    )
+  }
 
-  // La sesión se descarta recién cuando el archivo se envió bien
+  // La sesión se descarta recién cuando se envió bien
   ctx.store.packs.finish(session)
 
-  return `pack "${session.name}" ${stickers.length} stickers ${Math.round(zip.length / 1024)}KB`
+  return `pack "${session.name}" ${pack.stickers.length} stickers ${Math.round(pack.zip.length / 1024)}KB ${sentNative ? 'nativo' : 'documento'}`
 }
 
 /**
@@ -209,7 +218,7 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
 
   const max = ctx.config.pack.maxStickers
   if (session.stickers.length >= max) {
-    throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para descargarlo.`)
+    throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para enviarlo.`)
   }
 
   const isSticker = target.kind === 'sticker'
@@ -227,14 +236,14 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
 
   if (!result.ok) {
     if (result.reason === 'lleno') {
-      throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para descargarlo.`)
+      throw new Error(`El pack llegó al máximo de *${max}* stickers. Usa *.pack done* para enviarlo.`)
     }
     throw new Error('No hay una sesión de pack activa.')
   }
 
   const count = result.count
   const label = KIND_LABEL[target.kind] || 'Sticker'
-  const extra = count === max ? `\n🎉 ¡Completaste los *${max}* stickers! Envía *.pack done* para descargar el pack.` : ''
+  const extra = count === max ? `\n🎉 ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack.` : ''
 
   if (!silent || count === 1) {
     await ctx.reply(
@@ -246,7 +255,7 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
     await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '📥')
     if (count === max) {
       await ctx.reply(
-        `🎉 *${max}/${max}* stickers en *${session.name}*. Envía *.pack done* para descargar el pack.`
+        `🎉 *${max}/${max}* stickers en *${session.name}*. Envía *.pack done* para enviar el pack.`
       )
     }
   }
@@ -304,7 +313,7 @@ const command = {
       }
       await ctx.reply(
         `⚠️ Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n` +
-          `✅ *.pack done* para descargarlo · 🚫 *.pack cancel* para descartarlo\n` +
+          `✅ *.pack done* para enviarlo · 🚫 *.pack cancel* para descartarlo\n` +
           acceptedKindsMessage(config)
       )
       return 'pack en curso'
