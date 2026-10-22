@@ -61,20 +61,36 @@
 
   $('#backToTop')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 
+  /* ── Páginas individuales: una vista por vez, como una app ── */
+  const pages = $$('.page')
   const navLinks = $$('.header-link, .bottom-nav-item')
-  const observedSections = navLinks
-    .map((link) => document.querySelector(link.getAttribute('href')))
-    .filter(Boolean)
-
-  if ('IntersectionObserver' in window) {
-    const navObserver = new IntersectionObserver((entries) => {
-      for (const entry of entries) {
-        if (!entry.isIntersecting) continue
-        navLinks.forEach((link) => link.classList.toggle('is-active', link.getAttribute('href') === `#${entry.target.id}`))
-      }
-    }, { rootMargin: '-35% 0px -58% 0px' })
-    observedSections.forEach((section) => navObserver.observe(section))
+  const pageTitles = {
+    inicio: 'TomiOka — Plataforma para bots de WhatsApp',
+    subbots: 'Sub-Bots · TomiOka',
+    endpoints: 'Endpoints · TomiOka',
+    herramientas: 'Herramientas · TomiOka',
+    proyectos: 'Proyectos · TomiOka',
+    documentacion: 'Documentación · TomiOka',
+    repositorio: 'Repositorio · TomiOka',
+    contacto: 'Contacto · TomiOka'
   }
+
+  function pageFromHash() {
+    const id = window.location.hash.replace('#', '')
+    return pages.some((page) => page.id === id) ? id : 'inicio'
+  }
+
+  function showPage(id) {
+    pages.forEach((page) => page.classList.toggle('is-active', page.id === id))
+    navLinks.forEach((link) => link.classList.toggle('is-active', link.getAttribute('href') === `#${id}`))
+    if (pageTitles[id]) document.title = pageTitles[id]
+    window.scrollTo({ top: 0, behavior: 'auto' })
+    // Los elementos con .reveal de la página recién mostrada deben verse
+    $$(`.page#${id} .reveal`).forEach((item) => item.classList.add('visible'))
+  }
+
+  window.addEventListener('hashchange', () => showPage(pageFromHash()))
+  showPage(pageFromHash())
 
   /* ── Aparición suave al hacer scroll ─────────────────────── */
   const revealItems = $$('.reveal')

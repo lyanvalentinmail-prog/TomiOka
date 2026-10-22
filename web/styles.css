@@ -768,3 +768,21 @@ code { font-family: var(--mono); }
 
 /* Glifo de las tabs inferiores */
 .bottom-nav-item .nav-glyph { font-size: 20px; line-height: 1; }
+
+
+/* ── TomiOka: web tipo app, páginas individuales ────────────────
+   Cada sección es una página propia: se muestra una por vez y se
+   navega con las tabs, igual que en la referencia. Las tabs van
+   siempre fijas abajo, también al bajar dentro de una página. */
+.js .page { display: none; }
+.js .page.is-active { display: block; animation: page-in .22s ease both; }
+.bottom-navigation {
+  position: fixed; z-index: 90; right: 0; bottom: 0; left: 0;
+  display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); align-items: stretch;
+  min-height: calc(var(--bottomnav-h) + env(safe-area-inset-bottom));
+  padding: 6px max(4px, env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) max(4px, env(safe-area-inset-left));
+  border-top: 1px solid var(--border); background: rgba(255, 255, 255, .96);
+  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+}
+.main-content { padding-bottom: calc(var(--bottomnav-h) + 40px + env(safe-area-inset-bottom)); }
+.site-footer { margin-bottom: 8px; }

@@ -67,15 +67,20 @@ test('no simula backend ni funcionalidades remotas inexistentes', () => {
   assert.ok(source.includes('no inicia sesiones') || source.includes('Sin backend'), 'declara los límites reales')
 })
 
-test('la navegación replica el patrón de la referencia: enlaces arriba y tabs abajo en móvil', () => {
+test('la web es tipo app: páginas individuales con tabs siempre abajo', () => {
+  const pages = html.match(/data-page="/g) || []
+  assert.equal(pages.length, 8, 'ocho páginas individuales, no una sola página')
+  for (const page of ['inicio', 'subbots', 'endpoints', 'herramientas', 'proyectos', 'documentacion', 'repositorio', 'contacto']) {
+    assert.ok(html.includes(`data-page="${page}"`), `falta la página ${page}`)
+  }
   assert.ok(html.includes('id="bottomNav"'), 'existe la barra de tabs inferior')
   assert.ok(html.includes('class="bottom-nav-item'), 'items de la navegación inferior')
-  assert.ok(html.includes('href="#subbots"') && html.includes('href="#endpoints"'), 'las tabs enlazan a Sub-Bots y Endpoints')
-  assert.ok(css.includes('.bottom-navigation { display: none; }'), 'en escritorio manda el header')
-  const mobile = css.slice(css.indexOf('@media (max-width: 900px)'))
-  assert.ok(/\.bottom-navigation\s*\{[^}]*position: fixed/.test(mobile), 'en móvil la barra queda fija abajo')
-  assert.ok(/\.bottom-navigation\s*\{[^}]*grid-template-columns: repeat\(8/.test(mobile), 'las ocho tabs en horizontal')
-  assert.ok(/\.header-links[^{]*\{[^}]*display: none/.test(mobile), 'en móvil se ocultan los enlaces del header')
+  assert.ok(js.includes('showPage') && js.includes('hashchange'), 'el JS cambia de página por hash')
+  assert.ok(css.includes('.js .page { display: none; }'), 'solo se muestra una página por vez')
+  assert.ok(css.includes('.js .page.is-active { display: block;'), 'la página activa se muestra')
+  const override = css.slice(css.indexOf('web tipo app'))
+  assert.ok(/\.bottom-navigation\s*\{[^}]*position: fixed/.test(override), 'las tabs quedan fijas abajo al bajar')
+  assert.ok(/\.bottom-navigation\s*\{[^}]*grid-template-columns: repeat\(8/.test(override), 'las ocho tabs en horizontal')
 })
 
 test('se puede crear un sub-bot desde la web, sin fingir backend', () => {
