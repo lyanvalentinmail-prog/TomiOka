@@ -28,7 +28,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (205 pruebas) y `npm run doctor` para diagnóstico.
-- 🌐 **Plataforma web** (`web/`): inicio futurista con identidad propia, **tabs fijas abajo en horizontal**, creador local de **sub-bots**, tab de **Endpoints** con los ocho del menú por categorías, panel local de configuración, catálogo filtrable, documentación con ejemplos copiables, enlaces al repositorio y contacto oficial. La web no inicia sesiones ni simula un backend remoto.
+- 🌐 **Plataforma web** (`web/`): diseño claro y minimalista (blanco, acento negro, bordes finos, sin degradados) con identidad propia, **tabs fijas abajo en horizontal**, creador local de **sub-bots**, tab de **Endpoints** con los ocho del menú por categorías, panel local de configuración, catálogo filtrable, documentación con ejemplos copiables, enlaces al repositorio y contacto oficial. La web no inicia sesiones ni simula un backend remoto.
 
 ---
 

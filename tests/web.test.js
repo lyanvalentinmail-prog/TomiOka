@@ -26,12 +26,16 @@ test('está organizada en las secciones pedidas, con Sub-Bots y Endpoints', () =
   }
 })
 
-test('el diseño es oscuro, morado/azul, responsive y con tarjetas interactivas', () => {
-  assert.ok(css.includes('--violet:') && css.includes('--blue:') && css.includes('--bg:'))
+test('el diseño es claro y minimalista: blanco, acento negro y bordes finos', () => {
+  assert.ok(css.includes('--bg: #ffffff') && css.includes('--text: #111111'), 'fondo blanco y texto negro')
+  assert.ok(css.includes('--border: #e3e3e3'), 'bordes finos grises')
+  assert.ok(css.includes('.button-primary') && css.includes('background: #111'), 'botón principal negro')
+  assert.ok(!css.includes('linear-gradient'), 'sin degradados')
   assert.ok(css.includes('@media (max-width: 720px)'), 'adaptación móvil')
   assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'), 'respeta reducir movimiento')
-  assert.ok(css.includes('.project-card:hover') && css.includes('transform: translateY(-5px)'), 'efecto hover en tarjetas')
+  assert.ok(css.includes('.project-card:hover') && css.includes('border-color: #c9c9c9'), 'hover sutil en tarjetas')
   assert.ok(!css.includes('@import') && !html.includes('fonts.googleapis'), 'sin fuentes externas pesadas')
+  assert.ok(html.includes('theme-color" content="#ffffff"'), 'theme-color claro')
 })
 
 test('el panel de herramientas genera configuración local sin backend', () => {
