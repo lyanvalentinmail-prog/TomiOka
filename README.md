@@ -140,17 +140,30 @@ npm run terminal
 ```
 
 **Controles:** `↑↓` o `j/k` para moverte, `Enter` para abrir/guardar,
-`Esc` para volver, `q` para salir. En las listas largas, `PgUp`/`PgDn` y
-`g`/`G` saltan al principio o al final.
+`Esc` para volver, `q` para salir. `Ctrl+P` abre la **paleta de
+comandos** (escribe y encuentra cualquier acción, comando o ajuste),
+`?` muestra la ayuda, `t` cambia el tema (Océano, Atardecer, Menta,
+Violeta; se recuerda entre sesiones). También acepta mouse: la rueda
+hace scroll y el doble clic abre. En las listas largas, `PgUp`/`PgDn` y
+`g`/`G` saltan al principio o al final, y con `/` buscas dentro del
+menú (`n`/`N` salta entre coincidencias).
+
+Lo mejor: el bot corre **dentro de la terminal**, en una consola en vivo
+con sus logs: el pairing code y el QR se ven ahí mismo, sin cambiar de
+pantalla. Con `i` escribes al bot, `r` lo reinicia y `x` lo detiene.
 
 Desde ahí puedes iniciar el bot, vincular con pairing code o QR, ver el
-estado (sesión, comandos, owners), **editar la configuración en línea**
-(nombre, prefijo, teléfono de pairing, owners, modo de login, pack de
-stickers y banner del menú; cada cambio guarda un respaldo
-`config.json.bak`), ver el menú de WhatsApp y la lista completa de
-comandos, correr el diagnóstico (`doctor`), actualizar el repo con
-`git pull` y borrar la sesión para volver a vincular. No usa dependencias
-nuevas (solo ANSI de Node), así que funciona en Termux sin compilar nada.
+panel de estado (sesión, sistema y actividad, se refresca solo),
+**editar la configuración en línea** (nombre, prefijo, teléfono de
+pairing, owners, modo de login, pack de stickers, banner del menú y los
+interruptores de pie de foto/descripciones; cada cambio guarda un
+respaldo `config.json.bak`), ver el menú de WhatsApp y la lista completa
+de comandos, crear **respaldos de la sesión** con fecha, correr el
+diagnóstico (`doctor`), verificar los comandos, actualizar el repo con
+`git pull` y borrar la sesión para volver a vincular. La pantalla se
+redibuja por diferencias con salida sincronizada (sin parpadeo) y no
+usa dependencias nuevas (solo ANSI de Node), así que funciona en
+Termux sin compilar nada.
 
 ### Instalación en Linux / VPS
 
@@ -433,7 +446,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 221 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 228 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
