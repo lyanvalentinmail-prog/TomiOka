@@ -187,7 +187,10 @@ function readZipEntries(buffer) {
 }
 
 function record(name, ok, detail, sent) {
-  const preview = sent.find((item) => typeof item.text === 'string')?.text || ''
+  const preview =
+    sent.find((item) => typeof item.text === 'string')?.text ||
+    sent.find((item) => typeof item.caption === 'string' && item.caption)?.caption ||
+    ''
   results.push({
     name,
     ok,
@@ -202,7 +205,9 @@ async function step({ name, config, store, sock, msg, expect, allowError = false
   const before = sock.sent.length
   await handleMessage({ sock, msg, config, logger: noopLogger, store, commands })
   const sent = sock.sent.slice(before)
-  const texts = sent.filter((item) => typeof item.text === 'string').map((item) => item.text)
+  const texts = sent.flatMap((item) =>
+    [item.text, item.caption].filter((value) => typeof value === 'string' && value.length > 0)
+  )
 
   if (allowError) {
     const errorText = texts.find((text) => text.includes('❌'))
@@ -216,7 +221,7 @@ async function step({ name, config, store, sock, msg, expect, allowError = false
   }
 
   const ok = expect
-    ? texts.some((text) => expect.test(text)) || sent.length > 0
+    ? texts.some((text) => expect.test(text))
     : sent.length > 0 || allowEmpty
   record(name, ok, ok ? 'OK' : 'sin respuesta esperada', sent)
   return { sent, texts }
@@ -258,14 +263,22 @@ async function main() {
 
   try {
     // ---------- ayuda / menú ----------
-    await step({
-      name: '.help (menú con banner)',
+    const helpStep = await step({
+      name: '.help (menú cargado junto con el banner)',
       config,
       store,
       sock,
       msg: textMessage('.help'),
-      expect: /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/
+      expect: /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼[\s\S]*\.debug[\s\S]*𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔/
     })
+    const helpImages = helpStep.sent.filter((item) => item.image)
+    const helpTexts = helpStep.sent.filter((item) => typeof item.text === 'string')
+    record(
+      'menú + banner en un solo mensaje (sin texto aparte)',
+      helpImages.length === 1 && helpTexts.length === 0 && Boolean(helpImages[0]?.caption),
+      helpImages.length === 1 && helpTexts.length === 0 ? 'OK' : `image=${helpImages.length} text=${helpTexts.length}`,
+      helpStep.sent
+    )
     await step({
       name: '.help take (ayuda puntual)',
       config,

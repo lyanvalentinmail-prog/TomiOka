@@ -21,12 +21,12 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
-- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías y con **todos los comandos** del bot agrupados en seis categorías con estética agua: 📥 **Descargas**, 🎨 **Stickers**, 🔄 **Conversión**, 📦 **Packs**, 🧠 **AI** y 💧 **Info** (solo queda fuera `.debug`, que es oculto a propósito).
+- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías y con **todos los comandos** del bot agrupados en seis categorías con estética agua: 📥 **Descargas**, 🎨 **Stickers**, 🔄 **Conversión**, 📦 **Packs**, 🧠 **AI** y 💧 **Info**.
 - ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok, Instagram y Pinterest y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
 - 🧠 **IA en el chat**: `.gemini`, `.chatgpt` y `.deepseek` consultan los modelos de **OpenCode** (`opencode.ai`).
   Sin ninguna clave usan el free tier del gateway; con `OPENCODE_API_KEY` usan el modelo oficial de cada marca.
 - ✍️ **Stickers de texto**: `.brat` (fondo verde lima), `.attp` (animado con colores) y `.ttp` (texto con borde), generados localmente con FFmpeg.
-- 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
+- 🖼️ **Menú con banner**: `.help` carga el menú completo directamente como pie de foto del banner en un único mensaje (por defecto `banner.jpg` de Google Drive, con caché local), nunca por separado. Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los que llevan banner se eliminan para todos y los de solo texto quedan editados como **"Menu eliminado."**.
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
 - 🧪 **Tests** con `node --test` (287 pruebas) y `npm run doctor` para diagnóstico.
@@ -277,7 +277,7 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.deepseek <pregunta>` | `.deep`, `.seek` | Le pregunta a DeepSeek, que razona paso a paso |
 | **💧 Info** | | |
 | `.help` | `.menu`, `.comandos` | Muestra el menú; `.help sticker` muestra la ayuda de un comando |
-| `.debug` | `.diag` | Diagnóstico del bot en el chat (FFmpeg, carpetas, sesión y una conversión real). No aparece en el menú |
+| `.debug` | `.diag` | Diagnóstico del bot en el chat (FFmpeg, carpetas, sesión y una conversión real) |
 
 ### Ejemplos rápidos
 

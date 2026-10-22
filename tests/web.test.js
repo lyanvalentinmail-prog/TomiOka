@@ -116,8 +116,10 @@ test('el servidor sirve la SPA y responde la API local real', async (t) => {
 
   const commands = await (await fetch(`${base}/api/commands`)).json()
   assert.equal(commands.prefix, '.')
-  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gemini', 'chatgpt', 'deepseek', 'help']) {
-    assert.ok(commands.commands.some((command) => command.name === name), `falta el comando ${name}`)
+  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'toimg', 'tovideo', 'take', 'pack', 'gemini', 'chatgpt', 'deepseek', 'help', 'debug']) {
+    const found = commands.commands.find((command) => command.name === name)
+    assert.ok(found, `falta el comando ${name}`)
+    assert.equal(found.hidden, false, `${name} debe estar visible`)
   }
 
   const whatsapp = await fetch(`${base}/api/whatsapp/tiktok?url=https://www.tiktok.com/`)
@@ -140,6 +142,12 @@ test('el servidor sirve la SPA y responde la API local real', async (t) => {
 
   const state = await (await fetch(`${base}/api/state`)).json()
   assert.ok(state.instances.some((instance) => instance.id === created.instance.id))
+
+  const previewRes = await (await fetch(`${base}/api/instances/${created.instance.id}/preview`)).json()
+  assert.equal(previewRes.ok, true)
+  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'toimg', 'tovideo', 'take', 'pack', 'gemini', 'chatgpt', 'deepseek', 'help', 'debug']) {
+    assert.ok(previewRes.preview.includes(`.${name}`), `falta .${name} en la vista previa del menú`)
+  }
 
   // Pairing sin número válido: se rechaza antes de tocar WhatsApp
   await fetch(`${base}/api/instances/${created.instance.id}`, {

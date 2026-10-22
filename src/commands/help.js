@@ -3,10 +3,12 @@ import { RETIRED_MENU_TEXT } from '../lib/live-messages.js'
 import { buildCommandHelp, buildMenu } from '../menu.js'
 
 /**
- * Límite de texto que WhatsApp acepta como pie de foto.
- * Si el menú es más largo, la imagen se envía aparte.
+ * Límite máximo de texto que WhatsApp Web / Baileys acepta como pie de foto
+ * (`imageMessage.caption` admite hasta ~65 KB). Así el menú completo carga
+ * junto con el banner en un único mensaje, y solo si un texto gigantesco
+ * superara este tope (o `menu.sendAsCaption === false`) saldría aparte.
  */
-const CAPTION_LIMIT = 1000
+export const CAPTION_LIMIT = 60000
 
 export default {
   name: 'help',

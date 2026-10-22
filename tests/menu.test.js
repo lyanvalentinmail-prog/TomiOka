@@ -26,7 +26,8 @@ test('todos los comandos pedidos existen', () => {
     'gemini',
     'chatgpt',
     'deepseek',
-    'help'
+    'help',
+    'debug'
   ]) {
     assert.ok(findCommand(name), `falta el comando ${name}`)
     assert.equal(typeof findCommand(name).run, 'function')
@@ -39,7 +40,7 @@ test('los alias apuntan al mismo comando', () => {
   assert.equal(findCommand('noexiste'), null)
 })
 
-test('el menú usa seis categorías con TODOS los comandos visibles', () => {
+test('el menú usa seis categorías con TODOS los comandos del bot', () => {
   assert.equal(config.menu.categories.length, 6)
   const [downloads, stickers, conversion, packs, ai, info] = config.menu.categories
   assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])
@@ -47,7 +48,7 @@ test('el menú usa seis categorías con TODOS los comandos visibles', () => {
   assert.deepEqual(conversion.commands, ['toimg', 'tovideo', 'take'])
   assert.deepEqual(packs.commands, ['pack'])
   assert.deepEqual(ai.commands, ['gemini', 'chatgpt', 'deepseek'])
-  assert.deepEqual(info.commands, ['help'])
+  assert.deepEqual(info.commands, ['help', 'debug'])
   assert.deepEqual(
     resolveCategoryCommands(downloads, commands).map((command) => command.name),
     ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
@@ -60,12 +61,17 @@ test('el menú usa seis categorías con TODOS los comandos visibles', () => {
     resolveCategoryCommands(ai, commands).map((command) => command.name),
     ['gemini', 'chatgpt', 'deepseek']
   )
+  assert.deepEqual(
+    resolveCategoryCommands(info, commands).map((command) => command.name),
+    ['help', 'debug']
+  )
 
-  // Cada comando visible aparece exactamente una vez en alguna categoría
+  // Todos los comandos registrados aparecen exactamente una vez en alguna categoría
   const allListed = config.menu.categories.flatMap((category) =>
     resolveCategoryCommands(category, commands).map((command) => command.name)
   )
-  const expected = commandList.filter((command) => !command.hidden).map((command) => command.name)
+  const expected = commandList.map((command) => command.name)
+  assert.equal(commandList.filter((command) => command.hidden).length, 0, 'ningún comando queda oculto fuera del menú')
   assert.deepEqual([...allListed].sort(), [...expected].sort())
   assert.equal(new Set(allListed).size, allListed.length, 'sin duplicados')
 })
@@ -113,12 +119,11 @@ test('el menú muestra solo el comando, sin descripciones', () => {
       assert.ok(!menu.includes(command.description), `no debe mostrarse la descripción de ${command.name}`)
     }
   }
-  // Todos los comandos visibles se listan (antes solo salían 8)
+  // Todos los comandos del bot se listan en el menú
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
-  for (const name of ['gif', 'toimg', 'tovideo', 'take', 'emojimix', 'pack', 'gemini', 'chatgpt', 'deepseek', 'help']) {
+  for (const name of commandList.map((command) => command.name)) {
     assert.ok(commandLines.some((line) => line.includes(`${config.prefixes[0]}${name} `) || line.trimEnd().endsWith(`${config.prefixes[0]}${name}`)), `${name} debe listarse`)
   }
-  assert.ok(!commandLines.some((line) => line.includes(`${config.prefixes[0]}debug`)), 'debug es oculto y no se lista')
   assert.ok(!menu.includes('›'), 'no usa el separador de descripción')
 })
 
