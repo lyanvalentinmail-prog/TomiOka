@@ -26,15 +26,17 @@ function printQr(qr) {
   raw(c.gray('   (el código se renueva automáticamente cada ~20 segundos)'))
 }
 
-async function resolveLoginMode(config) {
+async function resolveLoginMode(config, { askFn = ask, chooseFn = choose, interactive = isInteractive() } = {}) {
   let mode = config.login
   let phone = config.pairingPhone
 
   if (mode === 'ask') {
-    if (!isInteractive()) {
-      mode = 'qr'
+    if (!interactive) {
+      // Sin TTY (consola de la terminal, panel web): si hay teléfono
+      // configurado se usa pairing; si no, QR. Nunca se pregunta.
+      mode = isValidPhone(phone) ? 'pairing' : 'qr'
     } else {
-      mode = await choose('¿Cómo quieres vincular WhatsApp?', [
+      mode = await chooseFn('¿Cómo quieres vincular WhatsApp?', [
         {
           label: 'Código de vinculación (pairing code)',
           hint: 'recomendado en Termux',
@@ -48,16 +50,18 @@ async function resolveLoginMode(config) {
   if (mode === 'pairing') {
     if (!isValidPhone(phone)) {
       phone = normalizePhone(
-        await ask('Número de WhatsApp con código de país (ej: 59891234567)')
+        await askFn('Número de WhatsApp con código de país (ej: 59891234567)')
       )
     }
     if (!isValidPhone(phone)) {
-      warn('Número inválido o vacío: se usará el código QR en su lugar.')
-      mode = 'qr'
+      // Elegir pairing es definitivo: jamás se sustituye por el QR.
+      // Se avisa el problema y el arranque reintenta pedir el código.
+      warn('Elegiste pairing code pero falta un número válido (con código de país).')
+      warn('No se mostrará el QR: define el número con --phone 598XXXXXXXX o en config.json (pairingPhone).')
     }
   }
 
-  config.pairingPhone = normalizePhone(phone)
+  config.pairingPhone = normalizePhone(phone || '')
   return mode
 }
 
@@ -142,10 +146,7 @@ export async function startBot({ config, logger, baileysLogger }) {
     } catch (error_) {
       pairingRequested = false
       error(`No se pudo generar el código de vinculación: ${error_.message}`)
-      if (lastQr) {
-        warn('Muestro el QR como alternativa:')
-        printQr(lastQr)
-      }
+      warn('Reintentando pedir el código (no se muestra el QR porque elegiste pairing)...')
     }
   }
 
@@ -224,6 +225,8 @@ export async function startBot({ config, logger, baileysLogger }) {
         return connect()
       }
 
+      pairingRequested = false
+      pairingAttempts = 0
       attempts += 1
       if (attempts > 8) {
         error('No se pudo restablecer la conexión después de varios intentos.')
@@ -303,6 +306,12 @@ export async function startBot({ config, logger, baileysLogger }) {
     })
 
     logger.debug(`socket creado · sesión: ${config.sessionDir}`)
+
+    // Patrón recomendado por Baileys: pedir el pairing apenas existe el
+    // socket (sin esperar al evento qr), solo si no hay sesión válida.
+    if (!registered && mode === 'pairing') {
+      setTimeout(() => requestPairing().catch(() => {}), 1200)
+    }
     return sock
   }
 
@@ -322,6 +331,10 @@ export async function startBot({ config, logger, baileysLogger }) {
 
   process.once('SIGINT', () => shutdown('SIGINT'))
   process.once('SIGTERM', () => shutdown('SIGTERM'))
+
+  // Sin sesión válida, el método (y el teléfono) se definen antes de
+  // abrir el socket: así el pairing se pide de una y nunca aparece el QR.
+  if (!registered) await ensureLoginMode()
 
   await connect()
   return sock
