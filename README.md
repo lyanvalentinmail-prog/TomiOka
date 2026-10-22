@@ -21,7 +21,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
-- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías y con **todos los comandos** del bot agrupados en seis categorías con estética agua: 📥 **Descargas**, 🎨 **Stickers**, 🔄 **Conversión**, 📦 **Packs**, 🧠 **AI** y 💧 **Info**.
+- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías, usando los emojis principales del bot (`💧`, `🌊`, `🐟`, `💦`, `💙`) y con **todos los comandos** agrupados en seis categorías: 🌊 **Descargas**, 💧 **Stickers**, 💦 **Conversión**, 🐟 **Packs**, 💙 **AI** y 🌊 **Info**.
 - ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok, Instagram y Pinterest y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
 - 🧠 **IA en el chat**: `.gemini`, `.chatgpt` y `.deepseek` consultan los modelos de **OpenCode** (`opencode.ai`).
   Sin ninguna clave usan el free tier del gateway; con `OPENCODE_API_KEY` usan el modelo oficial de cada marca.

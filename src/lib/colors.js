@@ -19,6 +19,8 @@ export const c = {
   bgMagenta: paint('\x1b[45m\x1b[97m')
 }
 
+export const BOT_EMOJIS = ['💧', '🌊', '🐟', '💦', '💙']
+
 export const sym = {
   ok: c.green('✔'),
   err: c.red('✖'),
@@ -27,7 +29,10 @@ export const sym = {
   arrow: c.magenta('➜'),
   wave: '🌊',
   drop: '💧',
-  bolt: '⚡',
+  fish: '🐟',
+  splash: '💦',
+  heart: '💙',
+  bolt: '💦',
   dot: c.gray('•')
 }
 

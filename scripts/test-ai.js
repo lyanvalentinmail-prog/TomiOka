@@ -18,9 +18,9 @@ const ai = config.ai || {}
 const prompt = process.argv.slice(2).join(' ').trim() || 'Responde en una línea: ¿quién eres y qué modelo eres?'
 
 const REQUESTS = [
-  { request: 'gemini', label: 'Gemini', emoji: '💠' },
-  { request: 'chatgpt', label: 'ChatGPT', emoji: '🤖' },
-  { request: 'deepseek', label: 'DeepSeek', emoji: '🐋' }
+  { request: 'gemini', label: 'Gemini', emoji: '💧' },
+  { request: 'chatgpt', label: 'ChatGPT', emoji: '💙' },
+  { request: 'deepseek', label: 'DeepSeek', emoji: '🐟' }
 ]
 
 const withKey = Boolean(String(ai.apiKey || '').trim())

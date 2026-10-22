@@ -13,7 +13,7 @@ export default {
       ctx.argsText,
       `Uso: ${ctx.prefix}ytmp3 <enlace de YouTube>`
     )
-    await ctx.reply('⏳ Extrayendo audio de *YouTube* en MP3...')
+    await ctx.reply('🌊 Extrayendo audio de *YouTube* en MP3...')
     const file = await downloadWithYtDlp({
       platform: 'youtube',
       mediaType: 'audio',

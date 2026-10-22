@@ -90,7 +90,7 @@ export function buildStickerPackZip({
     files.push({ name: fileName, data: sticker.buffer })
     contents.push({
       image_file: fileName,
-      emojis: sticker.emojis?.length ? sticker.emojis.slice(0, 3) : ['🌊'],
+      emojis: sticker.emojis?.length ? sticker.emojis.slice(0, 3) : ['🌊', '💧', '💙'],
       isAnimated: Boolean(sticker.animated)
     })
   }

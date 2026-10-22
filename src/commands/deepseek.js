@@ -14,7 +14,7 @@ export default {
     return runAiCommand(ctx, {
       request: 'deepseek',
       label: 'DeepSeek',
-      emoji: '🐋',
+      emoji: '🐟',
       system:
         'Eres DeepSeek, un asistente que razona con precisión. Respondes en el idioma del usuario ' +
         '(por defecto español). Tus respuestas viajan por WhatsApp: ve directo al resultado, ' +

@@ -163,6 +163,24 @@ test('commandList no tiene nombres duplicados', () => {
   assert.equal(new Set(names).size, names.length)
 })
 
+test('el menú y las categorías usan los cinco emojis principales del bot', () => {
+  const mainEmojis = ['💧', '🌊', '🐟', '💦', '💙']
+  const mainSet = new Set(mainEmojis)
+  assert.deepEqual(config.bot.emojis, mainEmojis)
+
+  for (const category of config.menu.categories) {
+    assert.ok(mainSet.has(category.emoji), `emoji de categoría fuera de los principales: ${category.emoji}`)
+    for (const item of category.divider || []) {
+      assert.ok(mainSet.has(item), `divisor fuera de los principales: ${item}`)
+    }
+  }
+
+  const menu = buildMenu({ config, commands, sender: { label: 'Tester' } })
+  for (const emoji of mainEmojis) {
+    assert.ok(menu.includes(emoji), `falta ${emoji} en el menú`)
+  }
+})
+
 test('el menú por defecto usa el banner de Drive configurado', () => {
   const image = config.menu.image
   assert.ok(image, 'menu.image debe tener el banner')

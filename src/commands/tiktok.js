@@ -13,14 +13,14 @@ export default {
       ctx.argsText,
       `Uso: ${ctx.prefix}tiktok <enlace de TikTok>`
     )
-    await ctx.reply('⏳ Descargando video de *TikTok*...')
+    await ctx.reply('🌊 Descargando video de *TikTok*...')
     const file = await downloadWithYtDlp({
       platform: 'tiktok',
       mediaType: 'video',
       url,
       logger: ctx.logger
     })
-    await ctx.sendVideo(file.buffer, '✅ Video de TikTok descargado')
+    await ctx.sendVideo(file.buffer, '💧 Video de TikTok descargado 💙')
     return 'video de TikTok descargado'
   }
 }

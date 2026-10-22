@@ -72,7 +72,7 @@ const textParam = { name: 'text', label: 'Texto', required: true, example: 'Hola
 export const ENDPOINT_CATEGORIES = [
   {
     name: 'Descargas',
-    icon: '📥',
+    icon: '🌊',
     count: 5,
     items: [
       endpointItem('TikTok downloader', 'tiktok', '.tiktok', '.tiktok <enlace>', 'Descarga un video de TikTok desde un enlace.', urlParam),
@@ -84,7 +84,7 @@ export const ENDPOINT_CATEGORIES = [
   },
   {
     name: 'Stickers',
-    icon: '🎨',
+    icon: '💧',
     count: 4,
     items: [
       endpointItem('Brat', 'brat', '.brat', '.brat <texto>', 'Crea un sticker estilo Brat con el texto indicado.', textParam),
@@ -258,10 +258,10 @@ async function panelBeforeCommand(instanceId, ctx, parsed) {
           }
         }
         extraCategories.push({
-          emoji: '✨',
+          emoji: '💦',
           description: '𝖯𝖾𝗋𝗌𝗈𝗇𝖺𝗅𝗂𝗓𝖺𝖽𝗈𝗌',
           kaomoji: '(｡•̀ᴗ-)✧',
-          divider: ['✨', '🌊'],
+          divider: ['💧', '🌊'],
           commands: visibleCustoms.map((cc) => String(cc.name).toLowerCase())
         })
       }
@@ -608,10 +608,10 @@ async function menuPreview(instance) {
         if (!filtered.has(cmdName)) filtered.set(cmdName, { name: cmdName, description: cc.description || '' })
       }
       extraCategories.push({
-        emoji: '✨',
+        emoji: '💦',
         description: '𝖯𝖾𝗋𝗌𝗈𝗇𝖺𝗅𝗂𝗓𝖺𝖽𝗈𝗌',
         kaomoji: '(｡•̀ᴗ-)✧',
-        divider: ['✨', '🌊'],
+        divider: ['💧', '🌊'],
         commands: customs.map((cc) => String(cc.name).toLowerCase())
       })
     }
@@ -686,7 +686,7 @@ async function handleApi(req, res, url) {
   }
 
   if (method === 'GET' && apiPath === '/menu/styles') {
-    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (📥 Descargas, 🎨 Stickers, 🔄 Conversión, 📦 Packs, 🧠 AI y 💧 Info) con todos los comandos del bot.', preview: '📥 Descargas · 🎨 Stickers · 🔄 Conversión · 📦 Packs · 🧠 AI · 💧 Info' }] })
+    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (🌊 Descargas, 💧 Stickers, 💦 Conversión, 🐟 Packs, 💙 AI y 🌊 Info) con todos los comandos del bot.', preview: '🌊 Descargas · 💧 Stickers · 💦 Conversión · 🐟 Packs · 💙 AI · 🌊 Info' }] })
   }
   if (method === 'GET' && apiPath === '/credits/plans') return sendJson(res, 200, { ok: true, plans: [] })
   if (apiPath.startsWith('/credits/')) return notImplemented(res, 'La tienda y los créditos')

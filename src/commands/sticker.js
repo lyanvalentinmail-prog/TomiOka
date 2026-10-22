@@ -45,7 +45,7 @@ export default {
 
     await ctx.sendSticker(result.buffer)
 
-    const parts = [`✅ ${animated ? 'Sticker animado' : 'Sticker'} creado`]
+    const parts = [`💧 ${animated ? 'Sticker animado' : 'Sticker'} creado 💙`]
     if (result.warning) parts.push(result.warning)
     if (animated) parts.push('se recortó a los primeros segundos permitidos')
     return parts.join(' · ')

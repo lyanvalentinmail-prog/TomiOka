@@ -670,7 +670,7 @@ test('.gemini responde editando el mensaje de "pensando…"', async () => {
     const edits = sock.sent.filter((item) => item.content?.edit)
     assert.equal(edits.length, 1, 'editó el mensaje en vez de mandar otro')
     const answer = edits[0].content.text
-    assert.match(answer, /💠 \*Gemini\*/)
+    assert.match(answer, /💧 \*Gemini\*/)
     assert.match(answer, /El agua es H2O\./)
     assert.match(answer, /respondió deepseek-v4\.1-flash-free/, 'dice qué modelo contestó')
     assert.match(answer, /modelo de respaldo/, 'y aclara que fue un respaldo')
@@ -686,12 +686,12 @@ test('.chatgpt y .deepseek responden con su marca', async () => {
   try {
     const gpt = makeContext('.chatgpt hola', { config })
     await findCommand('chatgpt').run(gpt.ctx)
-    assert.match(sentTexts(gpt.sock).at(-1), /🤖 \*ChatGPT\*/)
+    assert.match(sentTexts(gpt.sock).at(-1), /💙 \*ChatGPT\*/)
     assert.match(sentTexts(gpt.sock).at(-1), /respuesta corta/)
 
     const deep = makeContext('.deepseek 2+2', { config })
     await findCommand('deepseek').run(deep.ctx)
-    assert.match(sentTexts(deep.sock).at(-1), /🐋 \*DeepSeek\*/)
+    assert.match(sentTexts(deep.sock).at(-1), /🐟 \*DeepSeek\*/)
     assert.match(sentTexts(deep.sock).at(-1), /respuesta corta/)
   } finally {
     gateway.restore()
@@ -762,7 +762,7 @@ test('runAiCommand aplica el system prompt de cada marca', async () => {
   const gateway = gatewaySock(() => ({ text: chatSse('ok') }))
   try {
     const { ctx } = makeContext('.deepseek hola', { config })
-    await runAiCommand(ctx, { request: 'deepseek', label: 'DeepSeek', emoji: '🐋', system: 'Eres DeepSeek.' })
+    await runAiCommand(ctx, { request: 'deepseek', label: 'DeepSeek', emoji: '🐟', system: 'Eres DeepSeek.' })
     assert.equal(gateway.calls[0].body.messages[0].content, 'Eres DeepSeek.')
   } finally {
     gateway.restore()

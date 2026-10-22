@@ -86,24 +86,24 @@ async function runCommand(ctx, command) {
   }
 
   if (!ctx.isOwner && inCooldown(ctx.store, ctx.senderJid, config.behavior.cooldownMs)) {
-    ctx.logger.debug?.(`⏳ cooldown ${ctx.displayName}`)
+    ctx.logger.debug?.(`💧 cooldown ${ctx.displayName}`)
     return
   }
 
   await ctx.typing('composing')
-  if (config.behavior.reactToCommands) await ctx.react('⏳')
+  if (config.behavior.reactToCommands) await ctx.react('💧')
 
   try {
     const summary = await command.run(ctx)
-    if (config.behavior.reactToCommands) await ctx.react('✅')
+    if (config.behavior.reactToCommands) await ctx.react('💙')
     ctx.logger.info(`${sym.ok} ${label} ${c.gray(`${ctx.latency}ms`)}${summary ? c.gray(` · ${summary}`) : ''}`)
   } catch (error) {
-    if (config.behavior.reactToCommands) await ctx.react('❌')
+    if (config.behavior.reactToCommands) await ctx.react('💦')
     ctx.logger.error(`${sym.err} ${label} · ${error.message}`)
     const message = truncate(error.message || 'Error inesperado', 400)
     const hint =
       /FFmpeg|codificador WebP|conversión|temporal/i.test(message)
-        ? '\n\n💡 Envía *.debug* para ver qué está fallando en tu equipo.'
+        ? '\n\n💧 Envía *.debug* para ver qué está fallando en tu equipo.'
         : ''
     await ctx.reply(`❌ *No se pudo completar*\n${message}${hint}`).catch(() => {})
   } finally {
@@ -134,7 +134,7 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
     const packCommand = findCommand('pack')
     if (ctx.current && packCommand?.onMedia) {
       const handled = await packCommand.onMedia(ctx)
-      if (handled) logger.debug?.(`📥 ${ctx.current.kind} agregado al pack de ${ctx.displayName}`)
+      if (handled) logger.debug?.(`💧 ${ctx.current.kind} agregado al pack de ${ctx.displayName}`)
     }
     return
   }
@@ -164,7 +164,7 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
     if (config.behavior.replyUnknownCommand) {
       await ctx
         .reply(
-          `❓ No conozco *${parsed.prefix}${parsed.command}*.\nUsa *${config.prefixes[0]}help* para ver todos los comandos.`
+          `💦 No conozco *${parsed.prefix}${parsed.command}*.\nUsa *${config.prefixes[0]}help* para ver todos los comandos. 🌊`
         )
         .catch(() => {})
       logger.debug?.(`comando desconocido: ${parsed.command} (${ctx.displayName})`)

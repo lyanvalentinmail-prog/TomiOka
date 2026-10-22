@@ -633,7 +633,7 @@ export async function runAiCommand(ctx, { request, label, emoji, system = '' }) 
     answer.fallback
       ? `_respondió ${answer.model} (modelo de respaldo)_`
       : `_respondió ${answer.model}_`,
-    answer.withKey ? '' : '_💡 con OPENCODE_API_KEY usas el modelo oficial_'
+    answer.withKey ? '' : '_💧 con OPENCODE_API_KEY usas el modelo oficial_'
   ]
     .filter(Boolean)
     .join('\n')

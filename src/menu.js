@@ -29,7 +29,7 @@ function header({ name }) {
     `${FILLER}⌞${FILLER}≪⁹⁹${FILLER}⁙${FILLER}${name}${FILLER}◌`,
     `${FILLER}${FILLER}${FILLER}𓆩 💧 𓆪`,
     `${FILLER}${FILLER}${FILLER}𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼`,
-    `${FILLER}${FILLER}${FILLER}( ᵕ ᴗ ᵕ )♡`,
+    `${FILLER}${FILLER}${FILLER}( ᵕ ᴗ ᵕ )💙`,
     SEPARATOR,
     `${FILLER}🌊${FILLER}׃${FILLER} 𝕴𝐍𝐅𝐎𝐑𝐌𝐀𝐂𝐈𝐎𝐍 ${FILLER}׃`,
     `${FILLER}${FILLER}𓂃 𝖻𝗈𝗍 𝗂𝗇𝖿𝗈𝗋𝗆𝖺𝗍𝗂𝗈𝗇 𓂃`,
@@ -87,11 +87,11 @@ function footer({ config }) {
   return [
     `${FILLER}${FILLER}${FILLER}𓆩${FILLER}🌊${FILLER}𓆪`,
     `${FILLER}${FILLER} 𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔`,
-    `${FILLER}${FILLER}${FILLER}( ᴗ͈ˬᴗ͈) ♡`,
+    `${FILLER}${FILLER}${FILLER}( ᴗ͈ˬᴗ͈) 💙`,
     `${FILLER}${FILLER}「 ${phrase} 」`,
     `${FILLER}⌞${FILLER}≪⁹⁹${FILLER}⁙${FILLER}${bot.name}`,
     `${FILLER}${FILLER}${FILLER}𝖾𝗌𝗍.${FILLER}${boldDigits(bot.year)}`,
-    `${FILLER}${FILLER}࿚ׄ࿚${FILLER}𓆩 🌊 𓆪${FILLER}࿙ׄ࿚`
+    `${FILLER}${FILLER}࿚ׄ࿚${FILLER}𓆩 💧 🐟 💦 𓆪${FILLER}࿙ׄ࿚`
   ]
 }
 
@@ -128,7 +128,7 @@ export function buildCommandHelp({ config, command }) {
           .join(' ')}`
       : null,
     ...(command.examples || []).map((example) => `${FILLER}${FILLER}❥${FILLER}${example}`),
-    `${FILLER}${FILLER}${FILLER}( ᴗ͈ˬᴗ͈) ♡`,
+    `${FILLER}${FILLER}${FILLER}( ᴗ͈ˬᴗ͈) 💙`,
     `${FILLER}${FILLER}࿚ׄ࿙ֹ࿚᮫᜔۬፟֟࿙ֹ࿚ׄ࿙`
   ]
   return lines.filter((line) => line !== null).join('\n')

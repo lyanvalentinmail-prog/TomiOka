@@ -131,7 +131,8 @@ test('.pack cancel descarta la sesión', async () => {
 test('reacciona a los comandos si está habilitado', async () => {
   const { config, logger, store, sock } = setup({ behavior: { cooldownMs: 0, reactToCommands: true } })
   await handleMessage({ sock, msg: textMessage('.help'), config, logger, store, commands })
-  assert.ok(sock.reactions.some((reaction) => reaction.text === '✅'))
+  assert.ok(sock.reactions.some((reaction) => reaction.text === '💧'))
+  assert.ok(sock.reactions.some((reaction) => reaction.text === '💙'))
 })
 
 test('ignora los mensajes que el propio bot envió', async () => {
