@@ -1272,20 +1272,10 @@ function renderProfile() {
 /* ── comandos: catálogo completo en vivo desde /api/commands ────── */
 
 const COMMAND_CATEGORIES = [
-  ['info', 'Información'],
-  ['activation', 'Activación'],
-  ['registro', 'Registro'],
-  ['roles', 'Personajes y roles'],
-  ['team', 'Team'],
-  ['social', 'Interacción y azar'],
-  ['perfil', 'Perfil'],
-  ['economy', 'Economía'],
-  ['anime', 'Anime'],
-  ['stickers', 'Stickers'],
   ['download', 'Descargas'],
+  ['stickers', 'Stickers'],
   ['tools', 'Herramientas'],
-  ['logos', 'Logos'],
-  ['admin', 'Administración'],
+  ['info', 'Información'],
 ];
 const COMMAND_PERMISSIONS = { registered: 'Registrados', admin: 'Admins', owner: 'Owner' };
 
@@ -1695,17 +1685,11 @@ async function openEditInstance(instance) {
   state.editDraft = { menuStyle: instance.menuStyle || 'tomioka', menuMode: 'text', banner: null, aliases: {}, disabled: [], disabledCategories: [], categories: [], customCommands: [], categoryOverrides: {} };
   state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
   state.editStyles = [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El diseño clásico de TomiOka, con kaomojis y bloques decorados.', preview: 'Elaborado · con encabezado, 5 bloques y footer' },
-      { id: 'minimal', label: 'Minimal', description: 'Limpio y directo: lista plana con viñetas.', preview: 'Limpio · lista por categorías' },
-      { id: 'elegant', label: 'Elegant', description: 'Cajas unicode finas, como una carta.', preview: 'Cajas finas · elegante' },
-      { id: 'cyber', label: 'Cyber', description: 'Bloques y flechas neón, estilo terminal hack.', preview: 'Terminal · neón · ▓▓▓' },
-      { id: 'compact', label: 'Compact', description: 'Una línea por categoría: máximo ahorro.', preview: 'Ultra corto · una línea' },
-      { id: 'retro', label: 'Retro', description: 'ASCII box art nostálgico, tipo BBS 90s.', preview: 'ASCII art · retro box' },
-      { id: 'raiden', label: 'Raiden', description: 'El menú de Raiden-WaBot: saludo, bloques por categoría y Made with love.', preview: 'Saludo · ☕︎ bloques · ﹙❀﹚' },
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
     ];
   // Render inicial síncrono (sin preview aún) - contiene el textarea esperado por tests
   const adminNumImmediate = (instance.adminNumbers || []).join('\n');
-  content.innerHTML = `<div class="edit-modal-card modal-card" style="width:min(860px, calc(100vw - 24px));max-height:92vh;padding:0;overflow:hidden;display:flex;flex-direction:column;"><div class="edit-modal-head"><button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar" style="top:14px;right:14px;">${icon('close')}</button><span class="section-kicker">${icon('bot')} Editar bot · ${escapeHtml(instance.name)}</span><h2 id="modal-title" style="margin-top:8px;font-size:20px;">Personaliza tu bot</h2></div><nav class="edit-tabs" role="tablist"><button class="edit-tab-btn is-active" type="button" data-action="switch-edit-tab" data-tab="general">General</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="comandos">Comandos</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="categorias">Categorías</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="estilo">Estilo</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="nuevo">Crear</button></nav><div class="edit-content"><form class="modal-form" id="edit-instance-form" data-id="${escapeHtml(instance.id)}"><label class="field"><span class="field-label">Nombre</span><input class="text-input" type="text" name="instance-name" value="${escapeHtml(instance.name||'')}" /></label><div class="field"><span class="field-label">Prefijo</span><div class="pairing-methods edit-prefixes">${PREFIXES.map((p)=>`<button class="pairing-option ${(instance.prefix||'.')===p?'is-selected':''}" type="button" data-action="edit-prefix" data-prefix="${p}">${escapeHtml(p)}</button>`).join('')}</div><input type="hidden" name="instance-prefix" value="${escapeHtml(instance.prefix||'.')}" /></div><label class="field"><span class="field-label">Números de admins · staff only</span><textarea class="text-area mono" name="instance-admin-numbers" rows="3">${escapeHtml(adminNumImmediate)}</textarea><span class="field-hint">Con código de país, uno por línea o separados por comas. Máximo 50 números.</span><span class="field-hint">Acceso staff only en este bot, aunque no sean admins del grupo. No otorga permisos de owner ni los asciende en WhatsApp. Para quitar este acceso, borra el número y guarda.</span></label><p class="field-hint">Los admins del grupo conservan sus permisos. Para expulsar o cerrar grupos, el bot debe ser admin en WhatsApp.</p><p class="modal-error" id="edit-instance-error" role="alert" hidden></p></form></div><div class="edit-footer"><button class="btn btn-outline" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="button" data-action="save-all">Guardar todo</button></div></div>`;
+  content.innerHTML = `<div class="edit-modal-card modal-card" style="width:min(860px, calc(100vw - 24px));max-height:92vh;padding:0;overflow:hidden;display:flex;flex-direction:column;"><div class="edit-modal-head"><button class="icon-button modal-close" type="button" data-action="close-modal" aria-label="Cerrar" style="top:14px;right:14px;">${icon('close')}</button><span class="section-kicker">${icon('bot')} Editar bot · ${escapeHtml(instance.name)}</span><h2 id="modal-title" style="margin-top:8px;font-size:20px;">Personaliza tu bot</h2></div><nav class="edit-tabs" role="tablist"><button class="edit-tab-btn is-active" type="button" data-action="switch-edit-tab" data-tab="general">General</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="comandos">Comandos</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="categorias">Categorías</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="estilo">Estilo</button><button class="edit-tab-btn" type="button" data-action="switch-edit-tab" data-tab="nuevo">Crear</button></nav><div class="edit-content"><form class="modal-form" id="edit-instance-form" data-id="${escapeHtml(instance.id)}"><label class="field"><span class="field-label">Nombre</span><input class="text-input" type="text" name="instance-name" value="${escapeHtml(instance.name||'')}" /></label><div class="field"><span class="field-label">Prefijo</span><div class="pairing-methods edit-prefixes">${PREFIXES.map((p)=>`<button class="pairing-option ${(instance.prefix||'.')===p?'is-selected':''}" type="button" data-action="edit-prefix" data-prefix="${p}">${escapeHtml(p)}</button>`).join('')}</div><input type="hidden" name="instance-prefix" value="${escapeHtml(instance.prefix||'.')}" /></div><label class="field"><span class="field-label">Números owner de este sub-bot</span><textarea class="text-area mono" name="instance-admin-numbers" rows="3">${escapeHtml(adminNumImmediate)}</textarea><span class="field-hint">Con código de país, uno por línea o separados por comas. Máximo 50 números.</span><span class="field-hint">Estos números serán los DUEÑOS de este sub-bot: pueden usar los comandos de owner y los personalizados con permiso owner. No otorga permisos sobre el bot principal ni asciende a nadie en WhatsApp. Para quitarlo, borra el número y guarda.</span></label><p class="field-hint">Los admins del grupo conservan sus permisos. Para expulsar o cerrar grupos, el bot debe ser admin en WhatsApp.</p><p class="modal-error" id="edit-instance-error" role="alert" hidden></p></form></div><div class="edit-footer"><button class="btn btn-outline" type="button" data-action="close-modal">Cancelar</button><button class="btn btn-primary" type="button" data-action="save-all">Guardar todo</button></div></div>`;
   $('#modal-layer').hidden = false;
   document.body.classList.add('modal-open');
   try {
@@ -1729,14 +1713,8 @@ async function openEditInstance(instance) {
       state.editDraft = { menuStyle: instance.menuStyle || 'tomioka', menuMode: 'text', banner: null, aliases: {}, disabled: [], disabledCategories: [], categories: [], customCommands: [], categoryOverrides: {} };
       state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
     }
-    state.editStyles = styles?.styles || [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'Clásico', preview: 'Elaborado' },
-      { id: 'minimal', label: 'Minimal', description: 'Limpio', preview: 'Limpio' },
-      { id: 'elegant', label: 'Elegant', description: 'Cajas', preview: 'Elegante' },
-      { id: 'cyber', label: 'Cyber', description: 'Neón', preview: 'Cyber' },
-      { id: 'compact', label: 'Compact', description: 'Corto', preview: 'Compacto' },
-      { id: 'retro', label: 'Retro', description: 'ASCII', preview: 'Retro' },
-      { id: 'raiden', label: 'Raiden', description: 'Raiden', preview: 'Raiden' },
+    state.editStyles = styles?.styles?.length ? styles.styles : [
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
     ];
     renderEditModal();
     // preview se carga bajo demanda al abrir pestaña Estilo
@@ -1768,7 +1746,7 @@ function renderEditModal() {
           <label class="field"><span class="field-label">Nombre del bot</span><input class="text-input" type="text" name="instance-name" value="${escapeHtml(instance.name || '')}" maxlength="40" required /></label>
           <div class="field"><span class="field-label">Prefijo de comandos</span><div class="pairing-methods edit-prefixes" role="group" aria-label="Prefijo">${PREFIXES.map((p) => `<button class="pairing-option ${(instance.prefix || '.') === p ? 'is-selected' : ''}" type="button" data-action="edit-prefix" data-prefix="${p}" aria-label="Usar prefijo ${escapeHtml(p)}" aria-pressed="${(instance.prefix || '.') === p}"><span><strong>${escapeHtml(p)}</strong><small>${escapeHtml(p)}menu</small></span></button>`).join('')}</div></div>
           <input type="hidden" name="instance-prefix" value="${escapeHtml(instance.prefix || '.')}" />
-          <label class="field" for="instance-admin-numbers"><span class="field-label">Números admins · staff only</span><textarea class="text-area mono" id="instance-admin-numbers" name="instance-admin-numbers" rows="3" inputmode="tel" autocomplete="off" spellcheck="false" maxlength="3000" placeholder="+598 99 123 456&#10;+52 1 55 1234 5678">${escapeHtml(adminNumbers)}</textarea><span class="field-hint" id="instance-admin-format">Con código de país, uno por línea o separados por comas. Máximo 50 números.</span><span class="field-hint" id="instance-admin-scope">Acceso staff only en este bot, aunque no sean admins del grupo. No otorga permisos de owner ni los asciende en WhatsApp. Para quitar este acceso, borra el número y guarda.</span></label><p class="field-hint">Los admins del grupo conservan sus permisos. Para expulsar o cerrar grupos, el bot debe ser admin en WhatsApp.</p></label>
+          <label class="field" for="instance-admin-numbers"><span class="field-label">Números owner de este sub-bot</span><textarea class="text-area mono" id="instance-admin-numbers" name="instance-admin-numbers" rows="3" inputmode="tel" autocomplete="off" spellcheck="false" maxlength="3000" placeholder="+598 99 123 456&#10;+52 1 55 1234 5678">${escapeHtml(adminNumbers)}</textarea><span class="field-hint" id="instance-admin-format">Con código de país, uno por línea o separados por comas. Máximo 50 números.</span><span class="field-hint" id="instance-admin-scope">Estos números serán los DUEÑOS de este sub-bot: pueden usar los comandos de owner y los personalizados con permiso owner. No otorga permisos sobre el bot principal ni asciende a nadie en WhatsApp. Para quitarlo, borra el número y guarda.</span></label><p class="field-hint">Los admins del grupo conservan sus permisos. Para expulsar o cerrar grupos, el bot debe ser admin en WhatsApp.</p></label>
         </form>
       </div>
       <div class="edit-card" style="display:flex;gap:10px;align-items:center;">
@@ -1805,7 +1783,7 @@ function renderEditModal() {
       catKeys = Object.keys(filteredGrouped).sort();
       if (catKeys.length === 0) return `<div class="edit-card" style="text-align:center;color:var(--text-muted);padding:20px;">No hay resultados para "${escapeHtml(filter)}"</div>`;
       let html = `<div class="command-search">${icon('search')}<input id="edit-command-search" type="search" placeholder="Buscar comando…" value="${escapeHtml(state.editFilter)}" autocomplete="off" /></div>`;
-      html += Object.entries(filteredGrouped).map(([cat, list]) => `<div class="edit-card"><h4>${icon('hash')} ${escapeHtml(cat)} <span class="badge">${list.length}</span></h4><div style="display:grid;gap:8px;">${list.map((c) => renderCommandRow(c, draft, disabledSet, new Set((draft.disabledCategories || []).map((s) => String(s).toLowerCase())))).join('')}</div></div>`).join('');
+      html += Object.entries(filteredGrouped).map(([cat, list]) => `<div class="edit-card"><h4>${icon('hash')} ${escapeHtml(({download:'Descargas',stickers:'Stickers',tools:'Herramientas',info:'Información'})[cat] || cat)} <span class="badge">${list.length}</span></h4><div style="display:grid;gap:8px;">${list.map((c) => renderCommandRow(c, draft, disabledSet, new Set((draft.disabledCategories || []).map((s) => String(s).toLowerCase())))).join('')}</div></div>`).join('');
       return html;
     }
     let html = `<div class="command-search">${icon('search')}<input id="edit-command-search" type="search" placeholder="Buscar comando por nombre, alias o descripción…" value="${escapeHtml(state.editFilter)}" autocomplete="off" /></div>`;
@@ -1814,28 +1792,19 @@ function renderEditModal() {
     html += Object.entries(grouped).sort(([a],[b])=>a.localeCompare(b)).map(([cat, list]) => {
       const catOff = catDisabledSet.has(String(cat).toLowerCase());
       const offCount = list.filter((c)=>disabledSet.has(c.name.toLowerCase())).length;
-      return `<div class="edit-card ${catOff ? 'is-cat-off' : ''}"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><h4>${icon('hash')} ${escapeHtml(cat)} <span class="badge">${list.length}</span></h4><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;color:var(--text-muted);">${catOff ? 'CATEGORÍA OFF' : (offCount ? `${offCount} apagados` : '')}</span><button class="toggle-switch ${!catOff ? 'is-on' : ''}" type="button" data-action="toggle-menu-category" data-cat="${escapeHtml(cat)}" aria-pressed="${!catOff}" aria-label="${catOff ? 'Activar' : 'Desactivar'} toda la categoría ${escapeHtml(cat)}" title="${catOff ? 'Activar' : 'Desactivar'} toda la categoría"></button></div></div><div style="display:grid;gap:8px;margin-top:10px;">${list.map((c) => renderCommandRow(c, draft, disabledSet, catDisabledSet)).join('')}</div></div>`;
+      return `<div class="edit-card ${catOff ? 'is-cat-off' : ''}"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;"><h4>${icon('hash')} ${escapeHtml(({download:'Descargas',stickers:'Stickers',tools:'Herramientas',info:'Información'})[cat] || cat)} <span class="badge">${list.length}</span></h4><div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;color:var(--text-muted);">${catOff ? 'CATEGORÍA OFF' : (offCount ? `${offCount} apagados` : '')}</span><button class="toggle-switch ${!catOff ? 'is-on' : ''}" type="button" data-action="toggle-menu-category" data-cat="${escapeHtml(cat)}" aria-pressed="${!catOff}" aria-label="${catOff ? 'Activar' : 'Desactivar'} toda la categoría ${escapeHtml(cat)}" title="${catOff ? 'Activar' : 'Desactivar'} toda la categoría"></button></div></div><div style="display:grid;gap:8px;margin-top:10px;">${list.map((c) => renderCommandRow(c, draft, disabledSet, catDisabledSet)).join('')}</div></div>`;
     }).join('');
     return html;
   })();
   const categoriasHtml = (() => {
     const builtins = [
-      { id: 'info', title: 'INFORMACIÓN', icon: '🥢', sub: 'bot information', built: true },
-      { id: 'registro', title: 'REGISTRO', icon: '⸸', sub: 'member registration', built: true },
-      { id: 'roles', title: 'PERSONAJES', icon: '☕', sub: 'role system', built: true },
-      { id: 'team', title: 'GESTIÓN', icon: '𖤐', sub: 'team management', built: true },
-      { id: 'social', title: 'INTERACCIÓN', icon: '🥢', sub: 'social & fun', built: true },
-      { id: 'admin', title: 'ADMINISTRACIÓN', icon: '⛓️', sub: 'staff only', built: true },
-      { id: 'anime', title: 'ANIME', icon: '🧈', sub: 'anime reactions', built: true },
-      { id: 'economy', title: 'ECONOMÍA', icon: '🪷', sub: 'yenes & gamble', built: true },
-      { id: 'download', title: 'DESCARGAS', icon: '🛍️', sub: 'music & media', built: true },
-      { id: 'perfil', title: 'PERFIL', icon: '🌸', sub: 'love & datos', built: true },
-      { id: 'stickers', title: 'STICKERS', icon: '⭐', sub: 'sticker maker', built: true },
-      { id: 'tools', title: 'HERRAMIENTAS', icon: '💐', sub: 'ia & utilidad', built: true },
-      { id: 'logos', title: 'LOGOS', icon: '🍰', sub: 'logo maker', built: true },
+      { id: 'download', title: 'DESCARGAS', icon: '📥', sub: 'tiktok · instagram · ytmp3 · ytmp4', built: true },
+      { id: 'stickers', title: 'STICKERS', icon: '🎨', sub: 'brat · attp · ttp · sticker', built: true },
+      { id: 'tools', title: 'HERRAMIENTAS', icon: '🧰', sub: 'conversión, packs y más', built: true },
+      { id: 'info', title: 'INFORMACIÓN', icon: 'ℹ️', sub: 'ayuda y menú', built: true },
     ];
     const disabledCatSet = new Set((draft.disabledCategories || []).map((s) => String(s).toLowerCase()));
-    let html = `<div class="edit-card"><h4>${icon('hash')} Categorías del sistema <span class="badge">${builtins.length - [...disabledCatSet].filter((c)=>builtins.some((b)=>b.id===c)).length} activas</span></h4><p style="margin:6px 0 0;color:var(--text-muted);font-size:11px;">No se pueden borrar, pero sí <strong>quitar del menú</strong> con el interruptor: sus comandos se ocultan y dejan de responder. Actívalas cuando quieras. También puedes mover comandos entre categorías y crear las tuyas.</p></div>`;
+    let html = `<div class="edit-card"><h4>${icon('hash')} Categorías del sistema <span class="badge">${builtins.length - [...disabledCatSet].filter((c)=>builtins.some((b)=>b.id===c)).length} activas</span></h4><p style="margin:6px 0 0;color:var(--text-muted);font-size:11px;">Son las categorías reales de TomiOka: el menú de WhatsApp muestra <strong>Descargas</strong> y <strong>Stickers</strong>; Herramientas e Información agrupan el resto de comandos. Si quitas una categoría con el interruptor, sus comandos <strong>dejan de responder</strong> en este sub-bot (y salen de la vista previa).</p></div>`;
     html += `<div class="category-grid">${builtins.map((b) => {
       const off = disabledCatSet.has(b.id);
       return `<div class="category-card ${off ? 'is-disabled' : ''}"><div class="category-card-head"><span class="cat-icon">${escapeHtml(b.icon)}</span><div style="flex:1;min-width:0;"><h5>${escapeHtml(b.title)}</h5><p>${escapeHtml(b.sub)} · ${escapeHtml(b.id)}</p></div><div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;"><button class="toggle-switch ${!off ? 'is-on' : ''}" type="button" data-action="toggle-menu-category" data-cat="${escapeHtml(b.id)}" aria-pressed="${!off}" aria-label="${off ? 'Activar' : 'Quitar'} categoría ${escapeHtml(b.id)}"></button><span style="font-size:9px;color:var(--text-muted);">${off ? 'quitada' : 'visible'}</span></div></div></div>`;
@@ -1862,13 +1831,13 @@ function renderEditModal() {
     let html = `<div class="edit-card"><h4>${icon('spark')} Modo de entrega del menú</h4><p style="margin:6px 0 10px;color:var(--text-muted);font-size:11px;">Elige cómo llega el menú cuando alguien escribe <code>${escapeHtml(instance.prefix || '.')}menu</code>.</p>
       <div class="style-grid">
         <button class="style-card ${menuMode === 'text' ? 'is-selected' : ''}" type="button" data-action="set-menu-mode" data-mode="text"><h5>💬 Texto decorado</h5><p>El menú completo como mensaje de texto con el estilo elegido abajo.</p><span class="style-preview-badge">estilo: ${escapeHtml(draft.menuStyle)}</span>${menuMode === 'text' ? `<span style="position:absolute;top:10px;right:10px;color:var(--purple-bright);">${icon('check')}</span>` : ''}</button>
-        <button class="style-card ${menuMode === 'list' ? 'is-selected' : ''}" type="button" data-action="set-menu-mode" data-mode="list"><h5>📋 Lista interactiva</h5><p>Aparece la info del bot y debajo un botón para elegir la categoría (list message de WhatsApp).</p><span class="style-preview-badge">list message</span>${menuMode === 'list' ? `<span style="position:absolute;top:10px;right:10px;color:var(--purple-bright);">${icon('check')}</span>` : ''}</button>
+        <button class="style-card ${menuMode === 'list' ? 'is-selected' : ''}" type="button" data-action="set-menu-mode" data-mode="text"><h5>📋 Menú TomiOka</h5><p>Así responde hoy el bot: el menú llega como texto con el banner de TomiOka y las categorías 📥 Descargas y 🎨 Stickers.</p><span class="style-preview-badge">banner + texto</span>${menuMode === 'list' ? `<span style="position:absolute;top:10px;right:10px;color:var(--purple-bright);">${icon('check')}</span>` : ''}</button>
       </div>
       ${menuMode === 'list' ? `<p class="field-hint" style="margin-top:8px;">En modo lista, al elegir una categoría el bot responde con esa sección en texto (usa el estilo de abajo). Si WhatsApp no muestra la lista, se envía el menú en texto automáticamente.</p>` : ''}
     </div>`;
-    html += `<div class="edit-card"><h4>🖼️ Banner del menú</h4><p style="margin:6px 0 10px;color:var(--text-muted);font-size:11px;">Imagen que acompaña al menú: el bot la envía con <code>${escapeHtml(instance.prefix || '.')}menu</code> (con el menú de pie de foto si cabe, o junto al texto).</p>
+    html += `<div class="edit-card"><h4>🖼️ Banner del menú</h4><p style="margin:6px 0 10px;color:var(--text-muted);font-size:11px;">El banner es el del bot TomiOka y se configura en el bot principal (config.json / MENU_IMAGE); no se cambia por sub-bot. Es la imagen que acompaña al menú que el bot envía con <code>${escapeHtml(instance.prefix || '.')}menu</code> (con el menú de pie de foto si cabe, o junto al texto).</p>
       ${bannerSrc ? `<div class="banner-preview"><img src="${escapeHtml(bannerSrc)}" alt="Banner del bot" /><div class="banner-preview-actions"><span class="alias-chip">${banner.dataUrl ? 'imagen subida' : 'URL externa'}</span><button class="btn btn-outline btn-small" type="button" data-action="remove-banner">${icon('close')} Quitar banner</button></div></div>` : `<p class="field-hint" style="margin-bottom:10px;">Sin banner todavía: pega una URL o sube una imagen (PNG, JPG o WebP, máx. 1 MB).</p>`}
-      <div class="banner-editor">
+      <div class="banner-editor" hidden>
         <label class="field" style="flex:2;min-width:200px;"><span class="field-label">URL de la imagen (https)</span><input class="text-input mono" id="banner-url-input" type="url" placeholder="https://ejemplo.com/banner.jpg" value="${escapeHtml(banner?.url || '')}" maxlength="500" /></label>
         <button class="btn btn-primary btn-small" type="button" data-action="set-banner-url" style="align-self:flex-end;">${icon('check')} Usar URL</button>
         <label class="field" style="flex:1;min-width:180px;"><span class="field-label">o subir desde tu dispositivo</span><input class="text-input" id="banner-upload" type="file" accept="image/png,image/jpeg,image/webp" /></label>
@@ -1880,7 +1849,7 @@ function renderEditModal() {
     return html;
   })();
   const nuevoHtml = (() => {
-    const allCats = ['info','registro','roles','team','social','admin','anime','economy','download','perfil','stickers','tools','logos', ...draft.categories.map((c)=>c.id)];
+    const allCats = ['download', 'stickers', 'tools', 'info', ...draft.categories.map((c)=>c.id)];
     let html = `<div class="edit-card"><h4>${icon('plus')} Crear comando personalizado</h4><p style="margin:6px 0;color:var(--text-muted);font-size:11px;">Crea un comando nuevo que responde con tu texto. Usa variables <code>{{user}}</code>, <code>{{botName}}</code>, <code>{{prefix}}</code>, <code>{{groupName}}</code>.</p>
     <form id="new-command-form" class="custom-cmd-form">
       <div class="field-grid">
@@ -1890,7 +1859,7 @@ function renderEditModal() {
       <label class="field"><span class="field-label">Descripción</span><input class="text-input" name="cmd-desc" placeholder="ej: Saluda a todos" maxlength="200" /></label>
       <label class="field"><span class="field-label">Respuesta * (usa {{user}} etc)</span><textarea class="text-area" name="cmd-response" rows="4" placeholder="¡Hola {{user}}! Bienvenido a {{botName}} 🥳" maxlength="2000" required></textarea></label>
       <div class="field-grid">
-        <label class="field"><span class="field-label">Permiso</span><select class="select-input" name="cmd-perm"><option value="all">todos</option><option value="registered">registrados</option><option value="admin">admins</option><option value="owner">owner</option></select></label>
+        <label class="field"><span class="field-label">Permiso</span><select class="select-input" name="cmd-perm"><option value="all">todos</option><option value="owner">solo owner (números owner del sub-bot)</option></select></label>
         <label class="field"><span class="field-label">Args (placeholder)</span><input class="text-input mono" name="cmd-args" placeholder="ej: <texto>" maxlength="40" /></label>
       </div>
       <label class="field"><span class="field-label">Alias (coma separada)</span><input class="text-input mono" name="cmd-alias" placeholder="ej: hola, hello" maxlength="80" /></label>

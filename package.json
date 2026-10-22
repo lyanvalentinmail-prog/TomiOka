@@ -11,9 +11,9 @@
     "node": ">=20.0.0"
   },
   "scripts": {
-    "start": "node src/index.js",
-    "qr": "node src/index.js --qr",
-    "pair": "node src/index.js --pair",
+    "start": "node scripts/boot.js",
+    "qr": "node scripts/boot.js --qr",
+    "pair": "node scripts/boot.js --pair",
     "doctor": "node src/doctor.js",
     "test": "node --test tests/*.test.js",
     "emojimix:sync": "node src/tools/sync-emojimix.js",
@@ -35,7 +35,7 @@
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0"
   },
-  "author": "Tomióka Team",
+  "author": "Tomi\u00f3ka Team",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lyanvalentinmail-prog/TomiOka.git"

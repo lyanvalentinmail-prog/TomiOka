@@ -114,7 +114,7 @@ async function runCommand(ctx, command) {
 /**
  * Procesa un mensaje individual.
  */
-export async function handleMessage({ sock, msg, config, logger, store, commands = null }) {
+export async function handleMessage({ sock, msg, config, logger, store, commands = null, hooks = null }) {
   if (shouldIgnore(msg, config, store)) return
 
   const text = getText(msg)
@@ -145,6 +145,20 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
   ctx.argsText = parsed.argsText
   ctx.prefix = parsed.prefix
 
+  // Personalización por instancia (panel web): deshabilitar comandos o
+  // categorías, alias extra y comandos propios de texto. Sin hooks (bot
+  // principal) el flujo es exactamente el de siempre.
+  if (hooks?.beforeCommand) {
+    const decision = await hooks.beforeCommand({ ctx, parsed, sock, msg })
+    if (decision?.type === 'ignore') return
+    if (decision?.type === 'custom') { await ctx.reply(decision.response); return }
+    if (decision?.type === 'run' && decision.command) {
+      ctx.command = decision.command.name
+      await runCommand(ctx, decision.command)
+      return
+    }
+  }
+
   const command = findCommand(parsed.command)
   if (!command) {
     if (config.behavior.replyUnknownCommand) {
@@ -164,12 +178,12 @@ export async function handleMessage({ sock, msg, config, logger, store, commands
 /**
  * Crea el listener de Baileys.
  */
-export function createUpsertHandler({ config, logger, store, commands }) {
+export function createUpsertHandler({ config, logger, store, commands, hooks = null }) {
   return async function onUpsert(sock, { messages, type }) {
     if (type !== 'notify' && type !== 'append') return
     for (const msg of messages || []) {
       try {
-        await handleMessage({ sock, msg, config, logger, store, commands })
+        await handleMessage({ sock, msg, config, logger, store, commands, hooks })
       } catch (error) {
         logger.error(`${sym.err} Error procesando mensaje: ${error.stack || error.message}`)
       }
