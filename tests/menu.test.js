@@ -36,19 +36,30 @@ test('los alias apuntan al mismo comando', () => {
   assert.equal(findCommand('noexiste'), null)
 })
 
-test('el menú usa dos categorías con solo los ocho endpoints pedidos', () => {
-  assert.equal(config.menu.categories.length, 2)
-  const [downloads, stickers] = config.menu.categories
+test('el menú usa cinco categorías con TODOS los comandos visibles', () => {
+  assert.equal(config.menu.categories.length, 5)
+  const [downloads, stickers, conversion, packs, info] = config.menu.categories
   assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'ytmp3', 'ytmp4'])
-  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker'])
+  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal'])
+  assert.deepEqual(conversion.commands, ['toimg', 'tovideo', 'take'])
+  assert.deepEqual(packs.commands, ['pack'])
+  assert.deepEqual(info.commands, ['help'])
   assert.deepEqual(
     resolveCategoryCommands(downloads, commands).map((command) => command.name),
     ['tiktok', 'instagram', 'ytmp3', 'ytmp4']
   )
   assert.deepEqual(
     resolveCategoryCommands(stickers, commands).map((command) => command.name),
-    ['brat', 'attp', 'ttp', 'sticker']
+    ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal']
   )
+
+  // Cada comando visible aparece exactamente una vez en alguna categoría
+  const allListed = config.menu.categories.flatMap((category) =>
+    resolveCategoryCommands(category, commands).map((command) => command.name)
+  )
+  const expected = commandList.filter((command) => !command.hidden).map((command) => command.name)
+  assert.deepEqual([...allListed].sort(), [...expected].sort())
+  assert.equal(new Set(allListed).size, allListed.length, 'sin duplicados')
 })
 
 test('resolveCategoryCommands filtra por nombre y evita duplicados', () => {
@@ -86,27 +97,30 @@ test('el menú no tiene líneas vacías ni espacios sobrantes', () => {
 test('el menú muestra solo el comando, sin descripciones', () => {
   const menu = buildMenu({ config, commands, sender: {} })
   const listed = config.menu.categories.flatMap((category) => resolveCategoryCommands(category, commands))
-  assert.equal(listed.length, 8, 'solo los ocho endpoints')
+  const visibleCount = commandList.filter((command) => !command.hidden).length
+  assert.equal(listed.length, visibleCount, 'todos los comandos visibles')
   for (const command of listed) {
     assert.ok(menu.includes(`୨ৎㅤ${config.prefixes[0]}${command.name}`), `falta ${command.name}`)
     if (command.description) {
       assert.ok(!menu.includes(command.description), `no debe mostrarse la descripción de ${command.name}`)
     }
   }
-  // El resto de comandos existe, pero NO se lista en el menú
+  // Todos los comandos visibles se listan (antes solo salían 8)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
   for (const name of ['gif', 'toimg', 'tovideo', 'take', 'steal', 'emojimix', 'pack', 'help']) {
-    assert.ok(!commandLines.some((line) => line.includes(`${config.prefixes[0]}${name}`)), `${name} no debe listarse`)
+    assert.ok(commandLines.some((line) => line.includes(`${config.prefixes[0]}${name} `) || line.trimEnd().endsWith(`${config.prefixes[0]}${name}`)), `${name} debe listarse`)
   }
+  assert.ok(!commandLines.some((line) => line.includes(`${config.prefixes[0]}debug`)), 'debug es oculto y no se lista')
   assert.ok(!menu.includes('›'), 'no usa el separador de descripción')
 })
 
-test('el menú agrupa los endpoints en dos categorías', () => {
+test('el menú agrupa todos los comandos en cinco categorías', () => {
   const menu = buildMenu({ config, commands, sender: {} })
-  assert.equal((menu.match(/◢ /g) || []).length, 2, 'dos bloques de categoría')
-  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 2)
+  assert.equal((menu.match(/◢ /g) || []).length, 5, 'cinco bloques de categoría')
+  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 5)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
-  assert.equal(commandLines.length, 8, 'una línea por endpoint, sin separación')
+  const visibleCount = commandList.filter((command) => !command.hidden).length
+  assert.equal(commandLines.length, visibleCount, 'una línea por comando, sin separación')
 })
 
 test('el menú respeta las categorías configuradas', () => {
