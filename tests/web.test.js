@@ -227,6 +227,18 @@ test('el login del panel es real: cuentas cifradas, sesiones y owner', () => {
   assert.ok(read('render.yaml').includes('npm install'), 'Render debe instalar las dependencias (Baileys) en el build')
 })
 
+test('editar bot muestra la info de TomiOka y el arranque instala dependencias', () => {
+  assert.ok(!/raiden/i.test(js), 'sin estilos de otros bots')
+  assert.ok(js.includes("['download', 'Descargas']") && js.includes("['info', 'Información']"), 'categorías de TomiOka')
+  assert.ok(js.includes('Números owner de este sub-bot'), 'los números son owners del sub-bot')
+  assert.ok(!js.includes('staff only'), 'sin promesas ajenas')
+  assert.ok(server.includes('panelBeforeCommand') && server.includes('beforeCommand'), 'la personalización se aplica al sub-bot')
+  assert.ok(server.includes('config.owner') && server.includes('adminNumbers'), 'los owners se cargan en la config del sub-bot')
+  const pkg = JSON.parse(read('package.json'))
+  assert.equal(pkg.scripts.start, 'node scripts/boot.js')
+  assert.ok(read('scripts/boot.js').includes('Faltan dependencias'), 'npm start instala si falta Baileys')
+})
+
 test('package.json expone cómo servir la página', () => {
   const pkg = JSON.parse(read('package.json'))
   assert.equal(pkg.scripts.web, 'node scripts/serve-web.js')

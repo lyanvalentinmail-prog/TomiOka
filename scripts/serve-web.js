@@ -113,11 +113,15 @@ function argsFromUsage(command) {
   return usage.startsWith(head) ? usage.slice(head.length).trim() : ''
 }
 
-function publicCommand(command) {
+function categoryIdOf(command) {
   const rawCategory = String(command.category || 'tools').toLowerCase()
-  const category = command.name === 'help'
+  return command.name === 'help'
     ? 'info'
     : ({ descargas: 'download', download: 'download', stickers: 'stickers', conversion: 'tools', herramientas: 'tools', extras: 'tools' }[rawCategory] || 'tools')
+}
+
+function publicCommand(command) {
+  const category = categoryIdOf(command)
   return {
     name: command.name,
     aliases: Array.isArray(command.aliases) ? command.aliases : [],
@@ -183,6 +187,58 @@ function broadcastLink(id) {
   }
 }
 
+let commandsModulePromise = null
+function loadCommandsModule() {
+  if (!commandsModulePromise) commandsModulePromise = import('../src/commands/index.js')
+  return commandsModulePromise
+}
+
+/**
+ * Aplica lo guardado en "Editar bot" a cada comando del sub-bot:
+ * comandos/categorías deshabilitados (silencio), alias extra y
+ * comandos personalizados de texto. Lee el registro en cada mensaje,
+ * así los cambios se aplican sin reiniciar el bot.
+ */
+async function panelBeforeCommand(instanceId, ctx, parsed) {
+  const { instance } = findStoredInstance(instanceId)
+  if (!instance) return null
+  const customization = instance.customization && typeof instance.customization === 'object' ? instance.customization : {}
+  const name = String(parsed.command || '').toLowerCase()
+
+  const customs = Array.isArray(customization.customCommands) ? customization.customCommands : []
+  const custom = customs.find((cc) => String(cc?.name || '').toLowerCase() === name
+    || (cc?.aliases || []).some((alias) => String(alias).toLowerCase() === name))
+  if (custom) {
+    const permission = String(custom.permission || 'all')
+    if ((permission === 'owner' || permission === 'admin') && !ctx.isOwner) {
+      return { type: 'custom', response: '🔒 Este comando es solo para el dueño del bot.' }
+    }
+    const response = String(custom.response || '')
+      .replaceAll('{{user}}', ctx.displayName || '')
+      .replaceAll('{{botName}}', 'TomiOka')
+      .replaceAll('{{prefix}}', instance.prefix || '.')
+      .replaceAll('{{groupName}}', ctx.isGroup ? 'este grupo' : 'este chat')
+    return { type: 'custom', response }
+  }
+
+  const { findCommand } = await loadCommandsModule()
+  let target = findCommand(name)
+  if (!target) {
+    for (const [commandName, aliases] of Object.entries(customization.aliases || {})) {
+      if ((aliases || []).some((alias) => String(alias).toLowerCase() === name)) { target = findCommand(commandName); break }
+    }
+  }
+  if (!target) return null
+
+  const disabledNames = new Set((customization.disabled || []).map((item) => String(item).toLowerCase()))
+  const disabledCats = new Set((customization.disabledCategories || []).map((item) => String(item).toLowerCase()))
+  if (disabledNames.has(String(target.name).toLowerCase()) || disabledCats.has(categoryIdOf(target))) {
+    return { type: 'ignore' }
+  }
+  if (String(target.name).toLowerCase() !== name) return { type: 'run', command: target }
+  return null
+}
+
 async function attachBotHandler(instance, sock) {
   let runtime = botRuntimes.get(instance.id)
   if (!runtime) {
@@ -198,9 +254,14 @@ async function attachBotHandler(instance, sock) {
     config.bot = { ...config.bot, prefix: instance.prefix || '.', prefixes: config.prefixes }
     config.pairingPhone = String(instance.phone || '').replace(/\D/g, '')
     config.login = 'pairing'
+    // Los "números owner" del panel son los dueños de ESTE sub-bot.
+    config.owner = { ...config.owner, numbers: (instance.adminNumbers || []).map((n) => String(n).replace(/\D/g, '')).filter(Boolean) }
     const { logger } = createLogger('warn', 'silent')
     const store = handlerMod.createStore(config, logger, { persistLiveMessages: false })
-    const onUpsert = handlerMod.createUpsertHandler({ config, logger, store, commands: commandsMod.commands })
+    const onUpsert = handlerMod.createUpsertHandler({
+      config, logger, store, commands: commandsMod.commands,
+      hooks: { beforeCommand: ({ ctx, parsed }) => panelBeforeCommand(instance.id, ctx, parsed) }
+    })
     runtime = { store, onUpsert }
     botRuntimes.set(instance.id, runtime)
   }
@@ -477,13 +538,20 @@ function findStoredInstance(id) {
 
 function menuPreview(instance) {
   const prefix = instance.prefix || '.'
+  const customization = instance.customization && typeof instance.customization === 'object' ? instance.customization : {}
+  const disabledNames = new Set((customization.disabled || []).map((item) => String(item).toLowerCase()))
+  const disabledCats = new Set((customization.disabledCategories || []).map((item) => String(item).toLowerCase()))
   const lines = ['TomiOka · Menú', '']
   for (const category of ENDPOINT_CATEGORIES) {
+    const catId = category.name === 'Descargas' ? 'download' : 'stickers'
+    if (disabledCats.has(catId)) continue
+    const items = category.items.filter((item) => !disabledNames.has(item.command.slice(1).toLowerCase()))
+    if (!items.length) continue
     lines.push(`${category.icon} ${category.name}`)
-    for (const item of category.items) lines.push(`${prefix}${item.command.slice(1)}`)
+    for (const item of items) lines.push(`${prefix}${item.command.slice(1)}`)
     lines.push('')
   }
-  return lines.join('\n').trim()
+  return (lines.join('\n').trim() || 'Sin comandos visibles: activa categorías en Editar bot.')
 }
 
 function dependencyError(res, error) {
@@ -546,7 +614,7 @@ async function handleApi(req, res, url) {
   }
 
   if (method === 'GET' && apiPath === '/menu/styles') {
-    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'Menú por categorías de TomiOka: Descargas y Stickers.', preview: '📥 Descargas · 🎨 Stickers' }] })
+    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' }] })
   }
   if (method === 'GET' && apiPath === '/credits/plans') return sendJson(res, 200, { ok: true, plans: [] })
   if (apiPath.startsWith('/credits/')) return notImplemented(res, 'La tienda y los créditos')
@@ -746,7 +814,7 @@ async function handleApi(req, res, url) {
       next.launchCommand = next.pairingMode === 'qr' ? `SESSION_DIR=${next.sessionDir} npm run qr` : `SESSION_DIR=${next.sessionDir} PAIRING_PHONE=${next.phone} npm run pair`
       items[index] = next
       writeSubbots(items)
-      if (body.phone !== undefined || body.prefix !== undefined || body.pairingMode !== undefined) {
+      if (body.phone !== undefined || body.prefix !== undefined || body.pairingMode !== undefined || body.adminNumbers !== undefined) {
         await linkSessions.stop(id)
         destroyBotRuntime(id)
       }
