@@ -65,7 +65,7 @@ export const DEFAULTS = {
     showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
-    // El menú muestra SOLO estos endpoints, agrupados en dos categorías.
+    // El menú de WhatsApp lista TODOS los comandos visibles del bot.
     // El resto de comandos sigue funcionando, pero no se lista aquí.
     categories: [
       {
@@ -80,7 +80,28 @@ export const DEFAULTS = {
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['✨', '🖼️'],
-        commands: ['brat', 'attp', 'ttp', 'sticker']
+        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal']
+      },
+      {
+        emoji: '🔄',
+        description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇',
+        kaomoji: '( ˶ᵕ˶ )',
+        divider: ['🔁', '💧'],
+        commands: ['toimg', 'tovideo', 'take']
+      },
+      {
+        emoji: '📦',
+        description: '𝖯𝖺𝖼𝗄𝗌',
+        kaomoji: '( ᵕ ᵗ ᵕ )',
+        divider: ['📦', '🌊'],
+        commands: ['pack']
+      },
+      {
+        emoji: '💧',
+        description: '𝖨𝗇𝖿𝗈',
+        kaomoji: '( ᴗ͈ˬᴗ͈ )',
+        divider: ['💧', '🌊'],
+        commands: ['help']
       }
     ]
   },
