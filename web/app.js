@@ -61,7 +61,7 @@
 
   $('#backToTop')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 
-  const navLinks = $$('.bottom-nav a')
+  const navLinks = $$('.header-link, .bottom-nav-item')
   const observedSections = navLinks
     .map((link) => document.querySelector(link.getAttribute('href')))
     .filter(Boolean)
@@ -70,7 +70,7 @@
     const navObserver = new IntersectionObserver((entries) => {
       for (const entry of entries) {
         if (!entry.isIntersecting) continue
-        navLinks.forEach((link) => link.classList.toggle('active', link.getAttribute('href') === `#${entry.target.id}`))
+        navLinks.forEach((link) => link.classList.toggle('is-active', link.getAttribute('href') === `#${entry.target.id}`))
       }
     }, { rootMargin: '-35% 0px -58% 0px' })
     observedSections.forEach((section) => navObserver.observe(section))
