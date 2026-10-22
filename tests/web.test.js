@@ -73,6 +73,33 @@ test('package.json expone cómo servir el panel', () => {
   assert.equal(pkg.scripts.web, 'node scripts/serve-web.js')
 })
 
+test('la portada es minimalista estilo Stellar Wa: hero, 3 pasos, ventajas y FAQ', () => {
+  const html = read('web/index.html')
+  const css = read('web/styles.css')
+  const js = read('web/app.js')
+
+  // Portada primero (como stellarwa.xyz), el panel viene después
+  assert.ok(html.includes('id="landingView"'), 'landing inicial')
+  assert.ok(html.includes('Plataforma oficial'), 'pill de plataforma')
+  assert.ok(html.includes('Automatiza WhatsApp'), 'titular del hero')
+  assert.ok(html.includes('Ir al Panel'))
+  assert.ok(html.includes('Cómo empezar en 3 pasos'))
+  assert.ok(html.includes('Vincula tu número') && html.includes('Personaliza tu SubBot'))
+  assert.ok(html.includes('¿Por qué elegir TomiOka?'))
+  assert.ok(html.includes('<details class="faq">'), 'FAQ desplegable')
+  assert.ok(html.includes('id="landingCommands"'), 'preview de comandos en la portada')
+
+  // Minimalismo: tema plano de un solo acento, sin el fondo oceánico anterior
+  assert.ok(!html.includes('class="ocean"'), 'sin fondo decorativo pesado')
+  assert.ok(css.includes('--accent:'), 'un color de acento')
+  assert.ok(!css.includes('backdrop-filter: blur(10px)'), 'sin glassmorphism')
+
+  // Detalles del panel de Stellar: saludo por hora y buscador con `/`
+  assert.ok(js.includes('function greeting()'))
+  assert.ok(js.includes("event.key !== '/'"), 'atajo / para buscar comandos')
+  assert.ok(html.includes('commandCats'), 'filtro por categorías en Comandos')
+})
+
 test('hay Blueprint de Render para desplegar el panel', () => {
   assert.ok(existsSync(path.join(root, 'render.yaml')), 'falta render.yaml')
   const yaml = read('render.yaml')

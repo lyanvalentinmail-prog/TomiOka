@@ -86,6 +86,8 @@ let editingBotId = null
 let consoleTimer = null
 let consolePaused = false
 let linkTimer = null
+let pendingCreate = false
+let cmdCategory = 'Todos'
 
 const wizard = { step: 1, label: '', prefix: '.', phone: '', method: 'pairing', seed: 1 }
 
@@ -96,11 +98,26 @@ function showLoginError(id, message) {
   el.classList.toggle('show', Boolean(message))
 }
 
+function showLanding() {
+  stopConsole()
+  $('#landingView').hidden = false
+  $('#loginView').hidden = true
+  $('#appView').hidden = true
+  $('#landUserHint').textContent = user ? `Sesión iniciada como ${user.name}` : ''
+  updateLandingStats()
+  window.scrollTo({ top: 0 })
+}
+
 function enterApp() {
+  $('#landingView').hidden = true
   $('#loginView').hidden = true
   $('#appView').hidden = false
   renderAll()
   showTab('panel')
+  if (pendingCreate) {
+    pendingCreate = false
+    openWizard()
+  }
 }
 
 $('#loginForm').addEventListener('submit', (event) => {
@@ -124,8 +141,7 @@ function logout() {
   user = null
   localStorage.removeItem(LS_USER)
   stopConsole()
-  $('#appView').hidden = true
-  $('#loginView').hidden = false
+  showLanding()
   toast('Sesión cerrada. Tus sub-bots quedan guardados en este navegador.')
 }
 $('#logoutBtn').addEventListener('click', logout)
@@ -142,6 +158,42 @@ $('#profileForm').addEventListener('submit', (event) => {
   toast('Perfil actualizado ✓')
 })
 
+/* ════════════════ Landing ════════════════ */
+function updateLandingStats() {
+  const users = bots.reduce((acc, bot) => acc + demoMetrics(bot).users, 0)
+  if ($('#landBotCount')) $('#landBotCount').textContent = String(bots.length)
+  if ($('#landCmdCount')) $('#landCmdCount').textContent = String(COMMANDS.length)
+  if ($('#landUserCount')) $('#landUserCount').textContent = users.toLocaleString('es-UY')
+}
+
+function renderLandingCommands() {
+  const box = $('#landingCommands')
+  if (!box) return
+  box.innerHTML = COMMANDS.map((cmd) => `
+    <article class="card">
+      <h3><code>.${cmd.name}</code></h3>
+      <p>${esc(cmd.description)}</p>
+      <p class="small muted">${esc(cmd.category)} · alias: ${cmd.aliases.map((a) => '.' + a).join(', ') || '—'}</p>
+    </article>`).join('')
+}
+
+$$('[data-go-panel]').forEach((btn) => btn.addEventListener('click', () => {
+  if (user) enterApp()
+  else { $('#landingView').hidden = true; $('#loginView').hidden = false }
+}))
+$$('[data-go-create]').forEach((btn) => btn.addEventListener('click', () => {
+  pendingCreate = true
+  if (user) enterApp()
+  else { $('#landingView').hidden = true; $('#loginView').hidden = false }
+}))
+$$('[data-go-landing]').forEach((btn) => btn.addEventListener('click', showLanding))
+$$('[data-scroll]').forEach((link) => link.addEventListener('click', (event) => {
+  const target = document.getElementById(link.dataset.scroll)
+  if (!target) return
+  event.preventDefault()
+  target.scrollIntoView({ behavior: 'smooth' })
+}))
+
 /* ════════════════ Navegación por tabs ════════════════ */
 const TAB_TITLES = {
   panel: ['Panel', 'Tus sub-bots desplegados'],
@@ -149,6 +201,14 @@ const TAB_TITLES = {
   comandos: ['Comandos', 'Todo lo que saben hacer tus sub-bots'],
   perfil: ['Perfil / Login', 'Tu cuenta del panel']
 }
+function greeting() {
+  const hour = new Date().getHours()
+  if (hour < 6) return 'BUENAS NOCHES'
+  if (hour < 12) return 'BUENOS DÍAS'
+  if (hour < 20) return 'BUENAS TARDES'
+  return 'BUENAS NOCHES'
+}
+
 function showTab(tab) {
   $$('.tab').forEach((btn) => btn.classList.toggle('active', btn.dataset.tab === tab))
   for (const name of Object.keys(TAB_TITLES)) $(`#tab-${name}`).hidden = name !== tab
@@ -156,6 +216,7 @@ function showTab(tab) {
   dashboardBotId = null
   stopConsole()
   const [title, subtitle] = TAB_TITLES[tab]
+  $('#greetingEyebrow').textContent = tab === 'panel' && user ? `${greeting()} · HOLA, ${user.name.toUpperCase()}` : title.toUpperCase()
   $('#pageTitle').textContent = title
   $('#pageSubtitle').textContent = subtitle
   if (tab === 'comandos') renderCommands()
@@ -206,6 +267,7 @@ function renderStats() {
   const limit = bots.length >= MAX_BOTS
   $('#botsLimitMsg').hidden = !limit
   for (const btn of [$('#createBotBtn'), $('#topCreateBtn')]) btn.disabled = limit
+  updateLandingStats()
 }
 
 function renderBots(highlightId = null) {
@@ -414,6 +476,7 @@ function openBotPanel(id) {
   dashboardBotId = id
   for (const name of Object.keys(TAB_TITLES)) $(`#tab-${name}`).hidden = true
   $('#botPanel').hidden = false
+  $('#greetingEyebrow').textContent = 'PANEL DEL BOT'
   $('#pageTitle').textContent = 'Panel del bot'
   $('#pageSubtitle').textContent = 'Consola, usuarios registrados y estado'
   renderBotPanel()
@@ -701,7 +764,20 @@ function renderCommands() {
   const query = ($('#commandSearch').value || '').trim().toLowerCase()
   const prefix = bots[0]?.prefix || '.'
   $('#cmdPrefixHint').textContent = prefix
-  const list = COMMANDS.filter((cmd) => !query || cmd.name.includes(query) || cmd.aliases.some((a) => a.includes(query)) || cmd.description.toLowerCase().includes(query))
+
+  const cats = ['Todos', ...ALL_CATEGORIES]
+  $('#commandCats').innerHTML = cats.map((cat) => {
+    const count = cat === 'Todos' ? COMMANDS.length : COMMANDS.filter((cmd) => cmd.category === cat).length
+    return `<button type="button" class="chip ${cmdCategory === cat ? 'active' : ''}" data-cat="${esc(cat)}">${esc(cat)} ${count}</button>`
+  }).join('')
+  $('#commandCats').querySelectorAll('[data-cat]').forEach((chip) => chip.addEventListener('click', () => {
+    cmdCategory = chip.dataset.cat
+    renderCommands()
+  }))
+
+  const list = COMMANDS.filter((cmd) =>
+    (cmdCategory === 'Todos' || cmd.category === cmdCategory) &&
+    (!query || cmd.name.includes(query) || cmd.aliases.some((a) => a.includes(query)) || cmd.description.toLowerCase().includes(query)))
   $('#commandsGrid').innerHTML = list.map((cmd) => `
     <button type="button" class="command-card" data-copy="${esc(prefix + cmd.name)}">
       <code>${esc(prefix)}${cmd.name}</code>
@@ -727,6 +803,17 @@ function renderProfile() {
   renderStats()
 }
 
-/* ════════════════ Arranque ════════════════ */
-if (user) enterApp()
-else { $('#loginView').hidden = false; $('#appView').hidden = true }
+/* Atajo `/` para buscar comandos (como en stellarwa.xyz/cmds) */
+document.addEventListener('keydown', (event) => {
+  if (event.key !== '/') return
+  const tag = document.activeElement?.tagName
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return
+  if (!$('#tab-comandos').hidden) {
+    event.preventDefault()
+    $('#commandSearch').focus()
+  }
+})
+
+/* ════════════════ Arranque: landing estilo Stellar Wa ════════════════ */
+renderLandingCommands()
+showLanding()
