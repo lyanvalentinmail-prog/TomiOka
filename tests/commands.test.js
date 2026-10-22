@@ -139,7 +139,7 @@ test('.gif convierte un video en sticker animado', async (t) => {
 })
 
 test('.take cambia nombre y autor', async () => {
-  const { ctx, sock } = makeContext('.take Olas | Tomi 🌊', {
+  const { ctx, sock } = makeContext('.take Olas,Tomi 🌊', {
     quotedKind: 'sticker',
     buffer: animatedSticker
   })
@@ -352,7 +352,7 @@ test('.pack edita el mensaje de progreso en vez de mandar uno por sticker', asyn
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
 
-  await findCommand('pack').run(makeContext('.pack Olas | Tomi', { config, store, sock }).ctx)
+  await findCommand('pack').run(makeContext('.pack Olas,Tomi', { config, store, sock }).ctx)
 
   for (let i = 0; i < 2; i += 1) {
     await findCommand('pack').run(
@@ -373,7 +373,7 @@ test('.pack edita el mensaje de progreso en vez de mandar uno por sticker', asyn
   assert.equal(standalone.length, 1, 'solo el mensaje inicial (los avances lo editan)')
 
   const progressEdits = sock.sent.filter(
-    (item) => item.content?.edit && item.content.text.includes('💧')
+    (item) => item.content?.edit && item.content.text.includes('✅')
   )
   assert.equal(progressEdits.length, 2, 'cada sticker edita el mismo mensaje')
   assert.equal(new Set(progressEdits.map((item) => item.content.edit.id)).size, 1)
@@ -385,7 +385,7 @@ test('.pack done cierra el mensaje de progreso', async () => {
   const store = createStore(config, silentLogger)
   const sock = fakeSock()
 
-  await findCommand('pack').run(makeContext('.pack Olas | Tomi', { config, store, sock }).ctx)
+  await findCommand('pack').run(makeContext('.pack Olas,Tomi', { config, store, sock }).ctx)
   await findCommand('pack').run(
     makeContext('.pack add', {
       config,
@@ -405,11 +405,11 @@ test('.pack done cierra el mensaje de progreso', async () => {
 })
 
 test('.take avisa por chat lo que cambió', async () => {
-  const { ctx, sock } = makeContext('.take Olas | Tomi', { quotedKind: 'sticker', buffer: animatedSticker })
+  const { ctx, sock } = makeContext('.take Olas,Tomi', { quotedKind: 'sticker', buffer: animatedSticker })
   await findCommand('take').run(ctx)
   const texts = sentOf(sock, 'text')
   assert.equal(texts.length, 1)
-  assert.match(texts[0].content.text, /Sticker actualizado/)
+  assert.match(texts[0].content.text, /✅ \*Sticker actualizado\*/)
   assert.match(texts[0].content.text, /Olas/)
   assert.match(texts[0].content.text, /Tomi/)
 })
@@ -417,7 +417,7 @@ test('.take avisa por chat lo que cambió', async () => {
 test('.take usa un pack-id nuevo (para que WhatsApp refresque el nombre)', async () => {
   const original = await readSticker(staticSticker)
   const before = original.metadata?.['sticker-pack-id']
-  const { ctx, sock } = makeContext('.take Nuevo | Autor', { quotedKind: 'sticker', buffer: staticSticker })
+  const { ctx, sock } = makeContext('.take Nuevo,Autor', { quotedKind: 'sticker', buffer: staticSticker })
   await findCommand('take').run(ctx)
   const out = await readSticker(sentOf(sock, 'sticker')[0].content.sticker)
   assert.equal(out.metadata['sticker-pack-name'], 'Nuevo')
@@ -426,7 +426,7 @@ test('.take usa un pack-id nuevo (para que WhatsApp refresque el nombre)', async
 
 test('.take acepta una foto y la convierte en sticker', async (t) => {
   if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
-  const { ctx, sock } = makeContext('.take Foto | Tomi', {
+  const { ctx, sock } = makeContext('.take Foto,Tomi', {
     quotedKind: 'image',
     mimetype: 'image/png',
     buffer: png
@@ -442,7 +442,7 @@ test('.take acepta una foto y la convierte en sticker', async (t) => {
 
 test('.take acepta un video y crea un sticker animado', async (t) => {
   if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
-  const { ctx, sock } = makeContext('.take Video | Tomi', {
+  const { ctx, sock } = makeContext('.take Video,Tomi', {
     quotedKind: 'video',
     mimetype: 'video/mp4',
     buffer: mp4
@@ -454,7 +454,7 @@ test('.take acepta un video y crea un sticker animado', async (t) => {
 })
 
 test('.take sin media explica cómo usarlo', async () => {
-  const { ctx } = makeContext('.take x | y')
+  const { ctx } = makeContext('.take x,y')
   await assert.rejects(() => findCommand('take').run(ctx), /Responde a un \*sticker\*/)
 })
 
@@ -485,7 +485,7 @@ test('.take funciona aunque el sticker traiga un EXIF raro (sin cabecera)', asyn
   image.exif = Buffer.from('{"sticker-pack-name":"hecho por otra app"}', 'utf8')
   const weird = await image.save(null, { exif: true })
 
-  const { ctx, sock } = makeContext('.take Mío | Tomi', { quotedKind: 'sticker', buffer: weird })
+  const { ctx, sock } = makeContext('.take Mío,Tomi', { quotedKind: 'sticker', buffer: weird })
   await findCommand('take').run(ctx)
   const stickers = sentOf(sock, 'sticker')
   assert.equal(stickers.length, 1, 'igual devuelve el sticker')
@@ -494,7 +494,7 @@ test('.take funciona aunque el sticker traiga un EXIF raro (sin cabecera)', asyn
 })
 
 test('.take rechaza un documento que no es imagen ni video', async () => {
-  const { ctx } = makeContext('.take X | Y', {
+  const { ctx } = makeContext('.take X,Y', {
     quotedKind: 'document',
     mimetype: 'application/pdf',
     buffer: Buffer.from('%PDF-1.4 documento')

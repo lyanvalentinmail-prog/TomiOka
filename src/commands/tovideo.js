@@ -12,7 +12,7 @@ export default {
     const buffer = await ctx.download()
     const { buffer: mp4, animated } = await stickerToVideo(buffer)
 
-    await ctx.sendVideo(mp4, animated ? '🌊 Sticker animado convertido a video.' : '🌊 Sticker convertido a video.', {
+    await ctx.sendVideo(mp4, animated ? '✅ Sticker animado convertido a video.' : '✅ Sticker convertido a video.', {
       gifPlayback: false
     })
     return `tovideo ${animated ? 'animado' : 'estático'} ${Math.round(mp4.length / 1024)}KB`

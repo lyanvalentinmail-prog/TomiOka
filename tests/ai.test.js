@@ -666,7 +666,7 @@ test('.gemini responde editando el mensaje de "pensando…"', async () => {
     // Dos llamadas a sendMessage: el progreso y su EDICIÓN con la respuesta.
     // En el chat se ve un solo mensaje, no dos.
     assert.equal(texts.length, 2)
-    assert.match(texts[0], /está pensando/, 'primero avisa que está pensando')
+    assert.match(texts[0], /⏳ \*Gemini\* está pensando/, 'primero avisa que está pensando con ⏳')
     const edits = sock.sent.filter((item) => item.content?.edit)
     assert.equal(edits.length, 1, 'editó el mensaje en vez de mandar otro')
     const answer = edits[0].content.text

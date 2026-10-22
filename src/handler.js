@@ -86,16 +86,16 @@ async function runCommand(ctx, command) {
   }
 
   if (!ctx.isOwner && inCooldown(ctx.store, ctx.senderJid, config.behavior.cooldownMs)) {
-    ctx.logger.debug?.(`💧 cooldown ${ctx.displayName}`)
+    ctx.logger.debug?.(`⏳ cooldown ${ctx.displayName}`)
     return
   }
 
   await ctx.typing('composing')
-  if (config.behavior.reactToCommands) await ctx.react('💧')
+  if (config.behavior.reactToCommands) await ctx.react('⏳')
 
   try {
     const summary = await command.run(ctx)
-    if (config.behavior.reactToCommands) await ctx.react('💙')
+    if (config.behavior.reactToCommands) await ctx.react('✅')
     ctx.logger.info(`${sym.ok} ${label} ${c.gray(`${ctx.latency}ms`)}${summary ? c.gray(` · ${summary}`) : ''}`)
   } catch (error) {
     if (config.behavior.reactToCommands) await ctx.react('💦')

@@ -13,14 +13,14 @@ export default {
       ctx.argsText,
       `Uso: ${ctx.prefix}instagram <enlace de Instagram>`
     )
-    await ctx.reply('🌊 Descargando video de *Instagram*...')
+    await ctx.reply('⏳ Descargando video de *Instagram*...')
     const file = await downloadWithYtDlp({
       platform: 'instagram',
       mediaType: 'video',
       url,
       logger: ctx.logger
     })
-    await ctx.sendVideo(file.buffer, '💧 Video de Instagram descargado 💙')
+    await ctx.sendVideo(file.buffer, '✅ Video de Instagram descargado')
     return 'video de Instagram descargado'
   }
 }

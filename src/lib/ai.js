@@ -612,7 +612,7 @@ export async function runAiCommand(ctx, { request, label, emoji, system = '' }) 
   // EDITA con la respuesta (un solo mensaje en el chat, como hace .debug).
   const slot = `ai-${request}`
   await ctx.typing('composing')
-  const progress = await ctx.reply(`${emoji} *${label}* está pensando…`)
+  const progress = await ctx.reply(`⏳ *${label}* está pensando…`)
   ctx.rememberLive(slot, progress)
 
   let answer

@@ -57,12 +57,12 @@ export function acceptedKindsMessage(config) {
 function statusMessage(session, config) {
   const max = config.pack.maxStickers
   return [
-    '🐟 *Pack en curso*',
+    '⏳ *Pack en curso*',
     `▸ Nombre: *${session.name}*`,
     `▸ Autor: *${session.author}*`,
     `▸ Stickers: *${session.stickers.length}/${max}*`,
     acceptedKindsMessage(config),
-    `💙 *.pack done* para enviar el pack`,
+    `✅ *.pack done* para enviar el pack`,
     `💦 *.pack cancel* para cancelar`
   ].join('\n')
 }
@@ -105,7 +105,7 @@ async function finishPack(ctx, session) {
   const config = ctx.config
   if (!session) {
     throw new Error(
-      `No hay ningún pack en curso. Inicia uno con *.pack Nombre | Autor* (máximo ${config.pack.maxStickers} stickers).`
+      `No hay ningún pack en curso. Inicia uno con *.pack nombre,autor* (máximo ${config.pack.maxStickers} stickers).`
     )
   }
   if (!session.stickers.length) {
@@ -194,7 +194,7 @@ async function finishPack(ctx, session) {
       `${safeFileName(session.name)}.wasticker`,
       'application/zip',
       [
-        '💙 *Pack listo*',
+        '✅ *Pack listo*',
         `▸ ${session.name}`,
         `▸ ${pack.stickers.length} sticker(s) · ${(pack.zip.length / 1024).toFixed(0)} KB`,
         '',
@@ -204,7 +204,7 @@ async function finishPack(ctx, session) {
   }
 
   // El mensaje de progreso queda cerrado con el resultado
-  await ctx.finishLive(packSlot(ctx), `💙 *${session.name}* enviado · ${pack.stickers.length} sticker(s). 🌊`)
+  await ctx.finishLive(packSlot(ctx), `✅ *${session.name}* enviado · ${pack.stickers.length} sticker(s).`)
 
   // La sesión se descarta recién cuando se envió bien
   ctx.store.packs.finish(session)
@@ -232,7 +232,7 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
 
   const isSticker = target.kind === 'sticker'
   if (!isSticker && !silent) await ctx.typing('composing')
-  if (!isSticker && silent) await ctx.react('💧')
+  if (!isSticker && silent) await ctx.react('⏳')
 
   const converted = await toStickerBuffer(ctx, target)
   const result = ctx.store.packs.add(session, {
@@ -252,15 +252,15 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
 
   const count = result.count
   const label = KIND_LABEL[target.kind] || 'Sticker'
-  const extra = count === max ? `\n💦 ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack. 💙` : ''
+  const extra = count === max ? `\n✅ ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack.` : ''
 
-  if (silent) await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '🌊')
+  if (silent) await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '✅')
 
   // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno por
   // cada foto/sticker.
   await ctx.sendLive(
     packSlot(ctx),
-    `💧 ${label} *${count}/${max}* agregada a *${session.name}*` +
+    `✅ ${label} *${count}/${max}* agregada a *${session.name}*` +
       `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
       `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
   )
@@ -279,8 +279,8 @@ const command = {
   aliases: ['packsticker', 'stickerpack', 'packdone'],
   category: 'extras',
   description: 'Crear un paquete de stickers.',
-  usage: '.pack Nombre | Autor · envía fotos o stickers · .pack done · .pack cancel',
-  examples: ['.pack Olas del mar | Tomi', '(envía 3 fotos)', '.pack done'],
+  usage: '.pack nombre,autor · envía fotos o stickers · .pack done · .pack cancel',
+  examples: ['.pack Olas del mar,Tomi', '(envía 3 fotos)', '.pack done'],
   async run(ctx) {
     const config = ctx.config
     const first = (ctx.args[0] || '').toLowerCase()
@@ -298,7 +298,7 @@ const command = {
     }
 
     if (ADD.has(first)) {
-      if (!session) throw new Error('Primero inicia un pack con *.pack Nombre | Autor*.')
+      if (!session) throw new Error('Primero inicia un pack con *.pack nombre,autor*.')
       await addMediaToSession(ctx, session)
       return 'pack add'
     }
@@ -318,8 +318,8 @@ const command = {
       }
       await ctx.sendLive(
         packSlot(ctx),
-        `🌊 Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n` +
-          `💙 *.pack done* para enviarlo · 💦 *.pack cancel* para descartarlo\n` +
+        `⏳ Ya tienes el pack *${session.name}* en curso (${session.stickers.length}/${config.pack.maxStickers}).\n` +
+          `✅ *.pack done* para enviarlo · 💦 *.pack cancel* para descartarlo\n` +
           acceptedKindsMessage(config)
       )
       return 'pack en curso'

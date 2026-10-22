@@ -334,7 +334,7 @@ test('.pack como pie de foto inicia el pack y agrega esa foto', async (t) => {
   const ctx = {
     ...base,
     args: [],
-    argsText: 'Gatitos | Tomi',
+    argsText: 'Gatitos,Tomi',
     command: 'pack',
     mediaTarget: { kind: 'image', type: 'imageMessage', media: { mimetype: 'image/png' } },
     requireMedia() {

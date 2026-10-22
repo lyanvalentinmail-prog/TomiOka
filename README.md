@@ -268,9 +268,9 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.gif` | `.stikergif`, `.togif` | Convierte un GIF o video en sticker **animado** |
 | `.toimg` | `.toimage`, `.img` | Pasa un sticker a imagen PNG (en animados usa el primer cuadro) |
 | `.tovideo` | `.tomp4` | Pasa un sticker a video MP4 (los estáticos se convierten en un video de 2 s) |
-| `.take Nombre \| Autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; también acepta fotos/videos (los convierte antes) |
+| `.take nombre,autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; también acepta fotos/videos (los convierte antes) |
 | `.emojimix 😺 🐼` | `.mix` | Combina dos emojis (o sin argumentos para una mezcla aleatoria) |
-| `.pack Nombre \| Autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
+| `.pack nombre,autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
 | **🧠 AI** | | |
 | `.gemini <pregunta>` | `.geminiai`, `.google-ai` | Le pregunta a Gemini (Google). También sirve respondiendo a un mensaje |
 | `.chatgpt <pregunta>` | `.gpt`, `.openai`, `.chat-gpt` | Le pregunta a ChatGPT (OpenAI) |
@@ -303,7 +303,7 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 .sticker
 
 # respondiendo a un sticker
-.take Olas del mar | Tomi 🌊
+.take Olas del mar,Tomi 🌊
 .toimg
 .tovideo
 
@@ -312,25 +312,25 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 .emojimix           ← aleatorio
 
 # pack de stickers con fotos
-.pack Gatitos | Tomi
+.pack Gatitos,Tomi
 (foto)              ← se agrega sola (convertida a sticker)
 (foto)
 (foto)
 .pack done          ← envía el paquete de stickers a WhatsApp
 
 # también sirve con el comando como pie de foto
-(foto con pie: ".pack Gatitos | Tomi")   ← inicia el pack y agrega esa foto
+(foto con pie: ".pack Gatitos,Tomi")     ← inicia el pack y agrega esa foto
 (foto) (foto) (foto)
 .pack done
 ```
 
 ### Cómo funciona `.pack`
 
-1. `.pack Nombre | Autor` abre una sesión (10 minutos de inactividad).
+1. `.pack nombre,autor` abre una sesión (10 minutos de inactividad).
 2. Envía **varias fotos**, videos, GIFs o stickers: se agregan solos (máx. 30 por pack), las fotos y videos
    se convierten a sticker al vuelo y el bot va reaccionando con el número (1️⃣, 2️⃣, 3️⃣…).
    También puedes mandar el comando como **pie de foto**: esa imagen entra directo al pack.
-   El avance se muestra **editando el mismo mensaje** (`📥 3/30`), así el chat no se llena de mensajes:
+   El avance se muestra **editando el mismo mensaje** (`✅ 3/30`), así el chat no se llena de mensajes:
    `.pack status`, `.pack cancel` y `.pack done` también actualizan ese mensaje.
 3. `.pack done` envía el **paquete nativo de WhatsApp**: aparece la tarjeta del pack con el botón para
    agregarlo a tus stickers (con nombre, autor y vista previa). No hace falta descargar ni importar nada.
@@ -648,7 +648,7 @@ Qué revisa y cómo se arregla:
 ✔ .gif (GIF animado)                          OK react×2 sticker×1
 ✔ .toimg (sticker → PNG)                      OK react×2 image×1
 ✔ .tovideo (sticker → MP4)                    OK react×2 video×1
-✔ .take Olas | Tomi (metadatos)               OK react×2 sticker×1
+✔ .take Olas,Tomi (metadatos)                 OK react×2 sticker×1
 ✔ .emojimix 😀 🔥 (catálogo en caché)         OK react×2 sticker×1
 ✔ .gemini (consulta a Gemini)                 OK react×2 text×2
 ✔ .pack done (genera .wasticker)              OK react×2 document×1

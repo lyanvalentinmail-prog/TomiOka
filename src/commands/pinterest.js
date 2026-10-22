@@ -16,7 +16,7 @@ export default {
       ctx.argsText,
       `Uso: ${ctx.prefix}pinterest <enlace de Pinterest>`
     )
-    await ctx.reply('🌊 Descargando pin de *Pinterest*...')
+    await ctx.reply('⏳ Descargando pin de *Pinterest*...')
     const file = await downloadWithYtDlp({
       platform: 'pinterest',
       mediaType: 'video',
@@ -26,10 +26,10 @@ export default {
 
     // Un pin puede ser video o foto: se envía según lo que devolvió yt-dlp.
     if (file.kind === 'image') {
-      await ctx.sendImage(file.buffer, '💧 Imagen de Pinterest descargada 💙')
+      await ctx.sendImage(file.buffer, '✅ Imagen de Pinterest descargada')
       return 'imagen de Pinterest descargada'
     }
-    await ctx.sendVideo(file.buffer, '💧 Video de Pinterest descargado 💙')
+    await ctx.sendVideo(file.buffer, '✅ Video de Pinterest descargado')
     return 'video de Pinterest descargado'
   }
 }

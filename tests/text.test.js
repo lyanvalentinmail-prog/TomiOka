@@ -35,14 +35,15 @@ test('parseCommand ignora textos sin prefijo o vacíos', () => {
   assert.equal(parseCommand('. help', ['.']), null)
 })
 
-test('splitNameAuthor separa nombre y autor con |', () => {
-  assert.deepEqual(splitNameAuthor('Mi pack | Tomi'), { name: 'Mi pack', author: 'Tomi' })
+test('splitNameAuthor separa nombre y autor con coma (,)', () => {
+  assert.deepEqual(splitNameAuthor('prueba,prueba'), { name: 'prueba', author: 'prueba' })
+  assert.deepEqual(splitNameAuthor('Mi pack, Tomi'), { name: 'Mi pack', author: 'Tomi' })
   assert.deepEqual(splitNameAuthor('Solo nombre', { name: 'x', author: 'y' }), {
     name: 'Solo nombre',
     author: 'y'
   })
   assert.deepEqual(splitNameAuthor('', { name: 'x', author: 'y' }), { name: 'x', author: 'y' })
-  assert.deepEqual(splitNameAuthor('A | B | C'), { name: 'A', author: 'B | C' })
+  assert.deepEqual(splitNameAuthor('A, B, C'), { name: 'A', author: 'B, C' })
 })
 
 test('boldDigits convierte números aesthetic', () => {

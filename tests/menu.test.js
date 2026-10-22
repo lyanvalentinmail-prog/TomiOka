@@ -154,7 +154,7 @@ test('el menú respeta las categorías configuradas', () => {
 test('buildCommandHelp muestra uso y alias', () => {
   const help = buildCommandHelp({ config, command: findCommand('take') })
   assert.ok(help.includes('.take'))
-  assert.ok(help.includes('Nombre | Autor'))
+  assert.ok(help.includes('nombre,autor'))
   assert.ok(help.includes('.autor'))
 })
 
