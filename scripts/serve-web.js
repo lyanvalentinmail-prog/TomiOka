@@ -6,8 +6,10 @@
  * TomiOka puede ofrecer de verdad en local: estado del panel, telemetría
  * básica del proceso, catálogo real de comandos, los ocho endpoints de
  * WhatsApp y un registro local de sub-bots en data/web-subbots.json.
- * No crea cuentas, no vende planes, no guarda tickets y no inicia sesiones
- * de WhatsApp desde el navegador: eso se hace con npm run pair/qr.
+ * El panel SÍ vincula WhatsApp de verdad: abre un socket de Baileys por
+ * sub-bot, pide el pairing code a WhatsApp y, al conectarse, el sub-bot
+ * responde comandos desde este mismo proceso. No crea cuentas web, no
+ * vende planes ni guarda tickets: eso responde 501 con el motivo.
  */
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
@@ -15,6 +17,7 @@ import { createHash } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createLinkSessionManager } from '../src/lib/link-session.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB_DIR = path.join(ROOT, 'web')
@@ -149,6 +152,80 @@ function writeSubbots(items) {
   writeFileSync(REGISTRY_FILE, `${JSON.stringify(items, null, 2)}\n`)
 }
 
+const streamClients = new Set()
+const botRuntimes = new Map()
+
+function persistRuntimeStatus(rt, patch) {
+  const { items, index, instance } = findStoredInstance(rt.id)
+  if (!instance) return
+  items[index] = { ...instance, ...patch, updatedAt: new Date().toISOString() }
+  writeSubbots(items)
+}
+
+function broadcastLink(id) {
+  if (!streamClients.size) return
+  const { instance } = findStoredInstance(id)
+  if (!instance) return
+  const lines = [
+    `event: status\ndata: ${JSON.stringify(linkPayload(instance))}\n\n`,
+    `event: snapshot\ndata: ${JSON.stringify(snapshot())}\n\n`
+  ]
+  for (const res of streamClients) {
+    for (const line of lines) { try { res.write(line) } catch { /* cliente ido */ } }
+  }
+}
+
+async function attachBotHandler(instance, sock) {
+  let runtime = botRuntimes.get(instance.id)
+  if (!runtime) {
+    const [{ loadConfig }, handlerMod, commandsMod, { createLogger }] = await Promise.all([
+      import('../src/config.js'),
+      import('../src/handler.js'),
+      import('../src/commands/index.js'),
+      import('../src/lib/logger.js')
+    ])
+    const config = loadConfig()
+    config.sessionDir = path.resolve(ROOT, instance.sessionDir || `sessions/${instance.id}`)
+    config.prefixes = [instance.prefix || '.']
+    config.bot = { ...config.bot, prefix: instance.prefix || '.', prefixes: config.prefixes }
+    config.pairingPhone = String(instance.phone || '').replace(/\D/g, '')
+    config.login = 'pairing'
+    const { logger } = createLogger('warn', 'silent')
+    const store = handlerMod.createStore(config, logger, { persistLiveMessages: false })
+    const onUpsert = handlerMod.createUpsertHandler({ config, logger, store, commands: commandsMod.commands })
+    runtime = { store, onUpsert }
+    botRuntimes.set(instance.id, runtime)
+  }
+  if (!sock.__tomiokaCounted) {
+    sock.__tomiokaCounted = true
+    const originalSend = sock.sendMessage.bind(sock)
+    sock.sendMessage = async (...args) => {
+      const result = await originalSend(...args)
+      const id = result?.key?.id
+      if (id) {
+        runtime.store.sentIds.add(id)
+        if (runtime.store.sentIds.size > 500) runtime.store.sentIds.delete(runtime.store.sentIds.values().next().value)
+      }
+      return result
+    }
+  }
+  sock.ev.on('messages.upsert', (event) => {
+    runtime.onUpsert(sock, event).catch(() => {})
+  })
+}
+
+function destroyBotRuntime(id) {
+  const runtime = botRuntimes.get(id)
+  if (!runtime) return
+  try { runtime.store.packs.destroy() } catch { /* ignore */ }
+  botRuntimes.delete(id)
+}
+
+const linkSessions = createLinkSessionManager({
+  onStatus: (rt, patch) => { persistRuntimeStatus(rt, patch); broadcastLink(rt.id) },
+  attachSocket: attachBotHandler
+})
+
 function slugify(value) {
   const slug = String(value || 'subbot')
     .normalize('NFD')
@@ -192,17 +269,39 @@ function defaultCustomization(instance = {}) {
 function publicInstance(instance) {
   const sessionDir = instance.sessionDir || `sessions/${instance.id}`
   const phone = String(instance.phone || '').replace(/\D/g, '')
+  const live = linkSessions.getState(instance.id)
   return {
     ...instance,
     phone,
     phoneMasked: maskPhone(phone),
     prefix: instance.prefix || '.',
     pairingMode: instance.pairingMode === 'qr' ? 'qr' : 'pairing',
-    status: instance.status || 'created',
-    activated: Boolean(instance.activated),
+    status: live?.status || instance.status || 'created',
+    activated: Boolean(instance.activated || live?.status === 'open'),
+    live: Boolean(live?.sock || live),
     groups: 0,
     sessionDir,
     launchCommand: instance.launchCommand || `SESSION_DIR=${sessionDir} PAIRING_PHONE=${phone} npm run pair`
+  }
+}
+
+function liveInstance(instance) {
+  return { ...instance, sessionDirAbs: path.resolve(ROOT, instance.sessionDir || `sessions/${instance.id}`) }
+}
+
+function linkPayload(instance) {
+  const live = linkSessions.getState(instance.id)
+  const current = publicInstance(instance)
+  return {
+    ok: true,
+    ...current,
+    connected: live?.status === 'open',
+    pairingCode: live?.pairingCode || '',
+    pairingFormatted: live?.pairingFormatted || '',
+    pairingCodeAt: live?.pairingCodeAt || null,
+    qr: live?.qr || '',
+    qrDataUrl: '',
+    lastError: live?.lastError || ''
   }
 }
 
@@ -213,7 +312,7 @@ function snapshot() {
     ok: true,
     revision,
     instances,
-    stats: { groups: 0, registered: 0, subbots: instances.length, connected: 0, activated: 0 }
+    stats: { groups: 0, registered: 0, subbots: instances.length, connected: instances.filter((i) => i.status === 'open').length, activated: instances.filter((i) => i.activated).length }
   }
 }
 
@@ -243,7 +342,7 @@ function systemInfo() {
       commandsExecuted: 0,
       topCommands: []
     },
-    whatsapp: { instances: instances.length, connected: 0, activated: 0 }
+    whatsapp: { instances: instances.length, connected: instances.filter((i) => i.status === 'open').length, activated: instances.filter((i) => i.activated).length }
   }
 }
 
@@ -303,7 +402,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, service: 'TomiOka', status: 'ok', uptimeMs: Date.now() - STARTED_AT, commands: commands.filter((command) => !command.hidden).length })
   }
   if (method === 'GET' && apiPath === '/me') {
-    return sendJson(res, 200, { ok: true, bot: { name: 'TomiOka', repository: REPOSITORY }, panel: { mode: 'local', accounts: false, store: false }, limits: {} })
+    return sendJson(res, 200, { ok: true, bot: { name: 'TomiOka', repository: REPOSITORY }, panel: { mode: 'local', accounts: false, store: false }, limits: {}, qrExpiresInSec: 20 })
   }
   if (method === 'GET' && apiPath === '/state') return sendJson(res, 200, snapshot())
   if (method === 'GET' && apiPath === '/stream') {
@@ -311,8 +410,9 @@ async function handleApi(req, res, url) {
     res.write('retry: 15000\n\n')
     res.write(`event: hello\ndata: ${JSON.stringify({ ok: true, service: 'TomiOka' })}\n\n`)
     res.write(`event: snapshot\ndata: ${JSON.stringify(snapshot())}\n\n`)
+    streamClients.add(res)
     const timer = setInterval(() => res.write(`event: ping\ndata: ${Date.now()}\n\n`), 15000)
-    req.on('close', () => clearInterval(timer))
+    req.on('close', () => { clearInterval(timer); streamClients.delete(res) })
     return
   }
   if (method === 'GET' && apiPath === '/groups') return sendJson(res, 200, { ok: true, groups: [] })
@@ -379,6 +479,8 @@ async function handleApi(req, res, url) {
 
     if (!action && method === 'GET') return sendJson(res, 200, { ok: true, instance: publicInstance(instance) })
     if (!action && method === 'DELETE') {
+      await linkSessions.stop(id)
+      destroyBotRuntime(id)
       items.splice(index, 1)
       writeSubbots(items)
       return sendJson(res, 200, { ok: true, deleted: id })
@@ -405,12 +507,13 @@ async function handleApi(req, res, url) {
       next.launchCommand = next.pairingMode === 'qr' ? `SESSION_DIR=${next.sessionDir} npm run qr` : `SESSION_DIR=${next.sessionDir} PAIRING_PHONE=${next.phone} npm run pair`
       items[index] = next
       writeSubbots(items)
+      if (body.phone !== undefined || body.prefix !== undefined || body.pairingMode !== undefined) {
+        await linkSessions.stop(id)
+        destroyBotRuntime(id)
+      }
       return sendJson(res, 200, { ok: true, instance: publicInstance(next) })
     }
-    if (action === 'link' && method === 'GET') {
-      const current = publicInstance(instance)
-      return sendJson(res, 200, { ok: true, ...current, connected: false, pairingFormatted: '', pairingCodeAt: null, qrDataUrl: '', lastError: '', note: 'El panel local no mantiene la sesión abierta. Ejecuta launchCommand para vincular WhatsApp.' })
-    }
+    if (action === 'link' && method === 'GET') return sendJson(res, 200, linkPayload(instance))
     if (action === 'commands' && method === 'GET') {
       const customization = instance.customization && typeof instance.customization === 'object' ? instance.customization : defaultCustomization(instance)
       return sendJson(res, 200, { ok: true, prefix: instance.prefix || '.', commands: await botCommands(), customization, menuStyle: customization.menuStyle || 'tomioka' })
@@ -428,10 +531,39 @@ async function handleApi(req, res, url) {
       const preview = menuPreview(instance)
       return sendJson(res, 200, { ok: true, preview, text: preview })
     }
-    if (method === 'POST' && ['start', 'stop', 'restart', 'pairing', 'activate'].includes(action)) {
-      const labels = { start: 'Iniciar sesiones de WhatsApp desde el navegador', stop: 'Detener sesiones desde el navegador', restart: 'Reiniciar sesiones desde el navegador', pairing: 'El pairing code desde el navegador', activate: 'La activación desde el navegador' }
-      return notImplemented(res, labels[action])
+    if (action === 'start' && method === 'POST') {
+      const phone = String(instance.phone || '').replace(/\D/g, '')
+      if (instance.pairingMode !== 'qr' && phone.length < 8) return sendJson(res, 400, { ok: false, error: 'Este sub-bot no tiene un número válido para vincular. Edítalo y agrega el número con código de país.' })
+      try {
+        await linkSessions.start(liveInstance(instance))
+        return sendJson(res, 200, { ok: true, started: true, ...linkPayload(instance) })
+      } catch (error) {
+        return sendJson(res, 500, { ok: false, error: `No se pudo abrir la sesión de WhatsApp: ${error.message}` })
+      }
     }
+    if (action === 'pairing' && method === 'POST') {
+      try {
+        const result = await linkSessions.requestPairing(liveInstance(instance), { waitMs: body.waitMs ?? 15_000, force: Boolean(body.force) })
+        return sendJson(res, 200, { ok: true, ...result, issuedAt: result.issuedAt ?? result.pairingCodeAt ?? Date.now() })
+      } catch (error) {
+        return sendJson(res, error.statusCode || 500, { ok: false, error: error.message })
+      }
+    }
+    if (action === 'stop' && method === 'POST') {
+      await linkSessions.stop(id)
+      destroyBotRuntime(id)
+      return sendJson(res, 200, { ok: true, ...linkPayload(instance) })
+    }
+    if (action === 'restart' && method === 'POST') {
+      await linkSessions.stop(id)
+      try {
+        await linkSessions.start(liveInstance(instance))
+        return sendJson(res, 200, { ok: true, restarted: true, ...linkPayload(instance) })
+      } catch (error) {
+        return sendJson(res, 500, { ok: false, error: `No se pudo reiniciar la sesión: ${error.message}` })
+      }
+    }
+    if (method === 'POST' && action === 'activate') return notImplemented(res, 'La activación desde el navegador')
     return sendJson(res, 404, { ok: false, error: 'Acción de sub-bot no implementada en el panel local de TomiOka.' })
   }
 
