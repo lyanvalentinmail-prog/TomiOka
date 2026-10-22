@@ -29,11 +29,12 @@ test('está organizada en las secciones pedidas, con Sub-Bots y Endpoints', () =
 test('el diseño es claro y minimalista: blanco, acento negro y bordes finos', () => {
   assert.ok(css.includes('--bg: #ffffff') && css.includes('--text: #111111'), 'fondo blanco y texto negro')
   assert.ok(css.includes('--border: #e3e3e3'), 'bordes finos grises')
-  assert.ok(css.includes('.button-primary') && css.includes('background: #111'), 'botón principal negro')
+  assert.ok(css.includes("font-family: 'Outfit'") && css.includes('@font-face'), 'tipografía Outfit servida local')
+  assert.ok(css.includes('.btn-primary') && css.includes('background: #111'), 'botón principal negro')
   assert.ok(!css.includes('linear-gradient'), 'sin degradados')
-  assert.ok(css.includes('@media (max-width: 720px)'), 'adaptación móvil')
+  assert.ok(css.includes('@media (max-width: 720px)') || css.includes('@media (max-width: 640px)'), 'adaptación móvil')
   assert.ok(css.includes('@media (prefers-reduced-motion: reduce)'), 'respeta reducir movimiento')
-  assert.ok(css.includes('.project-card:hover') && css.includes('border-color: #c9c9c9'), 'hover sutil en tarjetas')
+  assert.ok(css.includes('.card-hover:hover') && css.includes('border-color: #c9c9c9'), 'hover sutil en tarjetas')
   assert.ok(!css.includes('@import') && !html.includes('fonts.googleapis'), 'sin fuentes externas pesadas')
   assert.ok(html.includes('theme-color" content="#ffffff"'), 'theme-color claro')
 })
@@ -66,13 +67,15 @@ test('no simula backend ni funcionalidades remotas inexistentes', () => {
   assert.ok(source.includes('no inicia sesiones') || source.includes('Sin backend'), 'declara los límites reales')
 })
 
-test('las tabs del menú están abajo, fijas y en horizontal', () => {
+test('la navegación replica el patrón de la referencia: enlaces arriba y tabs abajo en móvil', () => {
   assert.ok(html.includes('id="bottomNav"'), 'existe la barra de tabs inferior')
+  assert.ok(html.includes('class="bottom-nav-item'), 'items de la navegación inferior')
   assert.ok(html.includes('href="#subbots"') && html.includes('href="#endpoints"'), 'las tabs enlazan a Sub-Bots y Endpoints')
-  assert.ok(css.includes('.bottom-nav'), 'hay estilos de la barra inferior')
-  assert.ok(/\.bottom-nav\s*\{[^}]*position: fixed/.test(css), 'la barra queda fija')
-  assert.ok(/\.bottom-nav\s*\{[^}]*bottom: 0/.test(css), 'la barra va abajo')
-  assert.ok(/\.bottom-nav\s*\{[^}]*flex-direction: row/.test(css), 'las tabs van en horizontal')
+  assert.ok(css.includes('.bottom-navigation { display: none; }'), 'en escritorio manda el header')
+  const mobile = css.slice(css.indexOf('@media (max-width: 900px)'))
+  assert.ok(/\.bottom-navigation\s*\{[^}]*position: fixed/.test(mobile), 'en móvil la barra queda fija abajo')
+  assert.ok(/\.bottom-navigation\s*\{[^}]*grid-template-columns: repeat\(8/.test(mobile), 'las ocho tabs en horizontal')
+  assert.ok(/\.header-links[^{]*\{[^}]*display: none/.test(mobile), 'en móvil se ocultan los enlaces del header')
 })
 
 test('se puede crear un sub-bot desde la web, sin fingir backend', () => {
@@ -95,7 +98,7 @@ test('la tab de Endpoints contiene solo los ocho endpoints, por categorías', ()
 })
 
 test('el menú de la web muestra solo los ocho endpoints en categorías', () => {
-  const items = html.match(/class="menu-command"/g) || []
+  const items = html.match(/menu-command/g) || []
   assert.equal(items.length, 8, 'el menú lista ocho comandos')
   assert.ok(html.includes('<h4>📥 Descargas</h4>') && html.includes('<h4>🎨 Stickers</h4>'), 'el menú usa las dos categorías')
 })
