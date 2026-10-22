@@ -8,6 +8,7 @@ import {
   stickerExtension
 } from '../lib/sticker-search.js'
 import { truncate } from '../lib/text.js'
+import { mapLimit } from '../lib/concurrency.js'
 
 const MAX_SEND = 10
 
@@ -114,11 +115,26 @@ export default {
       return `search "${query}" sin resultados`
     }
 
+    // Descargar y convertir en paralelo (3 a la vez) y enviar en orden: así
+    // los 3 stickers llegan casi juntos en vez de uno detrás del otro.
+    const prepared = await mapLimit(found.results, 3, async (sticker) => {
+      try {
+        return await stickerBufferFromUrl(ctx, sticker.url, { animated: sticker.animated })
+      } catch (error) {
+        ctx.logger?.warn?.(`No se pudo preparar el sticker ${sticker.url}: ${error.message}`)
+        return null
+      }
+    })
+
     let sent = 0
     const failures = []
-    for (const sticker of found.results) {
+    for (const [index, buffer] of prepared.entries()) {
+      const sticker = found.results[index]
+      if (!buffer) {
+        failures.push(new Error('descarga fallida'))
+        continue
+      }
       try {
-        const buffer = await stickerBufferFromUrl(ctx, sticker.url, { animated: sticker.animated })
         const packName = sticker.packName || 'TomiOka Search'
         const packAuthor = sticker.author || 'Sticker.ly'
         await ctx.sendSticker(buffer, {

@@ -13,6 +13,8 @@ import { commands } from './commands/index.js'
 import { createStore, createUpsertHandler } from './handler.js'
 import { ask, choose, isInteractive } from './lib/prompt.js'
 import { backupSession, describeSession, inspectSession } from './lib/session.js'
+import { prewarmWorkDir } from './lib/tmp.js'
+import { resolveFfmpeg } from './lib/ffmpeg.js'
 import { c, sym } from './lib/colors.js'
 import { box, error, info, ok, pairCode, raw, step, warn } from './lib/ui.js'
 
@@ -82,6 +84,12 @@ function describeDisconnect(lastDisconnect) {
  * @returns {Promise<import('@whiskeysockets/baileys').WASocket>}
  */
 export async function startBot({ config, logger, baileysLogger }) {
+  // Precalentado en segundo plano: FFmpeg ya resuelto y una carpeta temporal
+  // lista cuando llegue el primer sticker.
+  if (config.performance?.warmUp !== false) {
+    Promise.allSettled([resolveFfmpeg(), prewarmWorkDir()]).catch(() => {})
+  }
+
   const store = createStore(config, logger, { persistLiveMessages: true })
   const onUpsert = createUpsertHandler({ config, logger, store, commands })
 

@@ -12,6 +12,7 @@ import {
 } from './ffmpeg.js'
 import { demuxWebpFrames, isAnimatedWebp } from './sticker.js'
 import { withWorkDir } from './tmp.js'
+import { BufferCache, hashBuffer, signature } from './cache.js'
 
 const DEFAULT_SETTINGS = {
   size: 512,
@@ -21,6 +22,55 @@ const DEFAULT_SETTINGS = {
   lossless: false,
   maxStaticKB: 100,
   maxAnimatedKB: 500
+}
+
+/**
+ * Caché de conversiones: mismo archivo + mismos ajustes = mismo sticker.
+ * Evita repetir el proceso de FFmpeg cuando el usuario reenvía una foto,
+ * usa `.take` sobre algo recién convertido o repite una búsqueda.
+ */
+const stickerCache = new BufferCache({ maxEntries: 24, maxBytes: 32 * 1024 * 1024 })
+
+/** Ajusta el tamaño de la caché de stickers (se llama al cargar la config) */
+export function configureStickerCache({ enabled = true, entries = 24, megabytes = 32 } = {}) {
+  if (!enabled) {
+    stickerCache.maxEntries = 0
+    stickerCache.clear()
+    stickerCache.enabled = false
+    return stickerCache
+  }
+  stickerCache.enabled = true
+  stickerCache.maxEntries = Math.max(1, Number(entries) || 24)
+  stickerCache.maxBytes = Math.max(0, (Number(megabytes) || 32) * 1024 * 1024)
+  return stickerCache
+}
+
+export function stickerCacheStats() {
+  return stickerCache.stats()
+}
+
+export function clearStickerCache() {
+  stickerCache.clear()
+}
+
+/** Clave de caché: contenido + extensión + ajustes que cambian el resultado */
+export function stickerCacheKey(input, { extension = 'png', animated = false, settings = {} } = {}) {
+  const merged = { ...DEFAULT_SETTINGS, ...settings }
+  return [
+    'sticker',
+    hashBuffer(input),
+    fileNameFor(extension),
+    animated ? 'anim' : 'still',
+    signature({
+      size: merged.size,
+      fps: animated ? merged.fps : 0,
+      maxAnimatedSeconds: animated ? merged.maxAnimatedSeconds : 0,
+      quality: merged.quality,
+      lossless: merged.lossless,
+      maxStaticKB: merged.maxStaticKB,
+      maxAnimatedKB: merged.maxAnimatedKB
+    })
+  ].join('|')
 }
 
 function fileNameFor(extension) {
@@ -78,6 +128,17 @@ export async function convertToSticker(input, options = {}) {
     logger
   } = options
   const settings = { ...DEFAULT_SETTINGS, ...custom }
+
+  // Golpe de caché: el mismo archivo con los mismos ajustes ya se convirtió.
+  const cacheKey = stickerCache.enabled === false ? null : stickerCacheKey(input, { extension, animated, settings })
+  if (cacheKey) {
+    const hit = stickerCache.get(cacheKey)
+    if (hit) {
+      logger?.debug?.(`sticker desde caché (${hit.length} B)`)
+      return { ...hit.meta, buffer: Buffer.from(hit.buffer), bytes: hit.buffer.length, cached: true }
+    }
+  }
+
   await assertFfmpeg()
 
   return withWorkDir(async (dir) => {
@@ -159,15 +220,16 @@ export async function convertToSticker(input, options = {}) {
 
     logger?.debug?.(`sticker ok con variante "${usedVariant}" (${best.bytes} B)`)
 
-    return {
-      buffer: best.buffer,
-      bytes: best.bytes,
+    const meta = {
       animated: fallbackEstatico ? false : animated,
       quality: best.quality,
       fps: best.fps,
       variant: usedVariant,
       warning: warnings.length ? warnings.join(' ') : undefined
     }
+    if (cacheKey) stickerCache.set(cacheKey, best.buffer, meta)
+
+    return { buffer: best.buffer, bytes: best.bytes, ...meta }
   })
 }
 

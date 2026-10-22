@@ -3,6 +3,7 @@ import { CommandContext } from './lib/context.js'
 import { getContentType } from '@whiskeysockets/baileys'
 import { PackStore } from './lib/sessions.js'
 import { SearchStore } from './lib/searches.js'
+import { configureStickerCache } from './lib/media.js'
 import { LiveMessages } from './lib/live-messages.js'
 import { findCommand } from './commands/index.js'
 import { getContent, getText } from './lib/message.js'
@@ -12,6 +13,14 @@ import { c, sym } from './lib/colors.js'
 const IGNORED_JID_SUFFIXES = ['@broadcast', '@newsletter', 'status@broadcast']
 
 export function createStore(config, logger, { persistLiveMessages = false } = {}) {
+  // La caché de conversiones se ajusta con la config de rendimiento
+  // (`performance` en config.json).
+  configureStickerCache({
+    enabled: config.performance?.stickerCache !== false,
+    entries: config.performance?.stickerCacheEntries,
+    megabytes: config.performance?.stickerCacheMB
+  })
+
   return {
     packs: new PackStore({
       ttlMinutes: config.pack.sessionMinutes,
@@ -96,15 +105,30 @@ async function runCommand(ctx, command) {
     return
   }
 
-  await ctx.typing('composing')
-  if (config.behavior.reactToCommands) await ctx.react('⏳')
+  // Los avisos ("escribiendo…" y la reacción ⏳) salen EN PARALELO con el
+  // comando: antes se esperaba la confirmación de WhatsApp de los dos (dos
+  // viajes de red completos) antes de convertir nada. Ahora el trabajo
+  // arranca de inmediato y los avisos llegan igual, un instante después.
+  const feedback = []
+  if (config.behavior.sendTyping) feedback.push(ctx.typing('composing'))
+  if (config.behavior.reactToCommands) feedback.push(ctx.react('⏳'))
+  const feedbackDone = Promise.allSettled(feedback)
 
   try {
     const summary = await command.run(ctx)
-    if (config.behavior.reactToCommands) await ctx.react('✅')
+    await feedbackDone
+    // Cierre en paralelo: el ✅ y el "dejó de escribir" no dependen entre sí.
+    await Promise.allSettled([
+      config.behavior.reactToCommands ? ctx.react('✅') : null,
+      ctx.typing('paused')
+    ])
     ctx.logger.info(`${sym.ok} ${label} ${c.gray(`${ctx.latency}ms`)}${summary ? c.gray(` · ${summary}`) : ''}`)
   } catch (error) {
-    if (config.behavior.reactToCommands) await ctx.react('💦')
+    await feedbackDone
+    await Promise.allSettled([
+      config.behavior.reactToCommands ? ctx.react('💦') : null,
+      ctx.typing('paused')
+    ])
     ctx.logger.error(`${sym.err} ${label} · ${error.message}`)
     const message = truncate(error.message || 'Error inesperado', 400)
     const hint =
@@ -112,8 +136,6 @@ async function runCommand(ctx, command) {
         ? '\n\n💧 Envía *.debug* para ver qué está fallando en tu equipo.'
         : ''
     await ctx.reply(`❌ *No se pudo completar*\n${message}${hint}`).catch(() => {})
-  } finally {
-    await ctx.typing('paused')
   }
 }
 

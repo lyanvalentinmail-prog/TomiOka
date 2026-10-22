@@ -106,6 +106,12 @@
       "flint-40b-free"
     ]
   },
+  "performance": {
+    "stickerCache": true,
+    "stickerCacheEntries": 24,
+    "stickerCacheMB": 32,
+    "warmUp": true
+  },
   "behavior": {
     "cooldownMs": 2500,
     "reactToCommands": true,

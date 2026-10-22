@@ -7,6 +7,7 @@ import { auditSticker } from '../lib/sticker.js'
 import { loadMenuImage } from '../lib/banner.js'
 import { truncate } from '../lib/text.js'
 import { commandList, visibleCommands } from './index.js'
+import { stickerCacheStats } from '../lib/media.js'
 
 const yes = (value) => (value ? '✅' : '❌')
 
@@ -31,6 +32,7 @@ export default {
     const temp = tempInfo()
     const session = inspectSession(config.sessionDir)
     const tempOk = await canWrite(path.join(config.paths.data, 'tmp'))
+    const cache = stickerCacheStats()
 
     const lines = [
       '🌊 *Diagnóstico de TomiOka* 💙',
@@ -42,7 +44,8 @@ export default {
       `▸ data/tmp escribible: ${yes(tempOk)}`,
       `▸ Sesión: ${yes(session.valid)} ${describeSession(session)}`,
       `▸ Prefijo: ${config.prefixes.join(' ')} · Comandos: ${visibleCommands.length}`,
-      `▸ Packs activos: ${ctx.store?.packs?.size ?? 0}`
+      `▸ Packs activos: ${ctx.store?.packs?.size ?? 0}`,
+      `▸ Caché de stickers: ${cache.entries} archivo(s) · ${(cache.bytes / 1048576).toFixed(1)} MB · aciertos ${cache.hits}/${cache.hits + cache.misses}`
     ]
 
     const emoji = indexInfo(config.emojimix)

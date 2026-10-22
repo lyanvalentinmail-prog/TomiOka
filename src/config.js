@@ -96,6 +96,13 @@ export const DEFAULTS = {
     maxBytes: 8388608,
     language: 'es'
   },
+  // ⚡ Rendimiento: lo que el usuario nota como "instantáneo".
+  performance: {
+    stickerCache: true, // no repetir conversiones del mismo archivo
+    stickerCacheEntries: 24,
+    stickerCacheMB: 32,
+    warmUp: true // deja lista la carpeta temporal y FFmpeg al arrancar
+  },
   behavior: {
     cooldownMs: 2500,
     reactToCommands: true,

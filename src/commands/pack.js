@@ -4,6 +4,7 @@ import { isAnimatedExtension } from '../lib/ffmpeg.js'
 import { isWebp, readSticker, writeStickerMetadata } from '../lib/sticker.js'
 import { splitNameAuthor } from '../lib/text.js'
 import { buildStickerPackZip, prepareStickerPackMessage } from '../lib/sticker-pack.js'
+import { fireAndForget } from '../lib/concurrency.js'
 
 const DONE = new Set(['done', 'listo', 'fin', 'finish', 'terminar', 'zip'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop'])
@@ -115,7 +116,7 @@ async function toStickerBuffer(ctx, target) {
 export async function deliverPack(ctx, { name, author, stickers = [], description = '', identifier } = {}) {
   if (!stickers.length) throw new Error('El pack está vacío: necesita al menos un sticker.')
 
-  await ctx.typing()
+  fireAndForget(ctx.typing(), ctx.logger, 'pack typing')
 
   const packId = identifier || `tomioka_${Date.now().toString(36)}`
   const prepared = []
@@ -255,8 +256,10 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
   }
 
   const isSticker = target.kind === 'sticker'
-  if (!isSticker && !silent) await ctx.typing('composing')
-  if (!isSticker && silent) await ctx.react('⏳')
+  // Los avisos van en segundo plano: la conversión (lo que el usuario espera)
+  // arranca ya mismo en vez de esperar un viaje de red.
+  if (!isSticker && !silent) fireAndForget(ctx.typing('composing'), ctx.logger, 'pack typing')
+  if (!isSticker && silent) fireAndForget(ctx.react('⏳'), ctx.logger, 'pack react')
 
   const converted = await toStickerBuffer(ctx, target)
   const result = ctx.store.packs.add(session, {
@@ -278,16 +281,19 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
   const label = KIND_LABEL[target.kind] || 'Sticker'
   const extra = count === max ? `\n✅ ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack.` : ''
 
-  if (silent) await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '✅')
-
-  // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno por
-  // cada foto/sticker.
-  await ctx.sendLive(
-    packSlot(ctx),
-    `✅ ${label} *${count}/${max}* agregada a *${session.name}*` +
-      `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
-      `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
-  )
+  // La reacción con el número y la edición del progreso salen en paralelo:
+  // el mensaje de avance se actualiza igual, pero sin sumar dos esperas.
+  await Promise.allSettled([
+    silent ? ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '✅') : null,
+    // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno
+    // por cada foto/sticker.
+    ctx.sendLive(
+      packSlot(ctx),
+      `✅ ${label} *${count}/${max}* agregada a *${session.name}*` +
+        `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
+        `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
+    )
+  ])
 
   // Descarga automática opcional: pack.autoDoneAfter = N (> 0)
   const autoDoneAfter = Number(ctx.config.pack.autoDoneAfter) || 0

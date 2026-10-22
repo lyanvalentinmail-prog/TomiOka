@@ -9,6 +9,7 @@ import {
   searchSettings
 } from '../lib/sticker-search.js'
 import { truncate } from '../lib/text.js'
+import { mapLimit } from '../lib/concurrency.js'
 
 const WAIT = new Set(['get', 'importar', 'descargar', 'link', 'pack', 'enviar'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop', 'limpiar'])
@@ -31,21 +32,6 @@ export function looksLikePackCode(text = '') {
   // Solo se acepta como código si tiene número y mayúscula: así "gatitos"
   // sigue siendo una búsqueda y "OD5GZR" se importa directo.
   return /\d/.test(value) && /[A-Z]/.test(value)
-}
-
-/** Ejecuta hasta `limit` tareas a la vez conservando el orden */
-async function mapLimit(items, limit, worker) {
-  const results = new Array(items.length)
-  let cursor = 0
-  const runners = Array.from({ length: Math.max(1, Math.min(limit, items.length)) }, async () => {
-    while (cursor < items.length) {
-      const index = cursor
-      cursor += 1
-      results[index] = await worker(items[index], index)
-    }
-  })
-  await Promise.all(runners)
-  return results
 }
 
 function packListMessage(query, results, page) {
@@ -82,7 +68,7 @@ async function importPack(ctx, { pack, target }) {
   await ctx.sendLive(packSlot(ctx), `⏳ *${label}*: descargando 0/${max}…`)
 
   let done = 0
-  const downloaded = await mapLimit(pack.stickers.slice(0, max), 3, async (sticker, index) => {
+  const downloaded = await mapLimit(pack.stickers.slice(0, max), 4, async (sticker, index) => {
     try {
       const buffer = await stickerBufferFromUrl(ctx, sticker.url, { animated: sticker.animated })
       const info = await readSticker(buffer).catch(() => ({ animated: sticker.animated }))

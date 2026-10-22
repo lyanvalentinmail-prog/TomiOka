@@ -30,7 +30,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` carga el menú completo directamente como pie de foto del banner en un único mensaje (por defecto `banner.jpg` de Google Drive, con caché local), nunca por separado. Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los que llevan banner se eliminan para todos y los de solo texto quedan editados como **"Menu eliminado."**.
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (319 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (330 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -571,6 +571,12 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "freeTierFallback": true,        // si la marca falla, prueba los gratuitos
     "maxChars": 3500                 // la respuesta entra en un mensaje de WhatsApp
   },
+  "performance": {                   // ⚡ para que todo se sienta instantáneo
+    "stickerCache": true,            // no reconvertir el mismo archivo
+    "stickerCacheEntries": 24,       // cuántos stickers guarda en memoria
+    "stickerCacheMB": 32,            // tope de memoria de la caché
+    "warmUp": true                   // deja listo FFmpeg y la carpeta temporal al arrancar
+  },
   "behavior": {
     "cooldownMs": 2500,             // anti-spam por usuario
     "reactToCommands": true,        // ⏳ / ✅ / ❌
@@ -642,6 +648,41 @@ categoría editando `menu.categories` en `config.json` sin tocar el código.
 | `STICKER_SEARCH_BASE_URL` | `https://…` | Otro servidor de búsqueda de stickers |
 | `STICKER_SEARCH_ENABLED` | `0` | Apaga `.search` y `.searchpack` |
 
+### ⚡ Rendimiento (por qué ahora es instantáneo)
+
+El bot ya no espera a WhatsApp para empezar a trabajar. Cambios concretos:
+
+| Antes | Ahora |
+|-------|-------|
+| `escribiendo…` y la reacción ⏳ se esperaban **antes** de ejecutar el comando (dos viajes de red completos) | Salen **en paralelo** con el comando: el sticker empieza a convertirse de inmediato |
+| Al cerrar, el ✅ y el "dejó de escribir" iban uno detrás del otro | Van **a la vez**, y no frenan el siguiente mensaje de la cola |
+| Cada conversión repetida volvía a llamar a FFmpeg | **Caché de conversiones**: mismo archivo + mismos ajustes = resultado al instante (`.sticker` y después `.take`, o el mismo sticker en dos búsquedas) |
+| Cada conversión probaba la carpeta temporal con `mkdir` + `access` + `mkdtemp` | La carpeta base se elige **una vez por proceso** y después es un solo `mkdir` |
+| `.search` descargaba y enviaba un sticker por vez | Descarga y convierte **3 en paralelo** y los envía en orden |
+| `.searchpack` bajaba 3 stickers a la vez | **4** a la vez, con el progreso en un solo mensaje |
+| Al agregar fotos al pack, cada aviso de progreso frenaba la conversión siguiente | La reacción y la edición del progreso van **en paralelo** con el trabajo |
+| El primer `.sticker` pagaba la detección de FFmpeg y la carpeta temporal | **Precalentado** al arrancar (`performance.warmUp`) |
+
+Medición real en este repo (latencia de WhatsApp simulada en 120 ms, `.help` con banner):
+
+```
+antes:  resultado visible a los 361 ms  ·  handler libre recién a los 722 ms
+ahora:  resultado visible a los 121 ms  ·  handler libre a los 243 ms
+```
+
+Y con conversión de por medio (FFmpeg simulado en 350 ms, `.sticker`):
+
+```
+1ª vez:  515 ms (conversión + envío)
+2ª vez:  121 ms (una sola espera: la del envío, gracias a la caché)
+```
+
+`.debug` muestra el estado de la caché (`archivos · MB · aciertos`). Para apagarla:
+
+```jsonc
+"performance": { "stickerCache": false }
+```
+
 ---
 
 ## 🧱 Estructura del proyecto
@@ -663,6 +704,8 @@ TomiOka/
 │   │   ├── ai.js            # cliente de IA (OpenCode: Gemini, ChatGPT, DeepSeek)
 │   │   ├── sticker-search.js # búsqueda de stickers y paquetes (Sticker.ly)
 │   │   ├── searches.js      # selección temporal de `.searchpack`
+│   │   ├── cache.js         # caché LRU de conversiones (stickers al instante)
+│   │   ├── concurrency.js   # mapLimit y avisos en segundo plano
 │   │   ├── text-sticker.js  # stickers de texto Brat / ATTP / TTP
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
@@ -686,7 +729,7 @@ TomiOka/
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   ├── verify-commands.js   # prueba end-to-end de todos los comandos
 │   └── test-search.js       # llamada REAL a la búsqueda de stickers
-├── tests/                   # node --test (319 pruebas)
+├── tests/                   # node --test (330 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -696,7 +739,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 319 pruebas (menú, endpoints, IA, búsqueda de stickers, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 330 pruebas (menú, endpoints, IA, búsqueda de stickers, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal, rendimiento)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
 npm run ai:test    # llamada REAL a las tres IA: qué modelo responde, con qué protocolo y en cuánto tiempo
 npm run search:test # llamada REAL a Sticker.ly: qué ruta responde, cuántos resultados y si el sticker baja bien
