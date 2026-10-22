@@ -107,7 +107,7 @@ export const DEFAULTS = {
     categories: [
       {
         emoji: '🌊',
-        title: '𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤',
+        title: '𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘',
         description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
         kaomoji: '( ˶ˆ꒳ˆ˵ )',
         divider: ['💧', '💦'],
@@ -115,7 +115,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '💧',
-        title: '𝕊𝕥𝕚𝕔𝕜𝕖𝕣𝕤',
+        title: '𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘',
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['🐟', '💙'],
@@ -123,7 +123,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '💦',
-        title: 'ℂ𝕠𝕟𝕧𝕖𝕣𝕤𝕚𝕠́𝕟',
+        title: '𝕮𝖔𝖓𝖛𝖊𝖗𝖘𝖎𝖔́𝖓',
         description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇',
         kaomoji: '( ˶ᵕ˶ )',
         divider: ['🌊', '💧'],
@@ -131,7 +131,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '🐟',
-        title: 'ℙ𝕒𝕔𝕜𝕤',
+        title: '𝕻𝖆𝖈𝖐𝖘',
         description: '𝖯𝖺𝖼𝗄𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['💙', '🌊'],
@@ -139,7 +139,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '💙',
-        title: '𝔸𝕀',
+        title: '𝕬𝕴',
         description: '𝖠𝖨',
         kaomoji: '( ᵕ ᴗ ᵕ )',
         divider: ['💦', '🐟'],
@@ -147,7 +147,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '🌊',
-        title: '𝕀𝕟𝕗𝕠',
+        title: '𝕴𝖓𝖋𝖔',
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
         divider: ['💧', '💙'],

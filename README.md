@@ -515,7 +515,7 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "categories": [             // el menú lista TODOS los comandos visibles, en 6 categorías
       {
         "emoji": "🌊",
-        "title": "𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤",      // nombre que sale en el encabezado del menú
+        "title": "𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘",      // nombre que sale en el encabezado del menú
         "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌", // nombre de respaldo si no hay title
         "kaomoji": "( ˶ˆ꒳ˆ˵ )",
         "divider": ["💧", "💦"],
@@ -523,7 +523,7 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
       },
       {
         "emoji": "💧",
-        "title": "𝕊𝕥𝕚𝕔𝕜𝕖𝕣𝕤",
+        "title": "𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘",
         "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
         "divider": ["🐟", "💙"],
@@ -539,7 +539,7 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
 
 ```
 ㅤㅤ◢ 𝟎𝟏 ◣
-🌊ㅤ׃ㅤ 𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤 ㅤ׃
+🌊ㅤ׃ㅤ 𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘 ㅤ׃
 ㅤㅤㅤ( ˶ˆ꒳ˆ˵ )
 ୨ৎㅤ.tiktok
 ```

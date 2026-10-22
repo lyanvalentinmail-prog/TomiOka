@@ -150,7 +150,7 @@ test('el menú muestra el nombre real de cada categoría, no "Categoría01"', ()
   }
   assert.deepEqual(
     config.menu.categories.map((category) => category.title),
-    ['𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤', '𝕊𝕥𝕚𝕔𝕜𝕖𝕣𝕤', 'ℂ𝕠𝕟𝕧𝕖𝕣𝕤𝕚𝕠́𝕟', 'ℙ𝕒𝕔𝕜𝕤', '𝔸𝕀', '𝕀𝕟𝕗𝕠']
+    ['𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘', '𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘', '𝕮𝖔𝖓𝖛𝖊𝖗𝖘𝖎𝖔́𝖓', '𝕻𝖆𝖈𝖐𝖘', '𝕬𝕴', '𝕴𝖓𝖋𝖔']
   )
 })
 
