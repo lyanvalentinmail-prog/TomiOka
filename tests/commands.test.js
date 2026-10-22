@@ -251,7 +251,13 @@ test('.help envía el menú con el banner como pie de foto', async () => {
 
 test('.help manda imagen y menú aparte si el pie sería muy largo', async () => {
   const config = testConfig()
-  config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
+  config.menu = {
+    ...config.menu,
+    image: 'tests/fixtures/sample.png',
+    sendAsCaption: true,
+    // Categoría sin lista = todos los comandos del mapa (los 120 de prueba)
+    categories: [{ emoji: '🌊', description: 'todos', kaomoji: '', divider: ['💧', '🌊'], commands: [] }]
+  }
   const manyCommands = new Map()
   for (let i = 0; i < 120; i += 1) {
     manyCommands.set(`cmd${i}`, { name: `comando-largo-${i}`, description: '' })

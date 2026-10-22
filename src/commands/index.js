@@ -1,15 +1,40 @@
+import attp from './attp.js'
+import brat from './brat.js'
 import debug from './debug.js'
 import emojimix from './emojimix.js'
 import gif from './gif.js'
 import help from './help.js'
+import instagram from './instagram.js'
 import pack from './pack.js'
 import steal from './steal.js'
 import sticker from './sticker.js'
 import take from './take.js'
+import tiktok from './tiktok.js'
 import toimg from './toimg.js'
 import tovideo from './tovideo.js'
+import ttp from './ttp.js'
+import ytmp3 from './ytmp3.js'
+import ytmp4 from './ytmp4.js'
 
-export const commandList = [sticker, gif, toimg, tovideo, take, steal, emojimix, pack, help, debug]
+export const commandList = [
+  tiktok,
+  instagram,
+  ytmp3,
+  ytmp4,
+  brat,
+  attp,
+  ttp,
+  sticker,
+  gif,
+  toimg,
+  tovideo,
+  take,
+  steal,
+  emojimix,
+  pack,
+  help,
+  debug
+]
 
 /** Comandos que NO se muestran en el menú */
 export const visibleCommands = commandList.filter((command) => !command.hidden)

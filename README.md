@@ -21,12 +21,14 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
-- 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías, solo el nombre del comando y una única categoría con todos los comandos (`commands: []`).
+- 🧾 **Menú compacto y configurable** desde `config.json`: sin líneas vacías y **solo ocho endpoints** agrupados en dos categorías: 📥 **Descargas** (`.tiktok`, `.instagram`, `.ytmp3`, `.ytmp4`) y 🎨 **Stickers** (`.brat`, `.attp`, `.ttp`, `.sticker`). El resto de comandos sigue funcionando, pero no se lista en el menú.
+- ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok e Instagram y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
+- ✍️ **Stickers de texto**: `.brat` (fondo verde lima), `.attp` (animado con colores) y `.ttp` (texto con borde), generados localmente con FFmpeg.
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (189 pruebas) y `npm run doctor` para diagnóstico.
-- 🌐 **Plataforma web** (`web/`): inicio futurista con identidad propia, panel local de configuración, catálogo filtrable de proyectos, documentación con ejemplos copiables, enlaces al repositorio y contacto oficial. La web no inicia sesiones ni simula un backend remoto.
+- 🧪 **Tests** con `node --test` (205 pruebas) y `npm run doctor` para diagnóstico.
+- 🌐 **Plataforma web** (`web/`): inicio futurista con identidad propia, **tabs fijas abajo en horizontal**, creador local de **sub-bots**, tab de **Endpoints** con los ocho del menú por categorías, panel local de configuración, catálogo filtrable, documentación con ejemplos copiables, enlaces al repositorio y contacto oficial. La web no inicia sesiones ni simula un backend remoto.
 
 ---
 
@@ -40,14 +42,18 @@ Página tecnológica en HTML, CSS y JavaScript sin dependencias externas, inspir
 estructura de plataformas modernas de bots pero con identidad visual propia. Incluye:
 
 1. **Inicio** con logo SVG propio, propuesta del proyecto y terminal ilustrativa.
-2. **Panel de herramientas local** que genera y descarga un fragmento para `config.json`.
-3. **Catálogo filtrable** de proyectos y funciones reales enlazadas al código fuente.
-4. **Documentación interactiva** con ejemplos de instalación, configuración, comandos y ejecución.
-5. **Accesos directos** al repositorio, código, issues, pull requests y despliegues web.
-6. **Contacto oficial** únicamente mediante enlaces verificables de GitHub.
+2. **Tabs de navegación fijas abajo, en horizontal**, para moverte entre todas las secciones.
+3. **Creador de sub-bots** local: genera la configuración (`config.json`) y los comandos de vinculación de cada sub-bot, cada uno con su propia carpeta de sesión.
+4. **Endpoints**: solo los ocho del menú (Descargas y Stickers), con su comando listo para copiar y la vista del menú de WhatsApp por categorías.
+5. **Panel de herramientas local** que genera y descarga un fragmento para `config.json`.
+6. **Catálogo filtrable** de proyectos y funciones reales enlazadas al código fuente.
+7. **Documentación interactiva** con ejemplos de instalación, configuración, comandos y ejecución.
+8. **Accesos directos** al repositorio, código, issues, pull requests y despliegues web.
+9. **Contacto oficial** únicamente mediante enlaces verificables de GitHub.
 
 > La página es estática: no crea cuentas, no despliega bots, no genera códigos de
-> vinculación y no se conecta a WhatsApp. El bot se instala y ejecuta localmente o en un VPS.
+> vinculación y no se conecta a WhatsApp. El creador de sub-bots solo genera la
+> configuración y los comandos: cada sub-bot se vincula y ejecuta localmente o en un VPS.
 
 ### Desplegar la página: Render (Blueprint) o Vercel
 
@@ -68,6 +74,7 @@ estructura de plataformas modernas de bots pero con identidad visual propia. Inc
 |-----------|----------------|
 | Node.js | **20 o superior** (Termux: `pkg install nodejs-lts`) |
 | FFmpeg | con codificador **libwebp** (`pkg install ffmpeg`) |
+| yt-dlp | para `.tiktok`, `.instagram`, `.ytmp3` y `.ytmp4` (`pkg install yt-dlp` o `pip install -U yt-dlp`; ruta alternativa con `YTDLP_PATH`) |
 | Espacio | ~150 MB con dependencias + 95 MB si usas `.emojimix` (solo la primera vez) |
 | Cuenta de WhatsApp | número que actuará como bot (puede ser tu número personal) |
 
@@ -79,7 +86,7 @@ estructura de plataformas modernas de bots pero con identidad visual propia. Inc
 
 ```bash
 # 1. Paquetes del sistema
-pkg update -y && pkg install -y nodejs-lts git ffmpeg libwebp
+pkg update -y && pkg install -y nodejs-lts git ffmpeg libwebp yt-dlp
 
 # 2. Clonar el proyecto
 git clone https://github.com/lyanvalentinmail-prog/TomiOka.git
@@ -117,7 +124,7 @@ También puedes usar `bash scripts/start.sh` (activa el wake-lock automáticamen
 ### Instalación en Linux / VPS
 
 ```bash
-sudo apt update && sudo apt install -y nodejs npm ffmpeg
+sudo apt update && sudo apt install -y nodejs npm ffmpeg yt-dlp
 npm install
 npm start
 ```
@@ -178,6 +185,15 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 
 | Comando | Alias | Qué hace |
 |---------|-------|----------|
+| **📥 Descargas** | | |
+| `.tiktok <enlace>` | `.tiktokdl`, `.ttdl` | Descarga un video público de TikTok (usa yt-dlp) |
+| `.instagram <enlace>` | `.ig`, `.instagramdl`, `.igdl` | Descarga un video o reel público de Instagram (usa yt-dlp) |
+| `.ytmp3 <enlace>` | `.ytmp-3`, `.youtube-mp3` | Descarga el audio de YouTube en MP3 |
+| `.ytmp4 <enlace>` | `.ytmp-4`, `.youtube-mp4` | Descarga un video de YouTube en MP4 |
+| **🎨 Stickers** | | |
+| `.brat <texto>` | | Sticker estilo Brat: fondo verde lima y texto negro en minúsculas |
+| `.attp <texto>` | | Sticker **animado** con tu texto cambiando de color |
+| `.ttp <texto>` | | Sticker con tu texto blanco y borde negro sobre transparencia |
 | `.sticker` | `.s`, `.stiker`, `.figu` | Crea un sticker desde imagen, video, GIF o reenvía un sticker con tus metadatos |
 | `.gif` | `.stikergif`, `.togif` | Convierte un GIF o video en sticker **animado** |
 | `.toimg` | `.toimage`, `.img` | Pasa un sticker a imagen PNG (en animados usa el primer cuadro) |
@@ -192,6 +208,15 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 ### Ejemplos rápidos
 
 ```
+# descargas (pega el enlace público)
+.tiktok https://www.tiktok.com/@usuario/video/123
+.ytmp3 https://youtu.be/VIDEO_ID
+
+# stickers de texto
+.brat tomioka
+.attp hola
+.ttp hola
+
 # respondiendo a una foto
 .sticker
 
@@ -293,13 +318,20 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
     "showDescriptions": false,      // el menú muestra solo el comando, sin descripción
     "showUser": true,
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
-    "categories": [
+    "categories": [             // el menú lista SOLO estos endpoints, en 2 categorías
       {
-        "emoji": "🌊",
-        "description": "𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌",
+        "emoji": "📥",
+        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
+        "kaomoji": "( ˶ˆ꒳ˆ˵ )",
+        "divider": ["⬇️", "🎬"],
+        "commands": ["tiktok", "instagram", "ytmp3", "ytmp4"]
+      },
+      {
+        "emoji": "🎨",
+        "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
-        "divider": ["💧", "🌊"],
-        "commands": []              // [] = todos los comandos registrados
+        "divider": ["✨", "🖼️"],
+        "commands": ["brat", "attp", "ttp", "sticker"]
       }
     ]
   }
@@ -316,6 +348,7 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
 | `SESSION_DIR` | `./sessions2` | Carpeta de credenciales |
 | `OWNER_NUMBERS` | `5989...,5989...` | Dueños separados por coma |
 | `FFMPEG_PATH` | `/data/.../ffmpeg` | Usar un FFmpeg específico |
+| `YTDLP_PATH` | `/data/.../yt-dlp` | Usar un yt-dlp específico (descargadores) |
 | `LOG_LEVEL` | `debug` | Nivel de logs |
 | `MENU_IMAGE` | `https://.../menu.jpg` | Banner del menú (URL, Drive o ruta local) |
 
@@ -336,6 +369,8 @@ TomiOka/
 │   ├── commands/            # un archivo por comando
 │   ├── lib/
 │   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
+│   │   ├── downloaders.js   # TikTok/Instagram/YouTube con yt-dlp
+│   │   ├── text-sticker.js  # stickers de texto Brat / ATTP / TTP
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
 │   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
@@ -356,7 +391,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (189 pruebas)
+├── tests/                   # node --test (205 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -366,7 +401,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 189 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 205 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

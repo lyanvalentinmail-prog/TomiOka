@@ -21,11 +21,19 @@ fi
 info "Actualizando repositorios de Termux..."
 pkg update -y >/dev/null 2>&1 || warn "No se pudo actualizar (puedes continuar igual)."
 
-info "Instalando dependencias del sistema (Node.js, FFmpeg, Git)..."
-pkg install -y nodejs-lts ffmpeg git libwebp >/dev/null || pkg install -y node ffmpeg git
+info "Instalando dependencias del sistema (Node.js, FFmpeg, Git, yt-dlp)..."
+pkg install -y nodejs-lts ffmpeg git libwebp yt-dlp >/dev/null || pkg install -y node ffmpeg git
 
 ok "Node.js $(node -v)"
 ok "FFmpeg $(ffmpeg -version 2>/dev/null | head -n1 | cut -d' ' -f3)"
+
+# yt-dlp lo usan .tiktok, .instagram, .ytmp3 y .ytmp4
+if command -v yt-dlp >/dev/null 2>&1; then
+  ok "yt-dlp $(yt-dlp --version 2>/dev/null | head -n1)"
+else
+  warn "yt-dlp no quedó instalado: los descargadores (.tiktok, .instagram, .ytmp3, .ytmp4) no funcionarán."
+  warn "Instálalo con: pkg install yt-dlp   (o: pip install -U yt-dlp)"
+fi
 
 info "Instalando dependencias de Node..."
 npm install --omit=dev
