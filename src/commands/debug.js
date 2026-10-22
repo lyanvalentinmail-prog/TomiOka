@@ -51,6 +51,18 @@ export default {
       `▸ Emojimix: ${emoji.loaded ? `cargado (${emoji.total})` : emoji.cached ? 'en caché' : 'se descargará al usarlo'}`
     )
 
+    // Estado de la IA: sin clave igual funciona, pero va al free tier
+    if (config.ai) {
+      const withKey = Boolean(String(config.ai.apiKey || '').trim())
+      const models = ['gemini', 'chatgpt', 'deepseek']
+        .map((name) => config.ai.models?.[name]?.[0])
+        .filter(Boolean)
+      lines.push(
+        `▸ IA (OpenCode): ${config.ai.enabled === false ? '❌ desactivada' : yes(true)} ` +
+          `${withKey ? `· clave configurada · ${truncate(models.join(', '), 44)}` : '· SIN clave: usa el free tier'}`
+      )
+    }
+
     if (config.menu.image) {
       const banner = await loadMenuImage(config, { logger: ctx.logger })
       lines.push(`▸ Banner: ${banner ? yes(true) + ` ${banner.type}` : '❌ no se pudo cargar'}`)

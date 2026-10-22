@@ -17,18 +17,20 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🔁 **Reconexión automática** y manejo de sesión (`sessions/`): vinculas una sola vez.
 - 🖼️ **Stickers** desde imagen, video o GIF (recorte, escala 512×512 y transparencia).
 - 🎞️ **Conversión inversa**: sticker → imagen PNG y sticker → video MP4.
-- 🏷️ **Metadatos**: `.take` y `.steal` cambian el nombre/autor del sticker.
+- 🏷️ **Metadatos**: `.take` cambia el nombre/autor del sticker.
 - 🍳 **Emoji Mix**: combinaciones de Google Emoji Kitchen (catálogo con caché local).
 - 📦 **Packs de stickers** en formato `.wasticker` (ZIP con `contents.json`, stickers y vista previa).
   Se arman **enviando varias fotos** (o videos/GIFs/stickers) y terminan con `.pack done`.
-- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías y con **todos los comandos** del bot agrupados en cinco categorías con estética agua: 📥 **Descargas**, 🎨 **Stickers**, 🔄 **Conversión**, 📦 **Packs** y 💧 **Info** (solo queda fuera `.debug`, que es oculto a propósito).
-- ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok e Instagram y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
+- 🧾 **Menú completo y configurable** desde `config.json`: sin líneas vacías y con **todos los comandos** del bot agrupados en seis categorías con estética agua: 📥 **Descargas**, 🎨 **Stickers**, 🔄 **Conversión**, 📦 **Packs**, 🧠 **AI** y 💧 **Info** (solo queda fuera `.debug`, que es oculto a propósito).
+- ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok, Instagram y Pinterest y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
+- 🧠 **IA en el chat**: `.gemini`, `.chatgpt` y `.deepseek` consultan los modelos de **OpenCode** (`opencode.ai`).
+  Sin ninguna clave usan el free tier del gateway; con `OPENCODE_API_KEY` usan el modelo oficial de cada marca.
 - ✍️ **Stickers de texto**: `.brat` (fondo verde lima), `.attp` (animado con colores) y `.ttp` (texto con borde), generados localmente con FFmpeg.
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (242 pruebas) y `npm run doctor` para diagnóstico.
-- 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los ocho endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
+- 🧪 **Tests** con `node --test` (283 pruebas) y `npm run doctor` para diagnóstico.
+- 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
 
@@ -45,7 +47,7 @@ acotada y veraz. Incluye:
 1. **Landing y panel** con las rutas de la referencia: `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`.
 2. **Registro local de sub-bots**: `POST /api/instances` guarda cada sub-bot en `data/web-subbots.json` con su `sessions/<slug>` y su comando de vinculación por terminal (`SESSION_DIR=sessions/<slug> PAIRING_PHONE=... npm run pair` o `npm run qr`).
 3. **Pairing code real desde el panel**: `POST /api/instances/:id/pairing` abre un socket de Baileys para ese sub-bot y le pide el código a WhatsApp (formato `XXXX-XXXX`, ~60 s de vigencia); el estado se sigue en vivo por `/api/instances/:id/link` y SSE (`/api/stream`). Al vincularse, el sub-bot queda en línea **y respondiendo comandos** desde el mismo proceso del panel, con su prefijo propio. También se puede detener/reiniciar desde Mis Bots.
-4. **Endpoints**: solo los ocho comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
+4. **Endpoints**: solo los nueve comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Pinterest downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
 5. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
 6. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
 
@@ -82,7 +84,7 @@ acotada y veraz. Incluye:
 |-----------|----------------|
 | Node.js | **20 o superior** (Termux: `pkg install nodejs-lts`) |
 | FFmpeg | con codificador **libwebp** (`pkg install ffmpeg`) |
-| yt-dlp | para `.tiktok`, `.instagram`, `.ytmp3` y `.ytmp4` (`pkg install yt-dlp` o `pip install -U yt-dlp`; ruta alternativa con `YTDLP_PATH`) |
+| yt-dlp | para `.tiktok`, `.instagram`, `.pinterest`, `.ytmp3` y `.ytmp4` (`pkg install yt-dlp` o `pip install -U yt-dlp`; ruta alternativa con `YTDLP_PATH`) |
 | Espacio | ~150 MB con dependencias + 95 MB si usas `.emojimix` (solo la primera vez) |
 | Cuenta de WhatsApp | número que actuará como bot (puede ser tu número personal) |
 
@@ -255,6 +257,7 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | **📥 Descargas** | | |
 | `.tiktok <enlace>` | `.tiktokdl`, `.ttdl` | Descarga un video público de TikTok (usa yt-dlp) |
 | `.instagram <enlace>` | `.ig`, `.instagramdl`, `.igdl` | Descarga un video o reel público de Instagram (usa yt-dlp) |
+| `.pinterest <enlace>` | `.pin`, `.pinterestdl`, `.pindl` | Descarga el video (o la imagen) de un pin de Pinterest; acepta `pin.it` y dominios locales (usa yt-dlp) |
 | `.ytmp3 <enlace>` | `.ytmp-3`, `.youtube-mp3` | Descarga el audio de YouTube en MP3 |
 | `.ytmp4 <enlace>` | `.ytmp-4`, `.youtube-mp4` | Descarga un video de YouTube en MP4 |
 | **🎨 Stickers** | | |
@@ -266,9 +269,13 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.toimg` | `.toimage`, `.img` | Pasa un sticker a imagen PNG (en animados usa el primer cuadro) |
 | `.tovideo` | `.tomp4` | Pasa un sticker a video MP4 (los estáticos se convierten en un video de 2 s) |
 | `.take Nombre \| Autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; también acepta fotos/videos (los convierte antes) |
-| `.steal` | `.robar`, `.copy` | Copia el sticker (o una foto/video) con el nombre del bot |
 | `.emojimix 😺 🐼` | `.mix` | Combina dos emojis (o sin argumentos para una mezcla aleatoria) |
 | `.pack Nombre \| Autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
+| **🧠 AI** | | |
+| `.gemini <pregunta>` | `.geminiai`, `.google-ai` | Le pregunta a Gemini (Google). También sirve respondiendo a un mensaje |
+| `.chatgpt <pregunta>` | `.gpt`, `.openai`, `.chat-gpt` | Le pregunta a ChatGPT (OpenAI) |
+| `.deepseek <pregunta>` | `.deep`, `.seek` | Le pregunta a DeepSeek, que razona paso a paso |
+| **💧 Info** | | |
 | `.help` | `.menu`, `.comandos` | Muestra el menú; `.help sticker` muestra la ayuda de un comando |
 | `.debug` | `.diag` | Diagnóstico del bot en el chat (FFmpeg, carpetas, sesión y una conversión real). No aparece en el menú |
 
@@ -277,7 +284,15 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 ```
 # descargas (pega el enlace público)
 .tiktok https://www.tiktok.com/@usuario/video/123
+.pinterest https://www.pinterest.com/pin/123456789/
+.pinterest https://pin.it/AbC1dEf
 .ytmp3 https://youtu.be/VIDEO_ID
+
+# inteligencia artificial
+.gemini explica la fotosíntesis en tres líneas
+.chatgpt escribe un saludo de cumpleaños corto
+.deepseek si 3 camisetas cuestan 45, ¿cuánto cuestan 7?
+.gemini resumí esto        ← respondiendo a un mensaje
 
 # stickers de texto
 .brat tomioka
@@ -338,6 +353,90 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
 
 ---
 
+## 🧠 Categoría AI (Gemini, ChatGPT y DeepSeek)
+
+Tres comandos que consultan los modelos de **[OpenCode](https://opencode.ai)** y responden en el chat:
+
+```
+.gemini explica la fotosíntesis en tres líneas
+.chatgpt escribe un saludo de cumpleaños corto
+.deepseek si 3 camisetas cuestan 45 dólares, ¿cuánto cuestan 7?
+```
+
+También sirven **respondiendo a un mensaje**: el texto citado viaja como contexto.
+
+```
+(mensaje largo)
+.gemini resumí esto          ← resume el mensaje citado
+.deepseek                    ← sin argumento: usa solo la cita
+```
+
+El bot manda un "está pensando…" y después **edita ese mismo mensaje** con la respuesta (no duplica
+mensajes). Al pie dice qué modelo contestó, así nunca queda la duda de quién respondió.
+
+### Funciona sin configurar nada (y mejor con clave)
+
+OpenCode sirve los modelos en protocolos distintos y tiene dos niveles:
+
+| Situación | Qué pasa |
+|-----------|----------|
+| **Sin clave** | Se usa el **free tier** del gateway. DeepSeek responde con su modelo gratuito oficial (`deepseek-v4.1-flash-free`); Gemini y ChatGPT, al no tener versión gratuita, responden con el mejor modelo gratis disponible y la respuesta lo aclara como *modelo de respaldo*. |
+| **Con `OPENCODE_API_KEY`** | Cada comando usa el modelo oficial de su marca: `gemini-3-flash`, `gpt-5.6-terra` y `deepseek-v4.1-flash`. |
+
+```bash
+export OPENCODE_API_KEY="sk-..."   # se consigue en https://opencode.ai/auth
+npm start
+```
+
+> El free tier es anónimo y compartido (cuota por IP): puede saturarse. Para un bot con tráfico real,
+> conviene poner la clave.
+
+### Detalles técnicos
+
+`src/lib/ai.js` habla con el gateway sin dependencias nuevas (solo `fetch` de Node 20+):
+
+- **Un protocolo por familia de modelos**: `chat/completions` (DeepSeek y los gratuitos), `responses`
+  (GPT/Grok), `messages` (Claude) y el endpoint de Google con `:streamGenerateContent` (Gemini).
+  Se elige solo con el id del modelo, así no hay que configurar nada por comando.
+- **La puerta del free tier**: los modelos gratis solo se atienden a tráfico que parezca del agente
+  OpenCode. El cliente replica lo que el gateway exige: el par de cabeceras `x-opencode-session` /
+  `x-opencode-session-id` con un id en el formato real (`ses_` + 12 hex con el timestamp + 14
+  caracteres), el `User-Agent` `opencode/x.y.z`, `stream: true` y una herramienta llamada `read` en el
+  manifiesto. La sesión se remite sola cada 30 minutos para que no envejezca.
+- **Las llamadas a herramienta se descartan**: el gateway no honra `tool_choice: "none"` y puede
+  responder con un `read`; el bot nunca ejecuta herramientas, así que esas respuestas se tiran y se
+  prueba el modelo siguiente.
+- **Respuesta en streaming (SSE)** con tolerancia a JSON puro, por si el servidor ignora el `stream`.
+- **Reintentos y respaldo en cadena**: 429, 5xx, 410 (modelo retirado), `FreeTierError` y
+  `MissingSessionID` reintentan y pasan al modelo siguiente; un 401/402 (clave inválida o sin créditos)
+  corta al toque con un mensaje claro en vez de gastar pedidos.
+- **Límites pensados para WhatsApp**: el prompt se recorta a `maxInputChars` (6000) y la respuesta a
+  `maxChars` (3500), por debajo del techo de 4096 caracteres de WhatsApp.
+
+Configurable en `ai` (`config.json`):
+
+| Opción | Por defecto | Qué hace |
+|--------|-------------|----------|
+| `enabled` | `true` | Apaga toda la categoría AI |
+| `apiKey` | `""` | Clave de OpenCode (mejor por `OPENCODE_API_KEY`) |
+| `baseUrl` | `https://opencode.ai/inference/v1` | Gateway para los protocolos OpenAI/Anthropic |
+| `googleBaseUrl` | `https://opencode.ai/inference/google/v1beta` | Gateway de Gemini |
+| `models.gemini` / `.chatgpt` / `.deepseek` | `gemini-3-flash`, `gpt-5.6-terra`, `deepseek-v4.1-flash` | Modelos de cada comando, en orden de preferencia |
+| `freeModels` | `deepseek-v4.1-flash-free`, … | Red de seguridad gratuita, en orden |
+| `freeTierFallback` | `true` | Con `false` solo se prueban los modelos de la marca |
+| `timeoutMs` / `maxTokens` / `temperature` | `90000` / `1024` / `0.7` | Ajustes del pedido |
+| `maxInputChars` / `maxChars` | `6000` / `3500` | Recorte del prompt y de la respuesta |
+
+Los modelos que ofrece OpenCode cambian seguido; se pueden listar en vivo con:
+
+```bash
+curl -s https://opencode.ai/inference/v1/models
+```
+
+Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
+
+---
+
 ## ⚙️ Configuración (`config.json`)
 
 ```jsonc
@@ -370,6 +469,20 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
     "autoDoneAfter": 0              // 0 = cerrar solo con .pack done
   },
   "emojimix": { "enabled": true },
+  "ai": {                            // 🧠 Gemini, ChatGPT y DeepSeek vía OpenCode
+    "enabled": true,
+    "apiKey": "",                    // mejor por OPENCODE_API_KEY; vacío = free tier
+    "baseUrl": "https://opencode.ai/inference/v1",
+    "googleBaseUrl": "https://opencode.ai/inference/google/v1beta",
+    "models": {
+      "gemini": ["gemini-3-flash"],
+      "chatgpt": ["gpt-5.6-terra"],
+      "deepseek": ["deepseek-v4.1-flash", "deepseek-v4.1-flash-free"]
+    },
+    "freeModels": ["deepseek-v4.1-flash-free", "glm-5.3-flash-free", "big-pickle"],
+    "freeTierFallback": true,        // si la marca falla, prueba los gratuitos
+    "maxChars": 3500                 // la respuesta entra en un mensaje de WhatsApp
+  },
   "behavior": {
     "cooldownMs": 2500,             // anti-spam por usuario
     "reactToCommands": true,        // ⏳ / ✅ / ❌
@@ -385,13 +498,13 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
     "showDescriptions": false,      // el menú muestra solo el comando, sin descripción
     "showUser": true,
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
-    "categories": [             // el menú lista TODOS los comandos visibles, en 5 categorías
+    "categories": [             // el menú lista TODOS los comandos visibles, en 6 categorías
       {
         "emoji": "📥",
         "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
         "kaomoji": "( ˶ˆ꒳ˆ˵ )",
         "divider": ["⬇️", "🎬"],
-        "commands": ["tiktok", "instagram", "ytmp3", "ytmp4"]
+        "commands": ["tiktok", "instagram", "pinterest", "ytmp3", "ytmp4"]
       },
       {
         "emoji": "🎨",
@@ -418,6 +531,8 @@ disponible como `.wasticker` si alguna vez hace falta importarlo con Sticker Mak
 | `YTDLP_PATH` | `/data/.../yt-dlp` | Usar un yt-dlp específico (descargadores) |
 | `LOG_LEVEL` | `debug` | Nivel de logs |
 | `MENU_IMAGE` | `https://.../menu.jpg` | Banner del menú (URL, Drive o ruta local) |
+| `OPENCODE_API_KEY` | `sk-...` | Clave de OpenCode para que la IA use los modelos oficiales (sin clave va al free tier) |
+| `AI_ENABLED` | `0` | Apaga la categoría AI sin tocar el JSON |
 
 ---
 
@@ -436,7 +551,8 @@ TomiOka/
 │   ├── commands/            # un archivo por comando
 │   ├── lib/
 │   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
-│   │   ├── downloaders.js   # TikTok/Instagram/YouTube con yt-dlp
+│   │   ├── downloaders.js   # TikTok/Instagram/Pinterest/YouTube con yt-dlp
+│   │   ├── ai.js            # cliente de IA (OpenCode: Gemini, ChatGPT, DeepSeek)
 │   │   ├── text-sticker.js  # stickers de texto Brat / ATTP / TTP
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
@@ -459,7 +575,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (242 pruebas)
+├── tests/                   # node --test (283 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -469,8 +585,8 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 242 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
-npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
+npm test           # 283 pruebas (menú, endpoints, IA, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
 ```
@@ -508,11 +624,11 @@ Qué revisa y cómo se arregla:
 ✔ .toimg (sticker → PNG)                      OK react×2 image×1
 ✔ .tovideo (sticker → MP4)                    OK react×2 video×1
 ✔ .take Olas | Tomi (metadatos)               OK react×2 sticker×1
-✔ .steal (copia con metadatos del bot)        OK react×2 sticker×1
 ✔ .emojimix 😀 🔥 (catálogo en caché)         OK react×2 sticker×1
+✔ .gemini (consulta a Gemini)                 OK react×2 text×2
 ✔ .pack done (genera .wasticker)              OK react×2 document×1
 ✔ .wasticker válido (3 stickers + vista previa)   contents.json + 3 webp
-✔ 29/29 verificaciones OK
+✔ 42/42 verificaciones OK
 ```
 
 Los tests de conversión se saltan solos si no hay FFmpeg disponible.
@@ -537,7 +653,7 @@ npm run emojimix:sync
 | `logged out` | La sesión se cerró desde el teléfono: borra `sessions/` y vincula de nuevo |
 | Los stickers pesan demasiado | Baja `stickers.quality` o `maxStaticKB` en `config.json` |
 | `.take` no cambia el nombre | WhatsApp cachea el pack: el bot ya genera un `pack-id` nuevo; borra el sticker del chat y reenvíalo |
-| `.take`/`.steal` con una foto dicen "Bad header" | Versión anterior: ahora aceptan fotos y videos y los convierten antes |
+| `.take` con una foto dice "Bad header" | Versión anterior: ahora acepta fotos y videos y los convierte antes |
 | Todo lo que usa FFmpeg falla en Termux | `TMPDIR` inválido: el bot usa `data/tmp` como respaldo; verifica con `.debug` o `npm run selftest` |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
 | WhatsApp dice "no se puede ver la información del sticker" | Corregido: el bloque EXIF ahora declara el largo del JSON (antes quedaba en 0 y WhatsApp no leía el nombre/autor). Generá el sticker de nuevo |

@@ -1685,7 +1685,7 @@ async function openEditInstance(instance) {
   state.editDraft = { menuStyle: instance.menuStyle || 'tomioka', menuMode: 'text', banner: null, aliases: {}, disabled: [], disabledCategories: [], categories: [], customCommands: [], categoryOverrides: {} };
   state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
   state.editStyles = [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los nueve comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
     ];
   // Render inicial síncrono (sin preview aún) - contiene el textarea esperado por tests
   const adminNumImmediate = (instance.adminNumbers || []).join('\n');
@@ -1714,7 +1714,7 @@ async function openEditInstance(instance) {
       state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
     }
     state.editStyles = styles?.styles?.length ? styles.styles : [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los nueve comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' },
     ];
     renderEditModal();
     // preview se carga bajo demanda al abrir pestaña Estilo
@@ -1798,7 +1798,7 @@ function renderEditModal() {
   })();
   const categoriasHtml = (() => {
     const builtins = [
-      { id: 'download', title: 'DESCARGAS', icon: '📥', sub: 'tiktok · instagram · ytmp3 · ytmp4', built: true },
+      { id: 'download', title: 'DESCARGAS', icon: '📥', sub: 'tiktok · instagram · pinterest · ytmp3 · ytmp4', built: true },
       { id: 'stickers', title: 'STICKERS', icon: '🎨', sub: 'brat · attp · ttp · sticker', built: true },
       { id: 'tools', title: 'HERRAMIENTAS', icon: '🧰', sub: 'conversión, packs y más', built: true },
       { id: 'info', title: 'INFORMACIÓN', icon: 'ℹ️', sub: 'ayuda y menú', built: true },

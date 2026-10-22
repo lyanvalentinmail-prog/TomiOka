@@ -73,11 +73,11 @@ test('el servidor local ofrece la API que la SPA espera', () => {
   assert.ok(server.includes('no está implementado en el panel local de TomiOka'), 'lo no implementado debe responder con honestidad')
 })
 
-test('endpoints: solo los ocho de WhatsApp, agrupados en Descargas y Stickers', () => {
-  for (const name of ['TikTok downloader', 'Instagram downloader', 'Youtube Mp3', 'Youtube Mp4', 'Brat', 'Attp', 'Ttp', 'Sticker']) {
+test('endpoints: solo los nueve de WhatsApp, agrupados en Descargas y Stickers', () => {
+  for (const name of ['TikTok downloader', 'Instagram downloader', 'Pinterest downloader', 'Youtube Mp3', 'Youtube Mp4', 'Brat', 'Attp', 'Ttp', 'Sticker']) {
     assert.ok(server.includes(`'${name}'`), `falta el endpoint ${name}`)
   }
-  for (const command of ['.tiktok', '.instagram', '.ytmp3', '.ytmp4', '.brat', '.attp', '.ttp', '.sticker']) {
+  for (const command of ['.tiktok', '.instagram', '.pinterest', '.ytmp3', '.ytmp4', '.brat', '.attp', '.ttp', '.sticker']) {
     assert.ok(server.includes(`'${command}'`), `falta el comando ${command}`)
   }
   assert.ok(server.includes("name: 'Descargas'") && server.includes("name: 'Stickers'"))
@@ -108,15 +108,15 @@ test('el servidor sirve la SPA y responde la API local real', async (t) => {
 
   const catalog = await (await fetch(`${base}/api/endpoints/catalog`)).json()
   assert.equal(catalog.ok, true)
-  assert.equal(catalog.total, 8)
+  assert.equal(catalog.total, 9)
   assert.deepEqual(catalog.categories.map((category) => category.name), ['Descargas', 'Stickers'])
   assert.deepEqual(catalog.categories.flatMap((category) => category.items.map((item) => item.name)), [
-    'TikTok downloader', 'Instagram downloader', 'Youtube Mp3', 'Youtube Mp4', 'Brat', 'Attp', 'Ttp', 'Sticker'
+    'TikTok downloader', 'Instagram downloader', 'Pinterest downloader', 'Youtube Mp3', 'Youtube Mp4', 'Brat', 'Attp', 'Ttp', 'Sticker'
   ])
 
   const commands = await (await fetch(`${base}/api/commands`)).json()
   assert.equal(commands.prefix, '.')
-  for (const name of ['tiktok', 'instagram', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'help']) {
+  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gemini', 'chatgpt', 'deepseek', 'help']) {
     assert.ok(commands.commands.some((command) => command.name === name), `falta el comando ${name}`)
   }
 

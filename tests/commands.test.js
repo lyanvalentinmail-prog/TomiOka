@@ -158,14 +158,6 @@ test('.take sin argumentos vuelve a los metadatos del bot', async () => {
   assert.equal(info.metadata['sticker-pack-name'], ctx.config.stickers.packName)
 })
 
-test('.steal copia el sticker con el pack del bot', async () => {
-  const { ctx, sock } = makeContext('.steal', { quotedKind: 'sticker', buffer: animatedSticker })
-  await findCommand('steal').run(ctx)
-  const info = await readSticker(sentOf(sock, 'sticker')[0].content.sticker)
-  assert.equal(info.metadata['sticker-pack-name'], ctx.config.stickers.packName)
-  assert.equal(info.animated, true)
-})
-
 test('.toimg sin sticker citado explica qué hacer', async () => {
   const { ctx } = makeContext('.toimg')
   await assert.rejects(() => findCommand('toimg').run(ctx), /Responde a un \*sticker\*/)
@@ -475,21 +467,6 @@ test('.take sin media explica cómo usarlo', async () => {
   await assert.rejects(() => findCommand('take').run(ctx), /Responde a un \*sticker\*/)
 })
 
-test('.steal copia una foto como sticker del bot', async (t) => {
-  if (!(await ffmpegAvailable())) return t.skip('FFmpeg no disponible')
-  const { ctx, sock } = makeContext('.steal', {
-    quotedKind: 'image',
-    mimetype: 'image/png',
-    buffer: png
-  })
-  await findCommand('steal').run(ctx)
-  const stickers = sentOf(sock, 'sticker')
-  assert.equal(stickers.length, 1)
-  const info = await readSticker(stickers[0].content.sticker)
-  assert.equal(info.metadata['sticker-pack-name'], ctx.config.stickers.packName)
-  assert.match(sentOf(sock, 'text')[0].content.text, /Sticker copiado/)
-})
-
 test('.debug devuelve un diagnóstico legible', async () => {
   const { ctx, sock } = makeContext('.debug')
   await findCommand('debug').run(ctx)
@@ -532,14 +509,4 @@ test('.take rechaza un documento que no es imagen ni video', async () => {
     buffer: Buffer.from('%PDF-1.4 documento')
   })
   await assert.rejects(() => findCommand('take').run(ctx), /no es una imagen ni un video/)
-})
-
-test('.steal rechaza un media que no se pudo convertir en WebP', async () => {
-  const { ctx } = makeContext('.steal', {
-    quotedKind: 'image',
-    mimetype: 'image/png',
-    buffer: Buffer.from('esto no es una imagen')
-  })
-  // Sin FFmpeg el error viene de la conversión; con FFmpeg, del formato
-  await assert.rejects(() => findCommand('steal').run(ctx), /FFmpeg|sticker|imagen|compatible/i)
 })

@@ -242,9 +242,19 @@ async function main() {
     return media.buffer
   }
 
-  // Descargas de emojimix simuladas
+  // Descargas simuladas: emojimix devuelve el PNG de prueba y las IA devuelven
+  // una respuesta SSE como la del gateway de OpenCode (sin tocar la red).
   const originalFetch = globalThis.fetch
-  globalThis.fetch = async () => new Response(png)
+  globalThis.fetch = async (url) => {
+    if (String(url).includes('opencode.ai')) {
+      const chunk = JSON.stringify({ choices: [{ delta: { content: 'Respuesta simulada de la IA.' } }] })
+      return new Response(`data: ${chunk}\n\ndata: [DONE]`, {
+        status: 200,
+        headers: { 'content-type': 'text/event-stream' }
+      })
+    }
+    return new Response(png)
+  }
 
   try {
     // ---------- ayuda / menú ----------
@@ -313,14 +323,6 @@ async function main() {
       msg: textMessage('.gif', MEDIA.video.message),
       expect: /Sticker animado/
     })
-    await step({
-      name: '.steal (copia con metadatos del bot)',
-      config,
-      store,
-      sock,
-      msg: textMessage('.steal', MEDIA.stickerAnimado.message)
-    })
-
     // ---------- conversión ----------
     await step({
       name: '.toimg (sticker → PNG)',
@@ -354,15 +356,6 @@ async function main() {
       msg: textMessage('.take Foto | Tomi', MEDIA.image.message),
       expect: /Convertido a sticker/
     })
-    await step({
-      name: '.steal sobre una foto',
-      config,
-      store,
-      sock,
-      msg: textMessage('.steal', MEDIA.image.message),
-      expect: /Sticker copiado/
-    })
-
     // ---------- emojimix ----------
     await step({
       name: '.emojimix 😀 🔥 (catálogo en caché)',
@@ -545,7 +538,68 @@ async function main() {
       expect: /cancelado/
     })
 
+    // ---------- IA (respuesta simulada, sin red) ----------
+    await step({
+      name: '.gemini (consulta a Gemini)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.gemini explica el agua en una línea'),
+      expect: /Gemini/
+    })
+    await step({
+      name: '.chatgpt (consulta a ChatGPT)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.chatgpt escribe un saludo corto'),
+      expect: /ChatGPT/
+    })
+    await step({
+      name: '.deepseek (consulta a DeepSeek)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.deepseek cuánto es 2+2'),
+      expect: /DeepSeek/
+    })
+    await step({
+      name: '.gemini citando un mensaje (usa la cita como contexto)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.gemini resumí esto', { conversation: 'un texto largo para resumir' }),
+      expect: /Gemini/
+    })
+
     // ---------- errores esperados ----------
+    await step({
+      name: '.gemini sin pregunta (error claro)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.gemini'),
+      expect: /Escribe tu pregunta/,
+      allowError: true
+    })
+    await step({
+      name: '.pinterest sin enlace (aviso de uso)',
+      config,
+      store,
+      sock,
+      msg: textMessage('.pinterest'),
+      expect: /Uso:/,
+      allowError: true
+    })
+    await step({
+      name: '.pinterest con enlace de otra plataforma',
+      config,
+      store,
+      sock,
+      msg: textMessage('.pinterest https://youtu.be/abc'),
+      expect: /no parece ser de Pinterest/,
+      allowError: true
+    })
     await step({
       name: '.toimg sin sticker (mensaje de ayuda)',
       config,
