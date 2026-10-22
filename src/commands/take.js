@@ -7,7 +7,7 @@ import { splitNameAuthor, truncate } from '../lib/text.js'
 const KINDS = ['sticker', 'image', 'video', 'document']
 
 const HELP =
-  'Responde a un *sticker* (o a una foto/video) con *.take Nombre | Autor* para cambiarle el nombre y el autor.'
+  'Responde a un *sticker* (o a una foto/video) con *.take nombre,autor* para cambiarle el nombre y el autor.'
 
 /**
  * Devuelve un WebP válido a partir del media recibido.
@@ -56,8 +56,8 @@ export default {
   aliases: ['autor', 'rename', 'packname'],
   category: 'conversion',
   description: 'Cambiar nombre o autor del sticker.',
-  usage: '.take Nombre | Autor (responde a un sticker, foto o video)',
-  examples: ['.take Tomioka | 🌊💙', '.take Mi pack'],
+  usage: '.take nombre,autor (responde a un sticker, foto o video)',
+  examples: ['.take Tomioka,🌊💙', '.take Mi pack'],
   async run(ctx) {
     const target = ctx.requireMedia(KINDS, HELP)
 
@@ -65,7 +65,7 @@ export default {
       name: ctx.config.stickers.packName,
       author: ctx.config.stickers.packAuthor
     })
-    if (!name) throw new Error('Necesito un nombre. Ejemplo: *.take Olas del mar | Tomi*')
+    if (!name) throw new Error('Necesito un nombre. Ejemplo: *.take Olas del mar,Tomi*')
 
     if (target.kind !== 'sticker') await ctx.typing('composing')
     const { buffer, converted, emojis } = await toStickerBuffer(ctx, target)
@@ -81,7 +81,7 @@ export default {
     await ctx.sendSticker(out, { withMetadata: false })
 
     const lines = [
-      '💙 *Sticker actualizado*',
+      '✅ *Sticker actualizado*',
       `▸ Nombre: *${truncate(name, 40)}*`,
       `▸ Autor: *${truncate(author, 40)}*`
     ]

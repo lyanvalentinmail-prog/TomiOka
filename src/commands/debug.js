@@ -23,7 +23,7 @@ export default {
   examples: ['.debug'],
   async run(ctx) {
     // El mensaje de "ejecutando" se edita con el resultado (no se duplica).
-    const progress = await ctx.reply('🌊 Ejecutando diagnóstico... puede tardar unos segundos.')
+    const progress = await ctx.reply('⏳ Ejecutando diagnóstico... puede tardar unos segundos.')
     ctx.rememberLive('debug', progress)
 
     const config = ctx.config

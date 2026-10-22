@@ -41,16 +41,21 @@ export function extractEmojis(text) {
 }
 
 /**
- * Divide argumentos que usan separador "|" para nombre y autor.
- * ".take Mi pack | Mi nombre" -> { name: 'Mi pack', author: 'Mi nombre' }
+ * Divide argumentos que usan separador "," para nombre y autor.
+ * ".take prueba,prueba" -> { name: 'prueba', author: 'prueba' }
  */
 export function splitNameAuthor(argsText = '', { name = '', author = '' } = {}) {
   const raw = String(argsText || '').trim()
   if (!raw) return { name, author }
-  const parts = raw.split('|').map((part) => part.trim())
+  const commaIndex = raw.indexOf(',')
+  if (commaIndex === -1) {
+    return { name: raw || name, author }
+  }
+  const parsedName = raw.slice(0, commaIndex).trim()
+  const parsedAuthor = raw.slice(commaIndex + 1).trim()
   return {
-    name: parts[0] || name,
-    author: parts.length > 1 ? parts.slice(1).join(' | ').trim() || author : author
+    name: parsedName || name,
+    author: parsedAuthor || author
   }
 }
 

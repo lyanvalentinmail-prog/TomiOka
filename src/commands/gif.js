@@ -31,7 +31,7 @@ export default {
 
     await ctx.sendSticker(result.buffer)
 
-    const parts = ['💦 Sticker animado creado 💙']
+    const parts = ['✅ Sticker animado creado']
     if (result.warning) parts.push(result.warning)
     return parts.join(' · ')
   }

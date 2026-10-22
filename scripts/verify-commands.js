@@ -285,7 +285,7 @@ async function main() {
       store,
       sock,
       msg: textMessage('.help take'),
-      expect: /\.take Nombre \| Autor/
+      expect: /\.take nombre,autor/
     })
     await step({
       name: '.menu (alias)',
@@ -354,11 +354,11 @@ async function main() {
       expect: /video/
     })
     await step({
-      name: '.take Olas | Tomi (metadatos)',
+      name: '.take Olas,Tomi (metadatos)',
       config,
       store,
       sock,
-      msg: textMessage('.take Olas | Tomi', MEDIA.sticker.message),
+      msg: textMessage('.take Olas,Tomi', MEDIA.sticker.message),
       expect: /Sticker actualizado/
     })
     await step({
@@ -366,7 +366,7 @@ async function main() {
       config,
       store,
       sock,
-      msg: textMessage('.take Foto | Tomi', MEDIA.image.message),
+      msg: textMessage('.take Foto,Tomi', MEDIA.image.message),
       expect: /Convertido a sticker/
     })
     // ---------- emojimix ----------
@@ -405,11 +405,11 @@ async function main() {
 
     // ---------- pack ----------
     await step({
-      name: '.pack Olas del mar | Tomi (inicia)',
+      name: '.pack Olas del mar,Tomi (inicia)',
       config,
       store,
       sock,
-      msg: textMessage('.pack Olas del mar | Tomi'),
+      msg: textMessage('.pack Olas del mar,Tomi'),
       expect: /Nuevo pack iniciado/
     })
     await step({
@@ -483,7 +483,7 @@ async function main() {
       config,
       store,
       sock,
-      msg: textMessage('.pack Nativos | Tomi'),
+      msg: textMessage('.pack Nativos,Tomi'),
       expect: /Nuevo pack iniciado/
     })
     await step({
