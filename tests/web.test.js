@@ -72,3 +72,22 @@ test('package.json expone cómo servir el panel', () => {
   const pkg = JSON.parse(read('package.json'))
   assert.equal(pkg.scripts.web, 'node scripts/serve-web.js')
 })
+
+test('hay Blueprint de Render para desplegar el panel', () => {
+  assert.ok(existsSync(path.join(root, 'render.yaml')), 'falta render.yaml')
+  const yaml = read('render.yaml')
+  assert.ok(yaml.includes('type: web'), 'el Blueprint crea un servicio web')
+  assert.ok(yaml.includes('name: tomioka-panel'))
+  assert.ok(yaml.includes('startCommand: node scripts/serve-web.js'), 'arranca el servidor del panel (usa el PORT de Render)')
+  assert.ok(yaml.includes('healthCheckPath: /'))
+})
+
+test('hay configuración de Vercel y botones de despliegue en la página', () => {
+  const vercel = JSON.parse(read('vercel.json'))
+  assert.equal(vercel.outputDirectory, 'web', 'Vercel publica la carpeta web/ como estático')
+
+  const html = read('web/index.html')
+  assert.ok(html.includes('https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka'), 'botón Deploy to Render')
+  assert.ok(html.includes('https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka'), 'botón Deploy with Vercel')
+  assert.ok(html.includes('Blueprint en Render') && html.includes('Desplegar en Vercel'))
+})

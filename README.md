@@ -25,7 +25,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (187 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (189 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Panel web de despliegue** (`web/`): entrar al panel, crear hasta 3 sub-bots (prefijo y etiqueta → número → pairing code o QR → finalizar), ver el panel de cada bot (consola, usuarios registrados con foto, número y nombre, estadísticas) y editarlo (banner, prefijo y menú clásico o **de lista** con botón de categorías). Tabs: Panel, Endpoints (solo la base), Comandos y Perfil/Login.
 
 ---
@@ -39,6 +39,19 @@ npm run web        # http://localhost:3000  (variable PORT para cambiar el puert
 Es una base web local sin backend: la sesión y los sub-bots se guardan en el navegador
 (`localStorage`) y la vinculación por pairing/QR se simula en pantalla. Sirve como base
 visual y de flujo para conectar después un backend que levante sesiones reales de Baileys.
+
+### Desplegar el panel: Render (Blueprint) o Vercel
+
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka&project-name=tomioka-panel)
+
+| Plataforma | Cómo | Qué usa del repo |
+|------------|------|------------------|
+| **Render (Blueprint)** | Botón de arriba, o en Render: **New + → Blueprint** → elegí este repo → *Apply* | `render.yaml`: crea el servicio web `tomioka-panel` con `node scripts/serve-web.js` (escucha en el `PORT` que asigna Render) y health check en `/` |
+| **Vercel** | Botón de arriba, o en Vercel: **Add New → Project** → importá este repo | `vercel.json`: publica la carpeta `web/` como sitio estático, sin paso de build; cada push redespliega solo |
+
+> Ambos despliegues publican **solo el panel web**. El bot de WhatsApp (Baileys) necesita
+> una sesión persistente y un proceso siempre activo: seguí corriéndolo en tu Termux/VPS.
 
 ## 📋 Requisitos
 
@@ -334,7 +347,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve el panel web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (187 pruebas)
+├── tests/                   # node --test (189 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -344,7 +357,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 187 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 189 pruebas (menú, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

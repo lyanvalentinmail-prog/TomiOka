@@ -139,6 +139,51 @@
 
         <div id="botsGrid" class="bots-grid"></div>
         <p id="botsLimitMsg" class="limit-msg" hidden>⚠️ Alcanzaste el máximo de 3 sub-bots. Eliminá uno para crear otro.</p>
+
+        <!-- Despliegue del panel: Blueprint de Render o Vercel -->
+        <div class="section-head">
+          <div>
+            <h3>🚀 Desplegar este panel</h3>
+            <p class="muted">Publicá el panel en la nube con el Blueprint de Render o con Vercel, directo desde el repo.</p>
+          </div>
+        </div>
+
+        <div class="deploy-grid">
+          <article class="card deploy-card">
+            <div class="deploy-card-top">
+              <span class="deploy-logo deploy-logo-render">R</span>
+              <div>
+                <h4>Blueprint en Render</h4>
+                <span class="badge">render.yaml incluido</span>
+              </div>
+            </div>
+            <p class="muted">Render lee el <code>render.yaml</code> del repo y crea el servicio web <strong>tomioka-panel</strong> solo: corre <code>node scripts/serve-web.js</code> y usa el <code>PORT</code> que Render asigna.</p>
+            <ol class="deploy-steps">
+              <li>Tocá el botón (o en Render: <strong>New + → Blueprint</strong>)</li>
+              <li>Elegí el repo <code>TomiOka</code> y aplicá el Blueprint</li>
+              <li>Listo: tu panel queda en <code>*.onrender.com</code></li>
+            </ol>
+            <a class="btn btn-primary btn-block deploy-btn" href="https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noopener">Deploy to Render ↗</a>
+          </article>
+
+          <article class="card deploy-card">
+            <div class="deploy-card-top">
+              <span class="deploy-logo deploy-logo-vercel">▲</span>
+              <div>
+                <h4>Desplegar en Vercel</h4>
+                <span class="badge">vercel.json incluido</span>
+              </div>
+            </div>
+            <p class="muted">Vercel lee el <code>vercel.json</code> del repo y publica la carpeta <code>web/</code> como sitio estático, sin paso de build. Cada push redespliega solo.</p>
+            <ol class="deploy-steps">
+              <li>Tocá el botón (o en Vercel: <strong>Add New → Project</strong>)</li>
+              <li>Importá el repo <code>TomiOka</code> y confirmá</li>
+              <li>Listo: tu panel queda en <code>*.vercel.app</code></li>
+            </ol>
+            <a class="btn btn-primary btn-block deploy-btn" href="https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka&project-name=tomioka-panel" target="_blank" rel="noopener">Deploy with Vercel ↗</a>
+          </article>
+        </div>
+        <p class="muted small deploy-note">Ambos despliegues publican <strong>solo el panel web</strong>. El bot de WhatsApp (Baileys) necesita sesión persistente y un proceso siempre activo, así que sigue corriendo en tu Termux/VPS.</p>
       </section>
 
       <!-- ───── PANEL DEL BOT (detalle) ───── -->

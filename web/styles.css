@@ -208,6 +208,17 @@ h1, h2, h3, h4, h5 { margin: 0; }
 .user-nums { text-align: right; color: var(--muted); font-size: 0.82rem; }
 .user-nums strong { color: var(--text); display: block; font-size: 0.92rem; }
 
+/* ── Despliegue (Render / Vercel) ──────── */
+.deploy-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+.deploy-card-top { display: flex; align-items: center; gap: 0.85rem; margin-bottom: 0.8rem; }
+.deploy-logo { width: 46px; height: 46px; flex: none; display: grid; place-items: center; border-radius: 13px; font-weight: 900; font-size: 1.25rem; color: #fff; }
+.deploy-logo-render { background: linear-gradient(135deg, #4338ca, #0ea5e9); }
+.deploy-logo-vercel { background: #0f172a; border: 1px solid rgba(125, 211, 252, 0.4); }
+.deploy-card p { line-height: 1.6; font-size: 0.92rem; }
+.deploy-steps { margin: 0.8rem 0 1.1rem; padding-left: 1.25rem; color: var(--muted); font-size: 0.88rem; line-height: 1.7; }
+.deploy-btn { display: block; text-align: center; text-decoration: none; }
+.deploy-note { margin-top: 0.9rem; }
+
 /* ── Endpoints ─────────────────────────── */
 .endpoint-skeletons { display: grid; gap: 0.8rem; margin-top: 1rem; opacity: 0.75; }
 .skeleton-card { display: flex; align-items: center; gap: 1rem; border: 1px dashed var(--line); border-radius: var(--radius); padding: 1rem 1.1rem; }
@@ -293,7 +304,7 @@ h1, h2, h3, h4, h5 { margin: 0; }
 /* ── Responsive ────────────────────────── */
 @media (max-width: 1020px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
-  .dash-grid, .edit-grid, .profile-grid { grid-template-columns: 1fr; }
+  .dash-grid, .edit-grid, .profile-grid, .deploy-grid { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
   .app { grid-template-columns: 1fr; }
