@@ -131,11 +131,14 @@ También puedes usar `bash scripts/start.sh` (activa el wake-lock automáticamen
 
 ### 🖥️ Terminal del bot (Termux)
 
-TomiOka trae una terminal propia de **pantalla completa**, hecha a imagen
-de la TUI de **OpenCode**: home centrada con logo y caja de prompt para
-buscar, vista de sesión con sidebar de contexto, diálogos centrados y
-barra de estado inferior. Sirve para manejar el bot desde el celular,
-sin editar archivos a mano:
+TomiOka trae una terminal propia de **pantalla completa**: es un port
+de la TUI de **[OpenCode](https://github.com/anomalyco/opencode)**
+(MIT © opencode; gracias 💧), adaptada al bot: home centrada con su
+logo bitono «tomi/oka» y el prompt con borde `┃` sobre fondo panel,
+vista de sesión con sidebar de contexto, diálogos sobre el fondo
+atenuado y el tema oscuro original de OpenCode (`#0a0a0a`, primary
+`#fab283`) como tema por defecto. Sirve para manejar el bot desde el
+celular, sin editar archivos a mano:
 
 ```bash
 npm run terminal
@@ -452,7 +455,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 230 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 231 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

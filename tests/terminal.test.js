@@ -3,6 +3,8 @@ import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
   homeList,
+  logoLines,
+  pal,
   applyConfigEdit,
   normalizeOwners,
   parseKeys,
@@ -154,12 +156,12 @@ test('viewerLines filtra comandos y marca coincidencias en vistas de texto', () 
 test('la TUI renderiza logo, secciones, estado y ayudas sin terminal real', () => {
   const frame = renderFrame(createState(), fakeEnv(), 110, 32).map((line) => stripAnsi(line))
   const text = frame.join('\n')
-  assert.ok(text.includes('████████'), 'logo grande en pantallas amplias')
+  assert.ok(text.includes('████'), 'logo bitono en pantallas amplias')
   assert.ok(text.includes('Iniciar el bot'))
   assert.ok(text.includes('Editar configuración'))
   assert.ok(text.includes('sin sesión'))
   assert.ok(text.includes('ctrl+p'), 'ayuda de teclas al pie')
-  assert.ok(text.includes('Escribí para buscar'), 'prompt de la home estilo OpenCode')
+  assert.ok(text.includes('Buscá una acción'), 'prompt de la home estilo OpenCode')
 
   const endState = createState()
   endState.sel = MENU_ITEMS.length - 1
@@ -174,7 +176,7 @@ test('la TUI renderiza logo, secciones, estado y ayudas sin terminal real', () =
   assert.equal(frame.length, 32, 'el frame llena exactamente la pantalla')
 
   const small = renderFrame(createState(), fakeEnv(), 42, 18).map((line) => stripAnsi(line))
-  assert.ok(small.join('\n').includes('🌊 TomiOka'), 'cabecera compacta en pantallas chicas')
+  assert.ok(small.join('\n').includes('tomioka v1.0.0'), 'pie con versión en pantallas chicas')
   assert.equal(small.length, 18)
 })
 
@@ -234,6 +236,14 @@ test('homeList filtra las secciones de la home y createState trae lo nuevo', () 
   assert.equal(homeList(state)[0].id, 'theme', 'el tema sale primero al escribir "tema"')
   state.homeQuery = 'zzz-sin-resultado'
   assert.equal(homeList(state).length, 0)
+})
+
+test('logoLines dibuja el logo bitono y pal trae la paleta OpenCode', () => {
+  const lines = logoLines(THEMES.opencode, 100).map((line) => stripAnsi(line))
+  assert.equal(lines.length, 4)
+  assert.ok(lines[1].includes('██'), 'bloques del logo')
+  assert.deepEqual(pal(THEMES.opencode).primary, [250, 178, 131], 'primary de OpenCode #fab283')
+  assert.deepEqual(pal(THEMES.opencode).bg, [10, 10, 10], 'fondo de OpenCode #0a0a0a')
 })
 
 test('parseKeys reconoce la tecla líder ctrl+x', () => {
