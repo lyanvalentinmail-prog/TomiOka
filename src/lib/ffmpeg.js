@@ -407,7 +407,7 @@ export async function selfTestFfmpeg({ logger } = {}) {
         }
       }
 
-      // Metadatos: el mismo camino que usan .sticker/.take/.steal
+      // Metadatos: el mismo camino que usan .sticker/.take
       if (existsSync(staticWebp)) {
         try {
           sticker = await writeStickerMetadata(readFileSync(staticWebp), { packname: DEFAULT_PACK, author: DEFAULT_AUTHOR })

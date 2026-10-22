@@ -23,7 +23,41 @@ const PLATFORM_HOSTS = {
   youtube: {
     label: 'YouTube',
     hosts: ['youtube.com', 'youtu.be', 'music.youtube.com']
+  },
+  pinterest: {
+    label: 'Pinterest',
+    // Pinterest usa dominios locales (pinterest.es, pinterest.com.mx, …) y el
+    // acortador pin.it, por eso se acepta cualquier "pinterest.<tld>".
+    hosts: ['pin.it', 'pinterestcdn.com'],
+    hostPattern: /^([a-z0-9-]+\.)*pinterest\.[a-z]{2,3}(\.[a-z]{2,3})?$/
   }
+}
+
+/** Mimetypes de salida según la extensión que devolvió yt-dlp. */
+const MIME_BY_EXTENSION = {
+  mp4: 'video/mp4',
+  m4v: 'video/x-m4v',
+  webm: 'video/webm',
+  mov: 'video/quicktime',
+  mkv: 'video/x-matroska',
+  avi: 'video/x-msvideo',
+  mp3: 'audio/mpeg',
+  m4a: 'audio/mp4',
+  opus: 'audio/ogg',
+  jpg: 'image/jpeg',
+  jpeg: 'image/jpeg',
+  png: 'image/png',
+  gif: 'image/gif'
+}
+
+const IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'gif', 'webp'])
+
+export function mimetypeForExtension(extension) {
+  return MIME_BY_EXTENSION[String(extension || '').toLowerCase()] || 'application/octet-stream'
+}
+
+export function isImageExtension(extension) {
+  return IMAGE_EXTENSIONS.has(String(extension || '').toLowerCase())
 }
 
 let cachedBinary
@@ -36,8 +70,10 @@ export function extractFirstUrl(text = '') {
   return match[0].replace(/[),.;!?]+$/g, '')
 }
 
-function hostMatches(hostname, allowedHosts) {
+function hostMatches(hostname, platformInfo) {
   const host = String(hostname || '').toLowerCase()
+  const allowedHosts = platformInfo?.hosts || []
+  if (platformInfo?.hostPattern && platformInfo.hostPattern.test(host)) return true
   return allowedHosts.some((domain) => host === domain || host.endsWith(`.${domain}`))
 }
 
@@ -68,7 +104,7 @@ export function validateDownloadUrl(platform, text, usage = '') {
   if (url.protocol !== 'https:') {
     throw new Error(`Por seguridad solo acepto enlaces HTTPS de ${platformInfo.label}.`)
   }
-  if (!hostMatches(url.hostname, platformInfo.hosts)) {
+  if (!hostMatches(url.hostname, platformInfo)) {
     throw new Error(`Ese enlace no parece ser de ${platformInfo.label}.`)
   }
   return url.toString()
@@ -211,17 +247,14 @@ export async function downloadWithYtDlp({ platform, mediaType = 'video', url, lo
     }
 
     const extension = path.extname(file.name).replace('.', '').toLowerCase() || 'mp4'
+    const kind = mediaType === 'audio' ? 'audio' : isImageExtension(extension) ? 'image' : 'video'
     return {
       buffer: await readFile(file.filePath),
       bytes: file.size,
       extension,
+      kind,
       fileName: `tomioka-${platform}.${extension}`,
-      mimetype:
-        mediaType === 'audio'
-          ? 'audio/mpeg'
-          : extension === 'mp4'
-            ? 'video/mp4'
-            : 'application/octet-stream'
+      mimetype: mediaType === 'audio' ? 'audio/mpeg' : mimetypeForExtension(extension)
     }
   })
 }

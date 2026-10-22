@@ -1,12 +1,15 @@
 import attp from './attp.js'
 import brat from './brat.js'
+import chatgpt from './chatgpt.js'
 import debug from './debug.js'
+import deepseek from './deepseek.js'
 import emojimix from './emojimix.js'
+import gemini from './gemini.js'
 import gif from './gif.js'
 import help from './help.js'
 import instagram from './instagram.js'
 import pack from './pack.js'
-import steal from './steal.js'
+import pinterest from './pinterest.js'
 import sticker from './sticker.js'
 import take from './take.js'
 import tiktok from './tiktok.js'
@@ -19,6 +22,7 @@ import ytmp4 from './ytmp4.js'
 export const commandList = [
   tiktok,
   instagram,
+  pinterest,
   ytmp3,
   ytmp4,
   brat,
@@ -29,9 +33,11 @@ export const commandList = [
   toimg,
   tovideo,
   take,
-  steal,
   emojimix,
   pack,
+  gemini,
+  chatgpt,
+  deepseek,
   help,
   debug
 ]

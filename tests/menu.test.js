@@ -10,6 +10,7 @@ test('todos los comandos pedidos existen', () => {
   for (const name of [
     'tiktok',
     'instagram',
+    'pinterest',
     'ytmp3',
     'ytmp4',
     'brat',
@@ -20,9 +21,11 @@ test('todos los comandos pedidos existen', () => {
     'toimg',
     'tovideo',
     'take',
-    'steal',
     'emojimix',
     'pack',
+    'gemini',
+    'chatgpt',
+    'deepseek',
     'help'
   ]) {
     assert.ok(findCommand(name), `falta el comando ${name}`)
@@ -36,21 +39,26 @@ test('los alias apuntan al mismo comando', () => {
   assert.equal(findCommand('noexiste'), null)
 })
 
-test('el menú usa cinco categorías con TODOS los comandos visibles', () => {
-  assert.equal(config.menu.categories.length, 5)
-  const [downloads, stickers, conversion, packs, info] = config.menu.categories
-  assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'ytmp3', 'ytmp4'])
-  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal'])
+test('el menú usa seis categorías con TODOS los comandos visibles', () => {
+  assert.equal(config.menu.categories.length, 6)
+  const [downloads, stickers, conversion, packs, ai, info] = config.menu.categories
+  assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])
+  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix'])
   assert.deepEqual(conversion.commands, ['toimg', 'tovideo', 'take'])
   assert.deepEqual(packs.commands, ['pack'])
+  assert.deepEqual(ai.commands, ['gemini', 'chatgpt', 'deepseek'])
   assert.deepEqual(info.commands, ['help'])
   assert.deepEqual(
     resolveCategoryCommands(downloads, commands).map((command) => command.name),
-    ['tiktok', 'instagram', 'ytmp3', 'ytmp4']
+    ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
   )
   assert.deepEqual(
     resolveCategoryCommands(stickers, commands).map((command) => command.name),
-    ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal']
+    ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
+  )
+  assert.deepEqual(
+    resolveCategoryCommands(ai, commands).map((command) => command.name),
+    ['gemini', 'chatgpt', 'deepseek']
   )
 
   // Cada comando visible aparece exactamente una vez en alguna categoría
@@ -80,7 +88,7 @@ test('el menú incluye la info del bot y todos los comandos', () => {
   assert.ok(menu.includes('𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼'))
   assert.ok(menu.includes('𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔'))
   assert.ok(menu.includes('𝖾𝗌𝗍.'))
-  for (const name of ['tiktok', 'instagram', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker']) {
+  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gemini', 'chatgpt', 'deepseek']) {
     assert.ok(menu.includes(`${config.prefixes[0]}${name}`), `el menú no muestra ${name}`)
   }
   assert.ok(menu.length > 500)
@@ -107,17 +115,17 @@ test('el menú muestra solo el comando, sin descripciones', () => {
   }
   // Todos los comandos visibles se listan (antes solo salían 8)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
-  for (const name of ['gif', 'toimg', 'tovideo', 'take', 'steal', 'emojimix', 'pack', 'help']) {
+  for (const name of ['gif', 'toimg', 'tovideo', 'take', 'emojimix', 'pack', 'gemini', 'chatgpt', 'deepseek', 'help']) {
     assert.ok(commandLines.some((line) => line.includes(`${config.prefixes[0]}${name} `) || line.trimEnd().endsWith(`${config.prefixes[0]}${name}`)), `${name} debe listarse`)
   }
   assert.ok(!commandLines.some((line) => line.includes(`${config.prefixes[0]}debug`)), 'debug es oculto y no se lista')
   assert.ok(!menu.includes('›'), 'no usa el separador de descripción')
 })
 
-test('el menú agrupa todos los comandos en cinco categorías', () => {
+test('el menú agrupa todos los comandos en seis categorías', () => {
   const menu = buildMenu({ config, commands, sender: {} })
-  assert.equal((menu.match(/◢ /g) || []).length, 5, 'cinco bloques de categoría')
-  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 5)
+  assert.equal((menu.match(/◢ /g) || []).length, 6, 'seis bloques de categoría')
+  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 6)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
   const visibleCount = commandList.filter((command) => !command.hidden).length
   assert.equal(commandLines.length, visibleCount, 'una línea por comando, sin separación')

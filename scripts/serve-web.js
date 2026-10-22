@@ -4,7 +4,7 @@
  *
  * Sirve la SPA copiada en web/ y responde solo el subconjunto de API que
  * TomiOka puede ofrecer de verdad en local: estado del panel, telemetría
- * básica del proceso, catálogo real de comandos, los ocho endpoints de
+ * básica del proceso, catálogo real de comandos, los nueve endpoints de
  * WhatsApp y un registro local de sub-bots en data/web-subbots.json.
  * El panel SÍ vincula WhatsApp de verdad: abre un socket de Baileys por
  * sub-bot, pide el pairing code a WhatsApp y, al conectarse, el sub-bot
@@ -73,10 +73,11 @@ export const ENDPOINT_CATEGORIES = [
   {
     name: 'Descargas',
     icon: '📥',
-    count: 4,
+    count: 5,
     items: [
       endpointItem('TikTok downloader', 'tiktok', '.tiktok', '.tiktok <enlace>', 'Descarga un video de TikTok desde un enlace.', urlParam),
       endpointItem('Instagram downloader', 'instagram', '.instagram', '.instagram <enlace>', 'Descarga contenido público de Instagram desde un enlace.', urlParam),
+      endpointItem('Pinterest downloader', 'pinterest', '.pinterest', '.pinterest <enlace>', 'Descarga el video (o la imagen) de un pin de Pinterest.', urlParam),
       endpointItem('Youtube Mp3', 'ytmp3', '.ytmp3', '.ytmp3 <enlace>', 'Convierte un video de YouTube a audio MP3.', urlParam),
       endpointItem('Youtube Mp4', 'ytmp4', '.ytmp4', '.ytmp4 <enlace>', 'Descarga un video de YouTube en MP4.', urlParam)
     ]
@@ -614,7 +615,7 @@ async function handleApi(req, res, url) {
   }
 
   if (method === 'GET' && apiPath === '/menu/styles') {
-    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los ocho comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' }] })
+    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los nueve comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' }] })
   }
   if (method === 'GET' && apiPath === '/credits/plans') return sendJson(res, 200, { ok: true, plans: [] })
   if (apiPath.startsWith('/credits/')) return notImplemented(res, 'La tienda y los créditos')

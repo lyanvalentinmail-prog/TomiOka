@@ -47,6 +47,39 @@ export const DEFAULTS = {
     cacheFile: 'data/emojimix-index.json',
     timeoutMs: 600000
   },
+  // IA con OpenCode (opencode.ai). Sin clave usa los modelos "-free" del
+  // gateway; con OPENCODE_API_KEY usa los modelos oficiales de cada marca.
+  ai: {
+    enabled: true,
+    baseUrl: 'https://opencode.ai/inference/v1',
+    openaiBaseUrl: 'https://opencode.ai/inference/openai/v1',
+    anthropicBaseUrl: 'https://opencode.ai/inference/anthropic/v1',
+    googleBaseUrl: 'https://opencode.ai/inference/google/v1beta',
+    apiKey: '',
+    userAgent: 'opencode/1.18.30',
+    timeoutMs: 90000,
+    maxTokens: 1024,
+    temperature: 0.7,
+    maxInputChars: 6000,
+    maxChars: 3500,
+    retriesPerModel: 2,
+    freeTierFallback: true,
+    models: {
+      gemini: ['gemini-3-flash', 'gemini-3.5-flash-lite'],
+      chatgpt: ['gpt-5.6-terra', 'gpt-5-nano'],
+      deepseek: ['deepseek-v4.1-flash', 'deepseek-v4.1-flash-free', 'deepseek-v4-pro']
+    },
+    freeModels: [
+      'deepseek-v4.1-flash-free',
+      'glm-5.3-flash-free',
+      'big-pickle',
+      'beam-free',
+      'mimo-v2.6-flash-free',
+      'nemotron-3.5-lightning-free',
+      'minimax-m3.1-flash-free',
+      'flint-40b-free'
+    ]
+  },
   behavior: {
     cooldownMs: 2500,
     reactToCommands: true,
@@ -73,14 +106,14 @@ export const DEFAULTS = {
         description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
         kaomoji: '( ˶ˆ꒳ˆ˵ )',
         divider: ['⬇️', '🎬'],
-        commands: ['tiktok', 'instagram', 'ytmp3', 'ytmp4']
+        commands: ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
       },
       {
         emoji: '🎨',
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['✨', '🖼️'],
-        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'steal']
+        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
       },
       {
         emoji: '🔄',
@@ -95,6 +128,13 @@ export const DEFAULTS = {
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['📦', '🌊'],
         commands: ['pack']
+      },
+      {
+        emoji: '🧠',
+        description: '𝖠𝖨',
+        kaomoji: '( ᵕ ᴗ ᵕ )',
+        divider: ['🤖', '💧'],
+        commands: ['gemini', 'chatgpt', 'deepseek']
       },
       {
         emoji: '💧',
@@ -179,6 +219,9 @@ export function loadConfig({ file = process.env.CONFIG_PATH || path.join(ROOT, '
   if (process.env.LOG_LEVEL) merged.logging.level = process.env.LOG_LEVEL
   if (process.env.MENU_IMAGE) merged.menu.image = process.env.MENU_IMAGE
   if (process.env.FFMPEG_PATH) merged.ffmpegPath = process.env.FFMPEG_PATH
+  // IA (OpenCode): la clave también puede venir del entorno, útil en Termux/VPS.
+  if (process.env.OPENCODE_API_KEY) merged.ai.apiKey = process.env.OPENCODE_API_KEY
+  if (process.env.AI_ENABLED) merged.ai.enabled = process.env.AI_ENABLED !== '0'
 
   const config = { ...merged }
 

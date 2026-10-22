@@ -146,8 +146,8 @@ test('diffRows detecta solo las filas que cambian', () => {
 })
 
 test('viewerLines filtra comandos y marca coincidencias en vistas de texto', () => {
-  const filterable = { lines: ['.sticker crea', '.tiktok baja', '.steal roba'], query: 'st', filterable: true, scroll: 0 }
-  assert.deepEqual(viewerLines(filterable).lines, ['.sticker crea', '.steal roba'])
+  const filterable = { lines: ['.sticker crea', '.tiktok baja', '.pinterest descarga'], query: 'st', filterable: true, scroll: 0 }
+  assert.deepEqual(viewerLines(filterable).lines, ['.sticker crea', '.pinterest descarga'])
   const searchable = { lines: ['uno', 'dos sticker', 'tres'], query: 'sticker', filterable: false, scroll: 0 }
   const result = viewerLines(searchable)
   assert.equal(result.lines.length, 3, 'en búsqueda no se ocultan líneas')

@@ -34,8 +34,18 @@ function makeContext(commandText) {
 
 const sentOf = (sock, kind) => sock.sent.filter((item) => item.content?.[kind])
 
-test('los ocho endpoints están registrados con sus alias', () => {
-  for (const name of ['tiktok', 'instagram', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker']) {
+test('los nueve endpoints están registrados con sus alias', () => {
+  for (const name of [
+    'tiktok',
+    'instagram',
+    'pinterest',
+    'ytmp3',
+    'ytmp4',
+    'brat',
+    'attp',
+    'ttp',
+    'sticker'
+  ]) {
     assert.ok(findCommand(name), `falta el endpoint ${name}`)
     assert.equal(typeof findCommand(name).run, 'function')
   }
@@ -43,6 +53,7 @@ test('los ocho endpoints están registrados con sus alias', () => {
   assert.equal(findCommand('ttdl'), findCommand('tiktok'))
   assert.equal(findCommand('youtube-mp3'), findCommand('ytmp3'))
   assert.equal(findCommand('youtube-mp4'), findCommand('ytmp4'))
+  assert.equal(findCommand('pin'), findCommand('pinterest'))
 })
 
 test('extractFirstUrl encuentra la URL y limpia la puntuación final', () => {
@@ -61,6 +72,48 @@ test('validateDownloadUrl acepta solo enlaces HTTPS de la plataforma', () => {
   assert.throws(() => validateDownloadUrl('tiktok', 'https://youtu.be/abc'), /no parece ser de TikTok/)
   assert.throws(() => validateDownloadUrl('youtube', 'http://youtu.be/abc'), /solo acepto enlaces HTTPS/)
   assert.throws(() => validateDownloadUrl('instagram', 'https://tiktok.com/@u/video/1'), /no parece ser de Instagram/)
+})
+
+test('validateDownloadUrl acepta Pinterest y todos sus dominios locales', () => {
+  assert.equal(
+    validateDownloadUrl('pinterest', 'https://www.pinterest.com/pin/123456789/'),
+    'https://www.pinterest.com/pin/123456789/'
+  )
+  // El acortador oficial
+  assert.equal(validateDownloadUrl('pinterest', 'https://pin.it/AbC1dEf'), 'https://pin.it/AbC1dEf')
+  // Dominios locales (ccTLD) y subdominios
+  for (const host of [
+    'pinterest.es',
+    'www.pinterest.com.mx',
+    'pinterest.co.uk',
+    'ar.pinterest.com',
+    'pinterest.com.ar',
+    'pinterest.cl',
+    'pinterest.de',
+    'pinterest.jp'
+  ]) {
+    assert.equal(
+      validateDownloadUrl('pinterest', `https://${host}/pin/1/`).includes(host),
+      true,
+      `debe aceptar ${host}`
+    )
+  }
+  // Saca la URL de un mensaje con texto alrededor
+  assert.equal(
+    validateDownloadUrl('pinterest', 'bajate este https://pin.it/XyZ123 porfa'),
+    'https://pin.it/XyZ123'
+  )
+  assert.throws(() => validateDownloadUrl('pinterest', 'sin enlace', 'Uso: pega un pin'), /Uso: pega un pin/)
+  assert.throws(
+    () => validateDownloadUrl('pinterest', 'https://www.tiktok.com/@u/video/1'),
+    /no parece ser de Pinterest/
+  )
+  assert.throws(() => validateDownloadUrl('pinterest', 'http://pin.it/abc'), /solo acepto enlaces HTTPS/)
+  // Un dominio que solo se parece no debe pasar
+  assert.throws(
+    () => validateDownloadUrl('pinterest', 'https://pinterest-malo.example.com/pin/1'),
+    /no parece ser de Pinterest/
+  )
 })
 
 test('buildYtDlpArgs arma descarga de video MP4 y extracción MP3 sin shell', () => {
@@ -94,6 +147,19 @@ test('los descargadores rechazan comandos sin enlace o de otra plataforma', asyn
     () => findCommand('ytmp4').run(makeContext('.ytmp4 https://www.tiktok.com/@u/video/1').ctx),
     /no parece ser de YouTube/
   )
+  await assert.rejects(() => findCommand('pinterest').run(makeContext('.pinterest').ctx), /Uso:/)
+  await assert.rejects(
+    () => findCommand('pinterest').run(makeContext('.pinterest https://youtu.be/abc').ctx),
+    /no parece ser de Pinterest/
+  )
+})
+
+test('el comando pinterest declara su categoría y uso', () => {
+  const command = findCommand('pinterest')
+  assert.equal(command.category, 'descargas')
+  assert.match(command.usage, /\.pinterest <enlace>/)
+  assert.ok(command.examples.length >= 1)
+  assert.ok(command.examples.some((example) => example.includes('pin.it')))
 })
 
 test('normalizeStickerText limpia, limita y Brat pasa a minúsculas', () => {
