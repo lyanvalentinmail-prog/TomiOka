@@ -156,17 +156,16 @@ test('viewerLines filtra comandos y marca coincidencias en vistas de texto', () 
 test('la TUI renderiza logo, secciones, estado y ayudas sin terminal real', () => {
   const frame = renderFrame(createState(), fakeEnv(), 110, 32).map((line) => stripAnsi(line))
   const text = frame.join('\n')
-  assert.ok(text.includes('████'), 'logo bitono en pantallas amplias')
-  assert.ok(text.includes('Iniciar el bot'))
-  assert.ok(text.includes('Editar configuración'))
+  assert.ok(text.includes('██'), 'logo bitono en pantallas amplias')
+  assert.ok(text.includes('┃'), 'prompt con borde izquierdo de OpenCode')
   assert.ok(text.includes('sin sesión'))
   assert.ok(text.includes('ctrl+p'), 'ayuda de teclas al pie')
-  assert.ok(text.includes('Buscá una acción'), 'prompt de la home estilo OpenCode')
+  assert.ok(text.includes('╹'), 'sombra del prompt estilo OpenCode')
 
   const endState = createState()
-  endState.sel = MENU_ITEMS.length - 1
+  endState.homeQuery = 'tema'
   const endText = renderFrame(endState, fakeEnv(), 110, 32).map((line) => stripAnsi(line)).join('\n')
-  assert.ok(endText.includes('Cambiar tema'), 'al bajar se ven las últimas secciones')
+  assert.ok(endText.includes('Cambiar tema'), 'al escribir se filtran las secciones')
 
   const filtered = createState()
   filtered.homeQuery = 'pairing'
@@ -176,7 +175,7 @@ test('la TUI renderiza logo, secciones, estado y ayudas sin terminal real', () =
   assert.equal(frame.length, 32, 'el frame llena exactamente la pantalla')
 
   const small = renderFrame(createState(), fakeEnv(), 42, 18).map((line) => stripAnsi(line))
-  assert.ok(small.join('\n').includes('tomioka v1.0.0'), 'pie con versión en pantallas chicas')
+  assert.ok(small.join('\n').includes('⊙'), 'pie de la home estilo OpenCode en pantallas chicas')
   assert.equal(small.length, 18)
 })
 
@@ -241,7 +240,7 @@ test('homeList filtra las secciones de la home y createState trae lo nuevo', () 
 test('logoLines dibuja el logo bitono y pal trae la paleta OpenCode', () => {
   const lines = logoLines(THEMES.opencode, 100).map((line) => stripAnsi(line))
   assert.equal(lines.length, 4)
-  assert.ok(lines[1].includes('██'), 'bloques del logo')
+  assert.ok(lines[2].includes('██'), 'bloques del logo')
   assert.deepEqual(pal(THEMES.opencode).primary, [250, 178, 131], 'primary de OpenCode #fab283')
   assert.deepEqual(pal(THEMES.opencode).bg, [10, 10, 10], 'fondo de OpenCode #0a0a0a')
 })
