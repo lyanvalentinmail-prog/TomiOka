@@ -65,14 +65,22 @@ export const DEFAULTS = {
     showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
-    // Una sola categoría con todos los comandos (commands: [] = todos)
+    // El menú muestra SOLO estos endpoints, agrupados en dos categorías.
+    // El resto de comandos sigue funcionando, pero no se lista aquí.
     categories: [
       {
-        emoji: '🌊',
-        description: '𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌',
+        emoji: '📥',
+        description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
+        kaomoji: '( ˶ˆ꒳ˆ˵ )',
+        divider: ['⬇️', '🎬'],
+        commands: ['tiktok', 'instagram', 'ytmp3', 'ytmp4']
+      },
+      {
+        emoji: '🎨',
+        description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
-        divider: ['💧', '🌊'],
-        commands: []
+        divider: ['✨', '🖼️'],
+        commands: ['brat', 'attp', 'ttp', 'sticker']
       }
     ]
   },

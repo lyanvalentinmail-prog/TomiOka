@@ -17,8 +17,8 @@ test('la plataforma web existe: html, estilos, lógica y logo propio', () => {
   assert.ok(html.includes('favicon.svg'), 'usa una identidad visual propia')
 })
 
-test('está organizada en las seis secciones pedidas', () => {
-  for (const section of ['id="inicio"', 'id="herramientas"', 'id="proyectos"', 'id="documentacion"', 'id="repositorio"', 'id="contacto"']) {
+test('está organizada en las secciones pedidas, con Sub-Bots y Endpoints', () => {
+  for (const section of ['id="inicio"', 'id="subbots"', 'id="endpoints"', 'id="herramientas"', 'id="proyectos"', 'id="documentacion"', 'id="repositorio"', 'id="contacto"']) {
     assert.ok(html.includes(section), `falta la sección ${section}`)
   }
   for (const label of ['Inicio', 'Herramientas', 'Proyectos', 'Documentación', 'Repositorio', 'Contacto']) {
@@ -62,11 +62,45 @@ test('no simula backend ni funcionalidades remotas inexistentes', () => {
   assert.ok(source.includes('no inicia sesiones') || source.includes('Sin backend'), 'declara los límites reales')
 })
 
+test('las tabs del menú están abajo, fijas y en horizontal', () => {
+  assert.ok(html.includes('id="bottomNav"'), 'existe la barra de tabs inferior')
+  assert.ok(html.includes('href="#subbots"') && html.includes('href="#endpoints"'), 'las tabs enlazan a Sub-Bots y Endpoints')
+  assert.ok(css.includes('.bottom-nav'), 'hay estilos de la barra inferior')
+  assert.ok(/\.bottom-nav\s*\{[^}]*position: fixed/.test(css), 'la barra queda fija')
+  assert.ok(/\.bottom-nav\s*\{[^}]*bottom: 0/.test(css), 'la barra va abajo')
+  assert.ok(/\.bottom-nav\s*\{[^}]*flex-direction: row/.test(css), 'las tabs van en horizontal')
+})
+
+test('se puede crear un sub-bot desde la web, sin fingir backend', () => {
+  assert.ok(html.includes('id="subbotForm"') && html.includes('id="subbotList"'), 'formulario y lista de sub-bots')
+  assert.ok(html.includes('id="subbotName"') && html.includes('id="subbotPhone"'), 'pide nombre y número')
+  assert.ok(js.includes('renderSubbots') && js.includes('SESSION_DIR=sessions/'), 'genera la sesión propia de cada sub-bot')
+  assert.ok(js.includes("addEventListener('submit'"), 'el formulario crea el sub-bot')
+})
+
+test('la tab de Endpoints contiene solo los ocho endpoints, por categorías', () => {
+  const cards = html.match(/data-endpoint/g) || []
+  assert.equal(cards.length, 8, 'exactamente ocho endpoints')
+  for (const name of ['Tiktok downloader', 'Instagram downloader', 'Youtube Mp3', 'Youtube Mp4', 'Brat', 'Attp', 'Ttp', 'Sticker']) {
+    assert.ok(html.includes(name), `falta el endpoint ${name}`)
+  }
+  for (const command of ['.tiktok', '.instagram', '.ytmp3', '.ytmp4', '.brat', '.attp', '.ttp', '.sticker']) {
+    assert.ok(html.includes(`data-copy-text="${command}`), `falta copiar ${command}`)
+  }
+  assert.ok(html.includes('<h3>Descargas</h3>') && html.includes('<h3>Stickers</h3>'), 'agrupados en dos categorías')
+})
+
+test('el menú de la web muestra solo los ocho endpoints en categorías', () => {
+  const items = html.match(/class="menu-command"/g) || []
+  assert.equal(items.length, 8, 'el menú lista ocho comandos')
+  assert.ok(html.includes('<h4>📥 Descargas</h4>') && html.includes('<h4>🎨 Stickers</h4>'), 'el menú usa las dos categorías')
+})
+
 test('repositorio y contacto usan únicamente enlaces verificables del proyecto', () => {
   assert.ok(html.includes('https://github.com/lyanvalentinmail-prog/TomiOka/issues'))
   assert.ok(html.includes('https://github.com/lyanvalentinmail-prog/TomiOka/pulls'))
   assert.ok(html.includes('https://github.com/lyanvalentinmail-prog'))
-  assert.ok(!html.includes('twitter.com/') && !html.includes('instagram.com/'), 'sin redes sociales inventadas')
+  assert.ok(!html.includes('twitter.com/') && !html.includes('href="https://www.instagram.com'), 'sin redes sociales inventadas')
 })
 
 test('package.json expone cómo servir la página', () => {

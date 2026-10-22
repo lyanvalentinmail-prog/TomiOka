@@ -49,10 +49,8 @@
     })
   })
 
-  /* ── Header, navegación móvil y estado activo ────────────── */
+  /* ── Header y tabs inferiores (estado activo) ────────────── */
   const header = $('#siteHeader')
-  const menuButton = $('#menuButton')
-  const mainNav = $('#mainNav')
 
   function updateHeader() {
     header?.classList.toggle('scrolled', window.scrollY > 12)
@@ -61,19 +59,9 @@
   window.addEventListener('scroll', updateHeader, { passive: true })
   updateHeader()
 
-  menuButton?.addEventListener('click', () => {
-    const open = mainNav.classList.toggle('open')
-    menuButton.setAttribute('aria-expanded', String(open))
-    menuButton.setAttribute('aria-label', open ? 'Cerrar navegación' : 'Abrir navegación')
-  })
-  $$('a', mainNav).forEach((link) => link.addEventListener('click', () => {
-    mainNav.classList.remove('open')
-    menuButton?.setAttribute('aria-expanded', 'false')
-  }))
-
   $('#backToTop')?.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }))
 
-  const navLinks = $$('.main-nav a')
+  const navLinks = $$('.bottom-nav a')
   const observedSections = navLinks
     .map((link) => document.querySelector(link.getAttribute('href')))
     .filter(Boolean)
@@ -181,6 +169,167 @@
     showToast('Fragmento JSON descargado')
   })
   renderConfig()
+
+  /* ── Sub-Bots: creador local, sin backend ────────────────── */
+  // No hay servidor: "crear" genera la config y los comandos de arranque.
+  // La lista vive solo en esta pestaña; cada sub-bot se vincula en un
+  // Termux/VPS con su propia carpeta de sesión (SESSION_DIR).
+  const subbotForm = $('#subbotForm')
+  const subbotList = $('#subbotList')
+  const subbotEmpty = $('#subbotEmpty')
+  const subbotCount = $('#subbotCount')
+  const subBots = []
+
+  function slugifySubbot(name) {
+    const base = String(name || '')
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '')
+    return base || 'subbot'
+  }
+
+  function subbotCommands(bot) {
+    return [
+      `git clone https://github.com/lyanvalentinmail-prog/TomiOka.git ${bot.slug}`,
+      `cd ${bot.slug}`,
+      'npm install',
+      '# Guarda el config.json descargado en esta carpeta, y luego vincula:',
+      `SESSION_DIR=sessions/${bot.slug} PAIRING_PHONE=${bot.phone} npm run pair`
+    ].join('\n')
+  }
+
+  function downloadSubbotConfig(bot) {
+    const blob = new Blob([`${JSON.stringify(bot.config, null, 2)}\n`], { type: 'application/json' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `${bot.slug}-config.json`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 1000)
+    showToast(`Config de ${bot.name} descargada`)
+  }
+
+  function metaItem(label, value) {
+    const wrap = document.createElement('div')
+    const dt = document.createElement('dt')
+    dt.textContent = label
+    const dd = document.createElement('dd')
+    dd.textContent = value
+    wrap.append(dt, dd)
+    return wrap
+  }
+
+  function renderSubbots() {
+    if (!subbotList) return
+    subbotList.querySelectorAll('.subbot-card').forEach((card) => card.remove())
+    if (subbotEmpty) subbotEmpty.hidden = subBots.length > 0
+    if (subbotCount) subbotCount.textContent = `${subBots.length} en esta sesión`
+
+    for (const bot of subBots) {
+      const card = document.createElement('article')
+      card.className = 'subbot-card'
+
+      const head = document.createElement('div')
+      head.className = 'subbot-card-head'
+      const title = document.createElement('h4')
+      title.textContent = bot.name
+      const badge = document.createElement('span')
+      badge.className = 'badge badge-local'
+      badge.textContent = 'Configuración lista'
+      head.append(title, badge)
+
+      const meta = document.createElement('dl')
+      meta.className = 'subbot-meta'
+      meta.append(
+        metaItem('Prefijo', bot.prefix),
+        metaItem('Teléfono', bot.phone),
+        metaItem('Sesión', `sessions/${bot.slug}`),
+        metaItem('Pack', bot.config.stickers.packName)
+      )
+
+      const actions = document.createElement('div')
+      actions.className = 'subbot-actions'
+      const copyButton = document.createElement('button')
+      copyButton.type = 'button'
+      copyButton.className = 'button button-small button-primary'
+      copyButton.textContent = 'Copiar comandos'
+      copyButton.addEventListener('click', () => copyText(subbotCommands(bot), 'Comandos del sub-bot copiados'))
+      const downloadButton = document.createElement('button')
+      downloadButton.type = 'button'
+      downloadButton.className = 'button button-small button-ghost'
+      downloadButton.textContent = 'Descargar config'
+      downloadButton.addEventListener('click', () => downloadSubbotConfig(bot))
+      const deleteButton = document.createElement('button')
+      deleteButton.type = 'button'
+      deleteButton.className = 'button button-small button-ghost'
+      deleteButton.textContent = 'Eliminar'
+      deleteButton.addEventListener('click', () => {
+        const index = subBots.indexOf(bot)
+        if (index >= 0) subBots.splice(index, 1)
+        renderSubbots()
+        showToast(`Sub-bot ${bot.name} eliminado de la lista`)
+      })
+      actions.append(copyButton, downloadButton, deleteButton)
+
+      card.append(head, meta, actions)
+      subbotList.appendChild(card)
+    }
+  }
+
+  subbotForm?.addEventListener('submit', (event) => {
+    event.preventDefault()
+    const name = $('#subbotName')?.value.trim() || ''
+    const phone = ($('#subbotPhone')?.value || '').replace(/\D/g, '')
+    const prefix = ($('#subbotPrefix')?.value || '.').trim().slice(0, 3) || '.'
+    const packName = $('#subbotPack')?.value.trim() || 'TomiOka'
+    const groups = Boolean($('#subbotGroups')?.checked)
+
+    if (!name) {
+      showToast('Escribe un nombre para tu sub-bot')
+      $('#subbotName')?.focus()
+      return
+    }
+    if (phone.length < 8 || phone.length > 15) {
+      showToast('Escribe un número válido con código de país (8 a 15 dígitos)')
+      $('#subbotPhone')?.focus()
+      return
+    }
+
+    let slug = slugifySubbot(name)
+    if (subBots.some((bot) => bot.slug === slug)) {
+      let suffix = 2
+      while (subBots.some((bot) => bot.slug === `${slug}-${suffix}`)) suffix += 1
+      slug = `${slug}-${suffix}`
+    }
+
+    subBots.push({
+      name,
+      phone,
+      prefix,
+      slug,
+      config: {
+        bot: { name, prefix },
+        pairingPhone: phone,
+        session: { dir: `sessions/${slug}` },
+        stickers: { packName, packAuthor: name },
+        behavior: { respondInGroups: groups }
+      }
+    })
+    renderSubbots()
+    subbotForm.reset()
+    const prefixInput = $('#subbotPrefix')
+    if (prefixInput) prefixInput.value = '.'
+    const packInput = $('#subbotPack')
+    if (packInput) packInput.value = 'TomiOka'
+    const groupsInput = $('#subbotGroups')
+    if (groupsInput) groupsInput.checked = true
+    showToast(`Sub-bot ${name} creado: copia sus comandos para vincularlo`)
+  })
+  renderSubbots()
 
   /* ── Catálogo: filtros + búsqueda local ──────────────────── */
   const projectCards = $$('.project-card')

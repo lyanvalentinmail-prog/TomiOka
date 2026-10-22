@@ -64,14 +64,34 @@
     ],
     "categories": [
       {
-        "emoji": "🌊",
-        "description": "𝖳𝗈𝖽𝗈𝗌 𝗅𝗈𝗌 𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌",
+        "emoji": "📥",
+        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
+        "kaomoji": "( ˶ˆ꒳ˆ˵ )",
+        "divider": [
+          "⬇️",
+          "🎬"
+        ],
+        "commands": [
+          "tiktok",
+          "instagram",
+          "ytmp3",
+          "ytmp4"
+        ]
+      },
+      {
+        "emoji": "🎨",
+        "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
         "divider": [
-          "💧",
-          "🌊"
+          "✨",
+          "🖼️"
         ],
-        "commands": []
+        "commands": [
+          "brat",
+          "attp",
+          "ttp",
+          "sticker"
+        ]
       }
     ],
     "imageCacheMinutes": 720,
