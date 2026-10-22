@@ -32,7 +32,7 @@ export default {
     const firstRun = !indexInfo(options).loaded && !indexInfo(options).cached
     if (firstRun) {
       await ctx.reply(
-        '⏳ Preparando el catálogo de *Emoji Kitchen* (solo la primera vez, ~95 MB). Dame un momento...'
+        '🌊 Preparando el catálogo de *Emoji Kitchen* (solo la primera vez, ~95 MB). Dame un momento...'
       )
     }
 
@@ -42,7 +42,7 @@ export default {
       mix = await findMix(used[0], used[1], options)
       if (!mix) {
         throw new Error(
-          `No encontré combinación para ${used[0]} + ${used[1]} 😔\nPrueba con otros emojis (caritas, animales, comidas y corazones funcionan mejor).`
+          `💦 No encontré combinación para ${used[0]} + ${used[1]}\nPrueba con otros emojis (caritas, animales, comidas y corazones funcionan mejor).`
         )
       }
     } else {

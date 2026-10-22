@@ -1686,7 +1686,7 @@ async function openEditInstance(instance) {
   state.editDraft = { menuStyle: instance.menuStyle || 'tomioka', menuMode: 'text', banner: null, aliases: {}, disabled: [], disabledCategories: [], categories: [], customCommands: [], categoryOverrides: {} };
   state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
   state.editStyles = [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (📥 Descargas, 🎨 Stickers, 🔄 Conversión, 📦 Packs, 🧠 AI y 💧 Info) con todos los comandos del bot.', preview: '📥 Descargas · 🎨 Stickers · 🔄 Conversión · 📦 Packs · 🧠 AI · 💧 Info' },
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (🌊 Descargas, 💧 Stickers, 💦 Conversión, 🐟 Packs, 💙 AI y 🌊 Info) con todos los comandos del bot.', preview: '🌊 Descargas · 💧 Stickers · 💦 Conversión · 🐟 Packs · 💙 AI · 🌊 Info' },
     ];
   // Render inicial síncrono (sin preview aún) - contiene el textarea esperado por tests
   const adminNumImmediate = (instance.adminNumbers || []).join('\n');
@@ -1715,7 +1715,7 @@ async function openEditInstance(instance) {
       state.editCommandsData = { commands: [], customization: state.editDraft, prefix: instance.prefix };
     }
     state.editStyles = styles?.styles?.length ? styles.styles : [
-      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (📥 Descargas, 🎨 Stickers, 🔄 Conversión, 📦 Packs, 🧠 AI y 💧 Info) con todos los comandos del bot.', preview: '📥 Descargas · 🎨 Stickers · 🔄 Conversión · 📦 Packs · 🧠 AI · 💧 Info' },
+      { id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (🌊 Descargas, 💧 Stickers, 💦 Conversión, 🐟 Packs, 💙 AI y 🌊 Info) con todos los comandos del bot.', preview: '🌊 Descargas · 💧 Stickers · 💦 Conversión · 🐟 Packs · 💙 AI · 🌊 Info' },
     ];
     renderEditModal();
     // preview se carga bajo demanda al abrir pestaña Estilo
@@ -1799,11 +1799,11 @@ function renderEditModal() {
   })();
   const categoriasHtml = (() => {
     const builtins = [
-      { id: 'download', title: 'DESCARGAS', icon: '📥', sub: 'tiktok · instagram · pinterest · ytmp3 · ytmp4', built: true },
-      { id: 'stickers', title: 'STICKERS', icon: '🎨', sub: 'brat · attp · ttp · sticker · gif · emojimix', built: true },
-      { id: 'tools', title: 'HERRAMIENTAS', icon: '🧰', sub: 'toimg · tovideo · take · pack', built: true },
-      { id: 'ai', title: 'INTELIGENCIA ARTIFICIAL', icon: '🧠', sub: 'gemini · chatgpt · deepseek', built: true },
-      { id: 'info', title: 'INFORMACIÓN', icon: '💧', sub: 'help · debug', built: true },
+      { id: 'download', title: 'DESCARGAS', icon: '🌊', sub: 'tiktok · instagram · pinterest · ytmp3 · ytmp4', built: true },
+      { id: 'stickers', title: 'STICKERS', icon: '💧', sub: 'brat · attp · ttp · sticker · gif · emojimix', built: true },
+      { id: 'tools', title: 'HERRAMIENTAS', icon: '💦', sub: 'toimg · tovideo · take · pack', built: true },
+      { id: 'ai', title: 'INTELIGENCIA ARTIFICIAL', icon: '💙', sub: 'gemini · chatgpt · deepseek', built: true },
+      { id: 'info', title: 'INFORMACIÓN', icon: '🐟', sub: 'help · debug', built: true },
     ];
     const disabledCatSet = new Set((draft.disabledCategories || []).map((s) => String(s).toLowerCase()));
     let html = `<div class="edit-card"><h4>${icon('hash')} Categorías del sistema <span class="badge">${builtins.length - [...disabledCatSet].filter((c)=>builtins.some((b)=>b.id===c)).length} activas</span></h4><p style="margin:6px 0 0;color:var(--text-muted);font-size:11px;">Son las categorías reales de TomiOka con todos los comandos del bot en el menú de WhatsApp. Si quitas una categoría con el interruptor, sus comandos <strong>dejan de responder</strong> en este sub-bot (y salen del menú y de la vista previa).</p></div>`;

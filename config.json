@@ -2,6 +2,7 @@
   "bot": {
     "name": "@𝐓͠ᨵ꯭꯭ׁׅׅ𝐌𝐈𖣠꙰𝐊𝐀",
     "team": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆 ࿙💧࿚",
+    "emojis": ["💧", "🌊", "🐟", "💦", "💙"],
     "prefix": ".",
     "version": "1.0",
     "status": "ᴏɴʟɪɴᴇ",
@@ -90,17 +91,18 @@
     "showDescriptions": false,
     "showUser": true,
     "phrases": [
-      "El océano también guarda secretos 🌊",
-      "Un sticker vale más que mil palabras 💧"
+      "El océano también guarda secretos 🌊💙",
+      "Un sticker vale más que mil palabras 💧💦",
+      "Calma como el agua en movimiento 🐟🌊"
     ],
     "categories": [
       {
-        "emoji": "📥",
+        "emoji": "🌊",
         "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
         "kaomoji": "( ˶ˆ꒳ˆ˵ )",
         "divider": [
-          "⬇️",
-          "🎬"
+          "💧",
+          "💦"
         ],
         "commands": [
           "tiktok",
@@ -111,12 +113,12 @@
         ]
       },
       {
-        "emoji": "🎨",
+        "emoji": "💧",
         "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
         "divider": [
-          "✨",
-          "🖼️"
+          "🐟",
+          "💙"
         ],
         "commands": [
           "brat",
@@ -128,11 +130,11 @@
         ]
       },
       {
-        "emoji": "🔄",
+        "emoji": "💦",
         "description": "𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇",
         "kaomoji": "( ˶ᵕ˶ )",
         "divider": [
-          "🔁",
+          "🌊",
           "💧"
         ],
         "commands": [
@@ -142,11 +144,11 @@
         ]
       },
       {
-        "emoji": "📦",
+        "emoji": "🐟",
         "description": "𝖯𝖺𝖼𝗄𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
         "divider": [
-          "📦",
+          "💙",
           "🌊"
         ],
         "commands": [
@@ -154,12 +156,12 @@
         ]
       },
       {
-        "emoji": "🧠",
+        "emoji": "💙",
         "description": "𝖠𝖨",
         "kaomoji": "( ᵕ ᴗ ᵕ )",
         "divider": [
-          "🤖",
-          "💧"
+          "💦",
+          "🐟"
         ],
         "commands": [
           "gemini",
@@ -168,12 +170,12 @@
         ]
       },
       {
-        "emoji": "💧",
+        "emoji": "🌊",
         "description": "𝖨𝗇𝖿𝗈",
         "kaomoji": "( ᴗ͈ˬᴗ͈ )",
         "divider": [
           "💧",
-          "🌊"
+          "💙"
         ],
         "commands": [
           "help",

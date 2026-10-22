@@ -14,7 +14,7 @@ export default {
     return runAiCommand(ctx, {
       request: 'chatgpt',
       label: 'ChatGPT',
-      emoji: '🤖',
+      emoji: '💙',
       system:
         'Eres ChatGPT, un asistente útil. Respondes en el idioma del usuario (por defecto español). ' +
         'Tus respuestas viajan por WhatsApp: sé claro y breve, usa listas cortas y evita tablas anchas.'

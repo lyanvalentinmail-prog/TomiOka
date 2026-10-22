@@ -63,7 +63,7 @@ test('demuxWebpFrames separa los cuadros', async () => {
 test('buildExifPayload recorta valores largos y usa defaults', () => {
   const payload = buildExifPayload({ packName: 'x'.repeat(120) })
   assert.equal(payload['sticker-pack-name'].length, 60)
-  assert.deepEqual(payload.emojis, ['🌊'])
+  assert.deepEqual(payload.emojis, ['🌊', '💧', '💙'])
   assert.equal(typeof payload['sticker-pack-id'], 'string')
 })
 

@@ -61,7 +61,7 @@ export function buildExifPayload({
     'sticker-pack-id': packId,
     'sticker-pack-name': String(packName).slice(0, 60),
     'sticker-pack-publisher': String(packAuthor).slice(0, 60),
-    emojis: Array.isArray(emojis) && emojis.length ? emojis.slice(0, 3) : ['🌊'],
+    emojis: Array.isArray(emojis) && emojis.length ? emojis.slice(0, 3) : ['🌊', '💧', '💙'],
     'android-app-store-link': 'https://play.google.com/store/apps/details?id=com.whatsapp',
     'ios-app-store-link': 'https://apps.apple.com/app/whatsapp-messenger/id310633997',
     'is-animated': Boolean(isAnimated),

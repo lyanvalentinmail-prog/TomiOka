@@ -9,6 +9,7 @@ export const DEFAULTS = {
   bot: {
     name: 'TomiOka',
     team: '◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆 ࿙💧࿚',
+    emojis: ['💧', '🌊', '🐟', '💦', '💙'],
     prefix: '.',
     version: '1.0',
     status: 'ᴏɴʟɪɴᴇ',
@@ -97,49 +98,53 @@ export const DEFAULTS = {
     sendAsCaption: true, // manda el menú como pie de foto del banner
     showDescriptions: false,
     showUser: true,
-    phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
+    phrases: [
+      'El océano también guarda secretos 🌊💙',
+      'Un sticker vale más que mil palabras 💧💦',
+      'Calma como el agua en movimiento 🐟🌊'
+    ],
     // El menú de WhatsApp lista TODOS los comandos del bot.
     categories: [
       {
-        emoji: '📥',
+        emoji: '🌊',
         description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
         kaomoji: '( ˶ˆ꒳ˆ˵ )',
-        divider: ['⬇️', '🎬'],
+        divider: ['💧', '💦'],
         commands: ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4']
       },
       {
-        emoji: '🎨',
+        emoji: '💧',
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
-        divider: ['✨', '🖼️'],
+        divider: ['🐟', '💙'],
         commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
       },
       {
-        emoji: '🔄',
+        emoji: '💦',
         description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇',
         kaomoji: '( ˶ᵕ˶ )',
-        divider: ['🔁', '💧'],
+        divider: ['🌊', '💧'],
         commands: ['toimg', 'tovideo', 'take']
       },
       {
-        emoji: '📦',
+        emoji: '🐟',
         description: '𝖯𝖺𝖼𝗄𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
-        divider: ['📦', '🌊'],
+        divider: ['💙', '🌊'],
         commands: ['pack']
       },
       {
-        emoji: '🧠',
+        emoji: '💙',
         description: '𝖠𝖨',
         kaomoji: '( ᵕ ᴗ ᵕ )',
-        divider: ['🤖', '💧'],
+        divider: ['💦', '🐟'],
         commands: ['gemini', 'chatgpt', 'deepseek']
       },
       {
-        emoji: '💧',
+        emoji: '🌊',
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
-        divider: ['💧', '🌊'],
+        divider: ['💧', '💙'],
         commands: ['help', 'debug']
       }
     ]

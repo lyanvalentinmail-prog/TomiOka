@@ -16,7 +16,7 @@ export default {
 
     await ctx.sendImage(
       png,
-      animated ? '🖼️ Imagen generada (primer cuadro del sticker animado).' : '🖼️ Sticker convertido a imagen.'
+      animated ? '💧 Imagen generada (primer cuadro del sticker animado).' : '💧 Sticker convertido a imagen.'
     )
     return `toimg ${animated ? 'animado→png (frame 1)' : 'png'} ${Math.round(png.length / 1024)}KB`
   }

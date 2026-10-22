@@ -373,7 +373,7 @@ test('.pack edita el mensaje de progreso en vez de mandar uno por sticker', asyn
   assert.equal(standalone.length, 1, 'solo el mensaje inicial (los avances lo editan)')
 
   const progressEdits = sock.sent.filter(
-    (item) => item.content?.edit && item.content.text.includes('📥')
+    (item) => item.content?.edit && item.content.text.includes('💧')
   )
   assert.equal(progressEdits.length, 2, 'cada sticker edita el mismo mensaje')
   assert.equal(new Set(progressEdits.map((item) => item.content.edit.id)).size, 1)

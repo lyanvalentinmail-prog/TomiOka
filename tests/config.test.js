@@ -49,6 +49,7 @@ test('loadConfig mezcla defaults, config.json y normaliza', () => {
   const config = loadConfig()
   assert.equal(config.prefixes[0], '.')
   assert.equal(typeof config.bot.name, 'string')
+  assert.deepEqual(config.bot.emojis, ['💧', '🌊', '🐟', '💦', '💙'])
   assert.ok(Array.isArray(config.menu.categories))
   assert.equal(config.menu.categories.length, 6)
   assert.deepEqual(config.menu.categories[0].commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])

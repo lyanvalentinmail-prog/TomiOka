@@ -57,7 +57,7 @@ export default {
   category: 'conversion',
   description: 'Cambiar nombre o autor del sticker.',
   usage: '.take Nombre | Autor (responde a un sticker, foto o video)',
-  examples: ['.take Tomioka | 🌊', '.take Mi pack'],
+  examples: ['.take Tomioka | 🌊💙', '.take Mi pack'],
   async run(ctx) {
     const target = ctx.requireMedia(KINDS, HELP)
 
@@ -81,7 +81,7 @@ export default {
     await ctx.sendSticker(out, { withMetadata: false })
 
     const lines = [
-      '🏷️ *Sticker actualizado*',
+      '💙 *Sticker actualizado*',
       `▸ Nombre: *${truncate(name, 40)}*`,
       `▸ Autor: *${truncate(author, 40)}*`
     ]

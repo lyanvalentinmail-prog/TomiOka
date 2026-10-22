@@ -23,7 +23,7 @@ export default {
   examples: ['.debug'],
   async run(ctx) {
     // El mensaje de "ejecutando" se edita con el resultado (no se duplica).
-    const progress = await ctx.reply('🩺 Ejecutando diagnóstico... puede tardar unos segundos.')
+    const progress = await ctx.reply('🌊 Ejecutando diagnóstico... puede tardar unos segundos.')
     ctx.rememberLive('debug', progress)
 
     const config = ctx.config
@@ -33,7 +33,7 @@ export default {
     const tempOk = await canWrite(path.join(config.paths.data, 'tmp'))
 
     const lines = [
-      '🩺 *Diagnóstico de TomiOka*',
+      '🌊 *Diagnóstico de TomiOka* 💙',
       `▸ Node: ${process.version} · ${process.platform}/${process.arch}`,
       `▸ FFmpeg: ${info ? `${info.version}` : 'NO ENCONTRADO'} ${info ? yes(info.webp) : '❌'}`,
       info ? `▸ Ruta: ${truncate(info.path, 60)}` : '▸ Instala con: pkg install ffmpeg',
@@ -69,19 +69,19 @@ export default {
 
     // Prueba real de conversión
     const test = await selfTestFfmpeg({ logger: ctx.logger })
-    lines.push('', `🧪 *Prueba de conversión*: ${test.ok ? '✅ todo OK' : '❌ falló'}`)
+    lines.push('', `💦 *Prueba de conversión*: ${test.ok ? '✅ todo OK' : '❌ falló'}`)
     for (const step of test.steps) {
       lines.push(`${step.ok ? '✅' : '❌'} ${step.name}${step.ok ? ` (${step.ms} ms)` : ''}`)
       if (!step.ok && step.error) lines.push(`   ⚠️ ${truncate(step.error, 120)}`)
     }
-    if (test.hint) lines.push(`💡 ${test.hint}`)
+    if (test.hint) lines.push(`💧 ${test.hint}`)
 
     // Auditoría del WebP generado (transparencia + animación)
     const audit = test.sticker ? auditSticker(test.sticker) : null
     if (audit) {
       lines.push(
         '',
-        `🧩 *Sticker de prueba*: ${audit.valid ? '✅ válido' : '❌ inválido'} · ` +
+        `🐟 *Sticker de prueba*: ${audit.valid ? '✅ válido' : '❌ inválido'} · ` +
           `${audit.info.width}×${audit.info.height} · ${audit.info.frameCount} cuadros · ` +
           `${audit.info.hasAlpha ? 'con alfa' : 'SIN alfa'}`
       )

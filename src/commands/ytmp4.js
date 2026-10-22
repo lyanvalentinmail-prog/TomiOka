@@ -13,14 +13,14 @@ export default {
       ctx.argsText,
       `Uso: ${ctx.prefix}ytmp4 <enlace de YouTube>`
     )
-    await ctx.reply('⏳ Descargando video de *YouTube* en MP4...')
+    await ctx.reply('🌊 Descargando video de *YouTube* en MP4...')
     const file = await downloadWithYtDlp({
       platform: 'youtube',
       mediaType: 'video',
       url,
       logger: ctx.logger
     })
-    await ctx.sendVideo(file.buffer, '✅ Video de YouTube descargado')
+    await ctx.sendVideo(file.buffer, '💧 Video de YouTube descargado 💙')
     return 'video de YouTube descargado'
   }
 }
