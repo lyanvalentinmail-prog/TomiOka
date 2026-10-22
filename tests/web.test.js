@@ -139,8 +139,36 @@ test('el servidor sirve la SPA y responde la API local real', async (t) => {
   const state = await (await fetch(`${base}/api/state`)).json()
   assert.ok(state.instances.some((instance) => instance.id === created.instance.id))
 
+  // Pairing sin número válido: se rechaza antes de tocar WhatsApp
+  await fetch(`${base}/api/instances/${created.instance.id}`, {
+    method: 'PATCH',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ phone: '123' })
+  })
+  const badStart = await fetch(`${base}/api/instances/${created.instance.id}/start`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}' })
+  assert.equal(badStart.status, 400)
+  const badPairing = await fetch(`${base}/api/instances/${created.instance.id}/pairing`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ waitMs: 1000 })
+  })
+  assert.equal(badPairing.status, 400)
+  const link = await (await fetch(`${base}/api/instances/${created.instance.id}/link`)).json()
+  assert.equal(link.ok, true)
+  assert.equal(link.connected, false)
+  assert.equal(link.pairingFormatted, '')
+
   const removed = await fetch(`${base}/api/instances/${created.instance.id}`, { method: 'DELETE' })
   assert.equal(removed.status, 200)
+})
+
+test('el pairing code del panel lo pide Baileys a WhatsApp, no se inventa', () => {
+  assert.ok(server.includes('createLinkSessionManager'))
+  assert.ok(server.includes("action === 'pairing'") && server.includes("action === 'start'") && server.includes("action === 'stop'"))
+  const link = read('src/lib/link-session.js')
+  assert.ok(link.includes('requestPairingCode'), 'usa la API real de Baileys')
+  assert.ok(link.includes('formatPairingCode'))
+  assert.ok(link.includes('useMultiFileAuthState'), 'persiste la sesión del sub-bot')
 })
 
 test('package.json expone cómo servir la página', () => {

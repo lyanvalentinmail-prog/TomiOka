@@ -27,7 +27,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (200 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (204 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints contiene solo los ocho comandos de WhatsApp del menú (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -43,15 +43,16 @@ datos de TomiOka. El servidor local (`scripts/serve-web.js`) sirve la app y una 
 acotada y veraz. Incluye:
 
 1. **Landing y panel** con las rutas de la referencia: `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`.
-2. **Registro local de sub-bots**: `POST /api/instances` guarda cada sub-bot en `data/web-subbots.json` con su `sessions/<slug>` y su comando real de vinculación (`SESSION_DIR=sessions/<slug> PAIRING_PHONE=... npm run pair` o `npm run qr`).
-3. **Endpoints**: solo los ocho comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
-4. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
-5. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
+2. **Registro local de sub-bots**: `POST /api/instances` guarda cada sub-bot en `data/web-subbots.json` con su `sessions/<slug>` y su comando de vinculación por terminal (`SESSION_DIR=sessions/<slug> PAIRING_PHONE=... npm run pair` o `npm run qr`).
+3. **Pairing code real desde el panel**: `POST /api/instances/:id/pairing` abre un socket de Baileys para ese sub-bot y le pide el código a WhatsApp (formato `XXXX-XXXX`, ~60 s de vigencia); el estado se sigue en vivo por `/api/instances/:id/link` y SSE (`/api/stream`). Al vincularse, el sub-bot queda en línea **y respondiendo comandos** desde el mismo proceso del panel, con su prefijo propio. También se puede detener/reiniciar desde Mis Bots.
+4. **Endpoints**: solo los ocho comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
+5. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
+6. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
 
-> El panel local no crea cuentas web, no vende planes, no guarda tickets y no
-> inicia sesiones de WhatsApp desde el navegador: esos endpoints responden `501`
-> con el motivo. La vinculación real se hace en terminal con `npm run pair`/`npm run qr`,
-> usando el comando que el propio panel genera para cada sub-bot.
+> El panel local no crea cuentas web, no vende planes ni guarda tickets: esos
+> endpoints responden `501` con el motivo. La vinculación de WhatsApp sí es real
+> desde el panel (pairing code de Baileys) o, si prefieres, por terminal con
+> `npm run pair`/`npm run qr` usando el comando que el propio panel genera.
 
 ### Desplegar la página: Render (Blueprint) o Vercel
 
@@ -373,6 +374,7 @@ TomiOka/
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
 │   │   ├── webp.js          # edición de chunks WebP sin re-mux (alfa intacto)
 │   │   ├── session.js       # detecta/valida/respalda la sesión guardada
+│   │   ├── link-session.js  # pairing code real de Baileys para el panel web
 │   │   ├── live-messages.js # edita el menú/progreso en vez de repetir mensajes
 │   │   ├── sticker-pack.js  # envía el paquete nativo de stickers a WhatsApp
 │   │   ├── banner.js        # banner del menú (Drive/URL/local) con caché
@@ -389,7 +391,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (200 pruebas)
+├── tests/                   # node --test (204 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -399,7 +401,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 200 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 204 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
