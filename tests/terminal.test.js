@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import {
+  homeList,
   applyConfigEdit,
   normalizeOwners,
   parseKeys,
@@ -156,9 +157,20 @@ test('la TUI renderiza logo, secciones, estado y ayudas sin terminal real', () =
   assert.ok(text.includes('████████'), 'logo grande en pantallas amplias')
   assert.ok(text.includes('Iniciar el bot'))
   assert.ok(text.includes('Editar configuración'))
-  assert.ok(text.includes('Cambiar tema'))
   assert.ok(text.includes('sin sesión'))
   assert.ok(text.includes('ctrl+p'), 'ayuda de teclas al pie')
+  assert.ok(text.includes('Escribí para buscar'), 'prompt de la home estilo OpenCode')
+
+  const endState = createState()
+  endState.sel = MENU_ITEMS.length - 1
+  const endText = renderFrame(endState, fakeEnv(), 110, 32).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(endText.includes('Cambiar tema'), 'al bajar se ven las últimas secciones')
+
+  const filtered = createState()
+  filtered.homeQuery = 'pairing'
+  const filteredText = renderFrame(filtered, fakeEnv(), 110, 32).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(filteredText.includes('pairing code'))
+  assert.ok(!filteredText.includes('Editar configuración'), 'la home filtra mientras escribes')
   assert.equal(frame.length, 32, 'el frame llena exactamente la pantalla')
 
   const small = renderFrame(createState(), fakeEnv(), 42, 18).map((line) => stripAnsi(line))
@@ -211,6 +223,21 @@ test('editFields refleja valores e interruptores de la config', () => {
   assert.deepEqual(byId.login.cycle, ['ask', 'pairing', 'qr'])
   assert.deepEqual(byId.sendAsCaption.cycle, ['sí', 'no'])
   assert.deepEqual(byId.showDescriptions.cycle, ['sí', 'no'])
+})
+
+test('homeList filtra las secciones de la home y createState trae lo nuevo', () => {
+  const state = createState()
+  assert.equal(state.homeQuery, '')
+  assert.equal(state.leader, false)
+  assert.equal(homeList(state).length, MENU_ITEMS.length)
+  state.homeQuery = 'tema'
+  assert.equal(homeList(state)[0].id, 'theme', 'el tema sale primero al escribir "tema"')
+  state.homeQuery = 'zzz-sin-resultado'
+  assert.equal(homeList(state).length, 0)
+})
+
+test('parseKeys reconoce la tecla líder ctrl+x', () => {
+  assert.deepEqual(parseKeys('\x18').map((k) => k.name), ['ctrl-x'])
 })
 
 test('la terminal queda expuesta como script npm y cubre las acciones del bot', () => {

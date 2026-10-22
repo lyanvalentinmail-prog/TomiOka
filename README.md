@@ -131,22 +131,28 @@ También puedes usar `bash scripts/start.sh` (activa el wake-lock automáticamen
 
 ### 🖥️ Terminal del bot (Termux)
 
-TomiOka trae una terminal propia de **pantalla completa** (estilo OpenCode,
-con logo, paneles y barra de estado) para manejar el bot desde el celular,
+TomiOka trae una terminal propia de **pantalla completa**, hecha a imagen
+de la TUI de **OpenCode**: home centrada con logo y caja de prompt para
+buscar, vista de sesión con sidebar de contexto, diálogos centrados y
+barra de estado inferior. Sirve para manejar el bot desde el celular,
 sin editar archivos a mano:
 
 ```bash
 npm run terminal
 ```
 
-**Controles:** `↑↓` o `j/k` para moverte, `Enter` para abrir/guardar,
-`Esc` para volver, `q` para salir. `Ctrl+P` abre la **paleta de
-comandos** (escribe y encuentra cualquier acción, comando o ajuste),
-`?` muestra la ayuda, `t` cambia el tema (Océano, Atardecer, Menta,
-Violeta; se recuerda entre sesiones). También acepta mouse: la rueda
-hace scroll y el doble clic abre. En las listas largas, `PgUp`/`PgDn` y
-`g`/`G` saltan al principio o al final, y con `/` buscas dentro del
-menú (`n`/`N` salta entre coincidencias).
+**Controles:** en la home **escribes y la lista se filtra** (como el
+prompt de OpenCode); `↑↓` mueve, `Enter` abre, `Esc` limpia la
+búsqueda y `q` sale (solo con la búsqueda vacía). `Ctrl+P` abre la
+**paleta de comandos** y `Ctrl+X` es la tecla líder de atajos, igual
+que en OpenCode: `Ctrl+X` y después `c` consola, `p` pairing, `q` QR,
+`s` estado, `e` editar, `m` menú, `k` comandos, `d` doctor, `u`
+actualizar, `t` tema, `x` salir. `?` muestra la ayuda y `t` cambia el
+tema (Océano, Atardecer, Menta, Violeta; se recuerda entre sesiones).
+También acepta mouse: la rueda hace scroll y el doble clic abre. En
+las listas largas, `PgUp`/`PgDn` y `g`/`G` saltan al principio o al
+final, y con `/` buscas dentro del menú (`n`/`N` salta entre
+coincidencias).
 
 Lo mejor: el bot corre **dentro de la terminal**, en una consola en vivo
 con sus logs: el pairing code y el QR se ven ahí mismo, sin cambiar de
@@ -446,7 +452,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 228 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 230 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
