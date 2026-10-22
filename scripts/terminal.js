@@ -43,12 +43,13 @@ export const SPINNER = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', 
 /* ------------------------------------------------------------------ temas */
 
 export const THEMES = {
-  ocean: { id: 'ocean', name: 'Océano', a: [56, 189, 248], b: [37, 99, 235], sel: [2, 132, 199] },
-  sunset: { id: 'sunset', name: 'Atardecer', a: [251, 191, 36], b: [219, 39, 119], sel: [190, 24, 93] },
-  mint: { id: 'mint', name: 'Menta', a: [110, 231, 183], b: [13, 148, 136], sel: [4, 120, 87] },
-  violet: { id: 'violet', name: 'Violeta', a: [196, 181, 253], b: [124, 58, 237], sel: [109, 40, 217] }
+  opencode: { id: 'opencode', name: 'OpenCode', a: [250, 178, 131], b: [92, 156, 245], sel: [250, 178, 131], bg: [10, 10, 10], panel: [20, 20, 20], element: [30, 30, 30], text: [238, 238, 238], muted: [128, 128, 128], border: [72, 72, 72] },
+  ocean: { id: 'ocean', name: 'Océano', a: [56, 189, 248], b: [37, 99, 235], sel: [2, 132, 199], bg: [7, 16, 24] },
+  sunset: { id: 'sunset', name: 'Atardecer', a: [251, 191, 36], b: [219, 39, 119], sel: [190, 24, 93], bg: [20, 11, 6] },
+  mint: { id: 'mint', name: 'Menta', a: [110, 231, 183], b: [13, 148, 136], sel: [4, 120, 87], bg: [6, 18, 13] },
+  violet: { id: 'violet', name: 'Violeta', a: [196, 181, 253], b: [124, 58, 237], sel: [109, 40, 217], bg: [13, 6, 22] }
 }
-export const THEME_ORDER = ['ocean', 'sunset', 'mint', 'violet']
+export const THEME_ORDER = ['opencode', 'ocean', 'sunset', 'mint', 'violet']
 
 const fg = ([r, g, b]) => `${ESC}[38;2;${r};${g};${b}m`
 const bg = ([r, g, b]) => `${ESC}[48;2;${r};${g};${b}m`
@@ -60,10 +61,10 @@ export function accent(text, theme, bold = true) {
   return `${bold ? `${ESC}[1m` : ''}${fg(theme.a)}${text}${RESET}`
 }
 
-/** Pinta la fila seleccionada (fondo del tema, letra blanca) */
+/** Pinta la fila seleccionada (heredado; hoy manda ocSelected) */
 export function selectedPaint(text, theme) {
   if (!COLOR_OK) return String(text)
-  return `${bg(theme.sel)}${ESC}[97m${ESC}[1m${text}${RESET}`
+  return `${bg(theme.a)}${ESC}[38;2;16;16;16m${ESC}[1m${text}${RESET}`
 }
 
 /** Degradado truecolor de theme.a a theme.b, carácter a carácter */
@@ -489,12 +490,85 @@ export function viewerLines(viewer) {
 }
 
 /* ------------------------------------------------------------------ render */
-/* Render estilo OpenCode: home centrada con caja de prompt, sesión con
- * sidebar de contexto, diálogos centrados y barra de estado inferior. */
+/*
+ * Render copiado de la TUI de OpenCode (MIT, anomalyco/opencode):
+ * home centrada con su logo bitono y el prompt con borde ┃ sobre fondo
+ * panel, sesión con sidebar de contexto, diálogos sobre fondo atenuado
+ * a 1/4 de pantalla y filas seleccionadas con el color primary.
+ */
 
-const DIM = '\x1b[90m'
-const FAINT = '\x1b[38;2;150;150;150m'
-const BAR_BG = '\x1b[48;2;26;26;26m'
+/** Paleta de superficies estilo OpenCode según el tema activo */
+export function pal(theme) {
+  const t = theme || THEMES.opencode
+  return {
+    bg: t.bg || [10, 10, 10],
+    panel: t.panel || [20, 20, 20],
+    element: t.element || [30, 30, 30],
+    text: t.text || [238, 238, 238],
+    muted: t.muted || [128, 128, 128],
+    faint: [100, 100, 100],
+    primary: t.a,
+    secondary: t.b,
+    border: t.border || [72, 72, 72],
+    success: [127, 216, 143],
+    error: [224, 108, 117],
+    warning: [245, 167, 66]
+  }
+}
+
+const rgb = (color) => `${ESC}[38;2;${color[0]};${color[1]};${color[2]}m`
+const bgc = (color) => `${ESC}[48;2;${color[0]};${color[1]};${color[2]}m`
+
+/** Mezcla dos colores [r,g,b] (para la sombra del logo, como el tint de OpenCode) */
+export function tint(base, overlay, alpha) {
+  return base.map((v, i) => Math.round(v + (overlay[i] - v) * alpha))
+}
+
+/* Logo bitono tipo OpenCode: mitad muted + mitad clara, con sombra en los
+ * medios bloques (_ = fondo sombra, el resto en el color de su mitad). */
+const GLYPHS = {
+  t: ['████', ' █  ', ' █  ', ' ▀  '],
+  o: ['█▀▀█', '█__█', '█__█', '▀▀▀▀'],
+  m: ['█▄_▄█', '█_▀_█', '█___█', '▀___▀'],
+  i: ['▀█▀', ' █ ', ' █ ', '▄█▄'],
+  k: ['█_▄▀', '██__', '█_█_', '▀__▀'],
+  a: ['█▀▀█', '█▄▄█', '█__█', '▀__▀']
+}
+
+function glyphWord(word) {
+  const rows = ['', '', '', '']
+  ;[...word].forEach((letter, li) => {
+    const glyph = GLYPHS[letter] || ['    ', '    ', '    ', '    ']
+    glyph.forEach((line, r) => { rows[r] += (li ? ' ' : '') + line })
+  })
+  return rows
+}
+
+function renderGlyphLine(line, color, palette, bold) {
+  const shadow = tint(palette.bg, color, 0.25)
+  let out = `${rgb(color)}${bold ? `${ESC}[1m` : ''}`
+  for (const char of line) {
+    if (char === '_') out += `${bgc(shadow)} ${rgb(color)}`
+    else if (char === ' ') out += `${RESET} ${rgb(color)}${bold ? `${ESC}[1m` : ''}`
+    else out += char
+  }
+  return out + RESET
+}
+
+/** El logo de la home, como el de OpenCode (se adapta al ancho) */
+export function logoLines(theme, width = 80) {
+  const palette = pal(theme)
+  const left = glyphWord('tomi')
+  const right = glyphWord('oka')
+  if (width < 24) return right.map((line) => renderGlyphLine(line, palette.text, palette, true))
+  if (width < 44) {
+    return [
+      ...left.map((line) => renderGlyphLine(line, palette.muted, palette, false)),
+      ...right.map((line) => renderGlyphLine(line, palette.text, palette, true))
+    ]
+  }
+  return left.map((line, i) => `${renderGlyphLine(line, palette.muted, palette, false)} ${renderGlyphLine(right[i], palette.text, palette, true)}`)
+}
 
 function clockOf(date) {
   const p = (n) => String(n).padStart(2, '0')
@@ -520,10 +594,32 @@ function windowStart(selected, total, size) {
   return Math.min(Math.max(0, selected - Math.floor(size / 2)), total - size)
 }
 
-const VIEW_TITLES = {
-  console: 'Consola del bot',
-  config: 'Editar configuración',
-  session: 'Sesión y respaldos'
+/** Fila seleccionada estilo OpenCode: fondo primary, texto oscuro y negrita */
+export function ocSelected(text, theme) {
+  if (!COLOR_OK) return String(text)
+  const palette = pal(theme)
+  return `${bgc(palette.primary)}${ESC}[38;2;16;16;16m${ESC}[1m${text}${RESET}`
+}
+
+/** Caja de prompt estilo OpenCode: borde ┃ primary, fondo panel, meta y sombra ▀ */
+function promptBox({ theme, width, input, meta, cursor = true }) {
+  const palette = pal(theme)
+  const bw = Math.max(20, width)
+  const innerW = bw - 1
+  const bgRow = (content) => `${rgb(palette.primary)}┃${bgc(palette.panel)}${content}${RESET}`
+  const lines = [
+    bgRow(' '.repeat(innerW)),
+    bgRow(pad(`  ${input}`, innerW)),
+    bgRow(pad(`  ${meta}`, innerW))
+  ]
+  lines.push(`${rgb(palette.panel)}${'▀'.repeat(bw)}${RESET}`)
+  return lines
+}
+
+function promptInputText(state, theme, placeholder) {
+  const palette = pal(theme)
+  if (state.homeQuery) return `${rgb(palette.text)}${state.homeQuery}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.panel)}${rgb(palette.text)}` : '█'}`
+  return `${rgb(palette.muted)}${placeholder}`
 }
 
 /**
@@ -533,43 +629,30 @@ const VIEW_TITLES = {
 export function renderFrame(state, env, width = 80, height = 24) {
   const W = Math.max(30, width)
   const H = Math.max(10, height)
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const now = env.now || new Date()
   const linked = Boolean(env.session?.registered)
   state.hit = {}
 
-  const isHome = state.mode === 'menu' && !state.overlay
-  const header = []
-  if (!isHome) {
-    const title = state.mode === 'viewer' ? state.viewer.title : VIEW_TITLES[state.mode] || 'Inicio'
-    header.push(
-      ` ${accent('🌊 TomiOka', theme)} ${DIM}· ${clip(title, Math.max(8, W - 34))} · ${linked ? '🟢 vinculado' : '🔴 sin sesión'}${RESET}`
-    )
-  }
-
-  const hintsKey = state.overlay || (state.mode === 'viewer' && state.viewer.searching ? 'input' : state.mode)
   const footer = []
-  if (state.toast) footer.push(clip(` ${'\x1b[33m'}${state.toast}${RESET}`, W))
-  footer.push(clip(`${DIM} ${state.leader ? 'ctrl+x … pulsá una tecla (c consola · p pairing · e editar · x salir)' : HINTS[hintsKey] || ''}${RESET}`, W))
-  const viewLabel = state.overlay ? state.overlay : isHome ? 'inicio' : state.mode
-  const leftBar = ` 🌊 tomioka ${RESET}${BAR_BG}${FAINT} ${viewLabel}${state.leader ? ' · ctrl+x…' : ''} `
-  const rightBar = `${linked ? '🟢 vinculado' : '🔴 sin sesión'} · ${theme.name} · ${clockOf(now)} `
-  const leftW = textWidth(stripAnsi(leftBar))
-  const barPlain = pad('', Math.max(0, W - leftW - textWidth(rightBar))) + rightBar
-  footer.push(COLOR_OK ? `${bg(theme.b)}${ESC}[97m${leftBar}${BAR_BG}${FAINT}${pad(barPlain, W - leftW)}${RESET}` : `${stripAnsi(leftBar)}${barPlain}`)
+  if (state.toast) footer.push(clip(`  ${ESC}[33m${state.toast}${RESET}`, W))
+  const leftFoot = state.leader
+    ? `${rgb(palette.primary)}ctrl+x …${RESET} ${rgb(palette.muted)}pulsá una tecla${RESET}`
+    : `${linked ? rgb(palette.success) : rgb(palette.error)}⊙${RESET} ${rgb(palette.text)}${linked ? 'vinculado' : 'sin sesión'}${RESET}${env.bot?.running ? `  ${rgb(palette.success)}⏺${RESET} ${rgb(palette.muted)}bot en consola${RESET}` : ''}`
+  const rightFoot = `${rgb(palette.muted)}tomioka v1.0.0 · ${theme.name} · ${clockOf(now)}${RESET}`
+  footer.push(`  ${leftFoot}${' '.repeat(Math.max(1, W - 4 - textWidth(leftFoot) - textWidth(rightFoot)))}${rightFoot}  `)
 
-  const bodyH = Math.max(3, H - header.length - footer.length)
-  const body = state.overlay
-    ? renderOverlay(state, env, W, bodyH, header.length)
-    : renderMain(state, env, W, bodyH, header.length)
+  const bodyH = Math.max(3, H - footer.length)
+  let body = renderMain(state, env, W, bodyH, 0)
+  if (state.overlay) body = renderOverlay(state, env, W, bodyH, 0, body)
 
-  const frame = [...header, ...body.slice(0, bodyH), ...footer]
+  const frame = [...body.slice(0, bodyH), ...footer]
   while (frame.length < H) frame.splice(frame.length - footer.length, 0, '')
   return frame.slice(0, H).map((line) => clip(line, W))
 }
 
 function renderMain(state, env, W, bodyH, bodyTop) {
-  if (state.mode === 'menu') return renderHome(state, env, W, bodyH, bodyTop)
   if (state.mode === 'console') return renderConsole(state, env, W, bodyH, bodyTop)
   if (state.mode === 'config') return renderConfig(state, env, W, bodyH, bodyTop, 0)
   if (state.mode === 'session') return renderSession(state, env, W, bodyH, bodyTop, 0)
@@ -578,41 +661,33 @@ function renderMain(state, env, W, bodyH, bodyTop) {
 }
 
 function renderHome(state, env, W, bodyH, bodyTop) {
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const { config, session } = env
   const list = homeList(state)
   state.sel = Math.min(state.sel, Math.max(0, list.length - 1))
 
-  const big = W >= 62
-  const bw = Math.max(28, Math.min(74, W - 6))
-  const left = Math.max(0, Math.floor((W - bw) / 2))
+  const bw = Math.max(28, Math.min(75, W - 4))
+  const left = Math.max(1, Math.floor((W - bw) / 2))
   const padL = ' '.repeat(left)
   const listRows = Math.min(8, list.length)
-  const contentH = (big ? LOGO.length + 2 : 2) + 3 + listRows + 1
-  const top = Math.max(0, Math.floor((bodyH - contentH) / 3))
+  const logo = W >= 40 ? logoLines(theme, W) : []
+  const contentH = logo.length + 1 + 4 + 1 + listRows + 1
+  const top = Math.max(0, Math.floor((bodyH - contentH) * 0.42))
   const rows = Array.from({ length: top }, () => '')
-  const bodyStart = bodyTop + rows.length
 
-  if (big) {
-    for (const line of LOGO) rows.push(padL + gradient(line, theme))
-    rows.push(padL + `  ${accent('🌊 Terminal del bot', theme)} ${DIM}· todo TomiOka desde una sola pantalla 💧${RESET}`)
-    rows.push('')
-  } else {
-    rows.push(padL + accent('🌊 TomiOka', theme))
-    rows.push('')
-  }
+  const logoLeft = Math.max(0, Math.floor((W - (logo[0] ? textWidth(logo[0]) : 0)) / 2))
+  for (const line of logo) rows.push(' '.repeat(logoLeft) + line)
+  if (logo.length) rows.push('')
 
-  const inner = bw - 4
-  const query = state.homeQuery
-  const promptText = query
-    ? `› ${query}${COLOR_OK ? `${bg(theme.a)} ${RESET}` : '█'}`
-    : `› ${DIM}Escribí para buscar… (pairing, sticker, tema)${RESET}`
-  const linkedTxt = session?.registered ? '🟢 vinculado' : '🔴 sin sesión'
-  rows.push(padL + `${DIM}╭${'─'.repeat(bw - 2)}╮${RESET}`)
-  rows.push(padL + `${DIM}│${RESET} ${pad(promptText, inner)} ${DIM}│${RESET}`)
-  rows.push(padL + `${DIM}│${RESET} ${pad(`${DIM}🌊 ${clip(config.bot.name, 26)} · prefijo ${config.prefixes[0]} · ${linkedTxt}${RESET}`, inner)} ${DIM}│${RESET}`)
-  rows.push(padL + `${DIM}╰${'─'.repeat(bw - 2)}╯${RESET}`)
+  const meta = `${rgb(palette.primary)}${ESC}[1m${clip(config.bot.name, 24)}${RESET}${bgc(palette.panel)} ${rgb(palette.muted)}· bot de WhatsApp · prefijo ${config.prefixes[0]} · ${session?.registered ? 'vinculado' : 'sin sesión'}${RESET}${bgc(palette.panel)}`
+  const box = promptBox({ theme, width: bw, input: promptInputText(state, theme, 'Buscá una acción… (ej: pairing, sticker, tema)'), meta })
+  for (const line of box) rows.push(padL + line)
 
+  const location = ROOT.replace(/^.*\/home\/[^/]+/, '~')
+  rows.push(padL + `${rgb(palette.muted)}${clip(location, 30)}${RESET}${' '.repeat(Math.max(1, bw - 30 - 22))}${rgb(palette.text)}ctrl+p${RESET} ${rgb(palette.muted)}commands${RESET}  ${rgb(palette.text)}?${RESET} ${rgb(palette.muted)}help${RESET}`)
+
+  const listTop = bodyTop + rows.length
   const start = windowStart(state.sel, list.length, listRows)
   for (let i = 0; i < listRows; i += 1) {
     const index = start + i
@@ -620,79 +695,93 @@ function renderHome(state, env, W, bodyH, bodyTop) {
     if (!item) break
     const running = item.id === 'console' && env.bot?.running ? ' ⏺' : ''
     const text = `${item.icon} ${item.label}${running}`
-    const line = index === state.sel
-      ? selectedPaint(pad(` ${text} `, bw - 2), theme)
-      : `${DIM} ${RESET}${pad(` ${text}`, bw - 2)}`
-    state.hit[bodyStart + rows.length] = { kind: 'section', index, itemId: item.id, x1: left, x2: left + bw }
+    const line = index === state.sel ? ocSelected(pad(` ${text} `, bw), theme) : `${rgb(palette.text)} ${pad(text, bw - 1)}${RESET}`
+    state.hit[listTop + i] = { kind: 'section', index, itemId: item.id, x1: left, x2: left + bw }
     rows.push(padL + line)
   }
-  if (!list.length) rows.push(padL + `${DIM} Sin resultados para «${clip(query, 30)}»${RESET}`)
+  if (!list.length) rows.push(padL + `${rgb(palette.muted)}Sin resultados para «${clip(state.homeQuery, 30)}»${RESET}`)
   rows.push('')
-  rows.push(padL + `${DIM}enter abrir · ctrl+p comandos · ctrl+x atajos · ? ayuda${RESET}`)
+  rows.push(padL + `${rgb(palette.muted)}↑↓ navegar · enter abrir · ctrl+x atajos de OpenCode${RESET}`)
   return rows.slice(0, bodyH)
 }
+
 function renderConsole(state, env, W, bodyH, bodyTop) {
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const bot = env.bot || { running: false, title: '', lines: [] }
-  const wide = W >= 92
-  const sideW = wide ? 30 : 0
-  const mainW = W - (wide ? sideW + 3 : 0)
+  const wide = W >= 100
+  const sideW = wide ? Math.min(42, Math.floor(W * 0.36)) : 0
+  const mainW = W - (wide ? sideW + 1 : 0)
 
   const spin = bot.running ? SPINNER[state.tick % SPINNER.length] : '⏹'
-  const title = ` ${accent(`${spin} ${bot.title || 'Consola del bot'}`, theme)} ${DIM}${bot.running ? '· corriendo' : '· detenido'}${state.follow ? '' : ' · ⬇ hay líneas nuevas (G para seguir)'}${RESET}`
+  const title = ` ${rgb(palette.text)}${ESC}[1m${spin} ${clip(bot.title || 'Consola del bot', mainW - 24)}${RESET} ${rgb(palette.muted)}${bot.running ? 'corriendo' : 'detenido'}${state.follow ? '' : ' · ⬇ líneas nuevas (G para seguir)'}${RESET}`
   const all = bot.lines || []
-  const boxH = 3
-  const viewH = Math.max(1, bodyH - 2 - boxH)
+  const viewH = Math.max(1, bodyH - 2 - 5)
   const maxStart = Math.max(0, all.length - viewH)
   const start = state.follow ? maxStart : Math.min(state.botScroll, maxStart)
 
-  const main = [title, `${DIM} ${'─'.repeat(Math.max(4, mainW - 2))}${RESET}`]
-  if (!all.length) main.push(` ${DIM}La consola está vacía. Inicia el bot o vincula para ver la actividad.${RESET}`)
+  const main = [title, '']
+  if (!all.length) main.push(` ${rgb(palette.muted)}La consola está vacía. Inicia el bot o vincula para ver la actividad.${RESET}`)
   for (const line of all.slice(start, start + viewH)) main.push(` ${clip(line, mainW - 1)}`)
   while (main.length < 2 + viewH) main.push('')
 
-  const bw = Math.max(24, mainW - 2)
-  const inputText = state.consoleInput
-    ? `› ${state.consoleBuffer}${COLOR_OK ? `${bg(theme.a)} ${RESET}` : '█'}`
-    : `› ${DIM}${bot.running ? 'Pulsá i para escribir al bot…' : 'El bot está detenido · r para reiniciar'}${RESET}`
-  main.push(`${DIM}╭${'─'.repeat(bw - 2)}╮${RESET}`)
-  main.push(`${DIM}│${RESET} ${pad(inputText, bw - 4)} ${DIM}│${RESET}`)
-  main.push(`${DIM}│${RESET} ${pad(`${DIM}bot · ${bot.running ? 'corriendo' : 'detenido'} · x detener · r reiniciar · esc volver${RESET}`, bw - 4)} ${DIM}│${RESET}`)
-  main.push(`${DIM}╰${'─'.repeat(bw - 2)}╯${RESET}`)
+  const input = state.consoleInput
+    ? `${rgb(palette.text)}${state.consoleBuffer}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.panel)}` : '█'}`
+    : `${rgb(palette.muted)}${bot.running ? 'Escribí al bot… (enter para enviar)' : 'El bot está detenido · r para reiniciar'}${state.consoleInput ? '' : ''}`
+  const editLine = state.consoleInput || true
+    ? (state.consoleInput ? input : `${rgb(palette.muted)}Pulsá i para escribir al bot…${RESET}${bgc(palette.panel)}`)
+    : input
+  const meta = `${rgb(palette.primary)}${ESC}[1mbot${RESET}${bgc(palette.panel)} ${rgb(palette.muted)}· ${bot.running ? 'corriendo' : 'detenido'} · ${all.length} líneas${RESET}${bgc(palette.panel)}`
+  for (const line of promptBox({ theme, width: mainW, input: state.consoleInput ? input : editLine, meta })) main.push(line)
+  main.push(` ${rgb(palette.muted)}${state.follow ? 'siguiendo la salida' : 'scroll manual'}${RESET}${' '.repeat(Math.max(1, mainW - 24 - 30))}${rgb(palette.text)}x${RESET} ${rgb(palette.muted)}detener${RESET}  ${rgb(palette.text)}r${RESET} ${rgb(palette.muted)}reiniciar${RESET}  ${rgb(palette.text)}esc${RESET} ${rgb(palette.muted)}volver${RESET}`)
 
   if (!wide) return main.slice(0, bodyH)
 
   const { config, session } = env
-  const side = [
-    accent('Contexto', theme),
-    `${DIM}${'─'.repeat(sideW - 2)}${RESET}`,
-    `${DIM}Sesión${RESET}  ${describeSession(session)}`,
-    `${DIM}Número${RESET}  ${session.me ? String(session.me).split('@')[0] : '—'}`,
-    `${DIM}Prefijo${RESET} ${config.prefixes.join(' ')}`,
-    `${DIM}Login${RESET}   ${config.login}`,
-    `${DIM}Owners${RESET}  ${config.owner.numbers.length}`,
-    `${DIM}Tema${RESET}    ${theme.name}`,
+  const muted = (t) => `${rgb(palette.muted)}${t}${RESET}`
+  const head = (t) => `${rgb(palette.text)}${ESC}[1m${t}${RESET}`
+  const sidePlain = [
+    head('Sesión'),
+    muted(describeSession(session)),
     '',
-    accent('Consola', theme),
-    `${DIM}${'─'.repeat(sideW - 2)}${RESET}`,
-    bot.running ? '⏺ corriendo' : '⏹ detenido',
-    `${all.length} líneas de registro`,
+    head('Contexto'),
+    `${muted('Número')}  ${session.me ? String(session.me).split('@')[0] : '—'}`,
+    `${muted('Prefijo')} ${config.prefixes.join(' ')}`,
+    `${muted('Login')}   ${config.login}`,
+    `${muted('Owners')}  ${config.owner.numbers.length}`,
+    `${muted('Tema')}    ${theme.name}`,
     '',
-    `${DIM}ctrl+x luego:${RESET}`,
-    `${DIM} c${RESET} consola  ${DIM}p${RESET} pairing`,
-    `${DIM} e${RESET} editar   ${DIM}m${RESET} menú`,
-    `${DIM} k${RESET} comandos ${DIM}x${RESET} salir`
+    head('Consola'),
+    bot.running ? `${rgb(palette.success)}⏺${RESET} corriendo` : '⏹ detenido',
+    muted(`${all.length} líneas de registro`),
+    '',
+    muted('ctrl+x y después:'),
+    `${rgb(palette.text)}c${RESET} ${muted('consola')}  ${rgb(palette.text)}p${RESET} ${muted('pairing')}`,
+    `${rgb(palette.text)}e${RESET} ${muted('editar')}   ${rgb(palette.text)}m${RESET} ${muted('menú')}`,
+    `${rgb(palette.text)}k${RESET} ${muted('comandos')} ${rgb(palette.text)}x${RESET} ${muted('salir')}`
   ]
-  return main.slice(0, bodyH).map((line, i) => `${pad(line, mainW)} ${DIM}│${RESET} ${side[i] || ''}`)
+  const side = sidePlain.map((line) => `${bgc(palette.panel)} ${pad(line, sideW - 1)}${RESET}`)
+  return main.slice(0, bodyH).map((line, i) => `${pad(line, mainW)}${side[i] || ''}`)
+}
+
+function viewHeader(state, env, W, title) {
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
+  return [
+    ` ${rgb(palette.text)}${ESC}[1m${title}${RESET}`,
+    ` ${rgb(palette.muted)}${HINTS[state.mode] || ''}${RESET}`,
+    ''
+  ]
 }
 
 function renderConfig(state, env, W, bodyH, bodyTop, x0) {
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const fields = editFields(env.config)
-  const detailH = 4
-  const listH = Math.max(1, bodyH - detailH)
+  const rows = viewHeader(state, env, W, 'Editar configuración')
+  const detailH = 3
+  const listH = Math.max(1, bodyH - rows.length - detailH)
   const start = windowStart(state.configSel, fields.length, listH)
-  const rows = []
   for (let r = 0; r < listH; r += 1) {
     const index = start + r
     const field = fields[index]
@@ -701,147 +790,148 @@ function renderConfig(state, env, W, bodyH, bodyTop, x0) {
     const label = pad(field.label, labelW)
     const value = field.cycle ? `${field.value} ⇄` : field.value
     const line = index === state.configSel
-      ? selectedPaint(pad(` ${label} ${clip(value, W - labelW - 4)} `, W - x0), theme)
-      : `  ${label} ${DIM}${clip(value, W - labelW - 4)}${RESET}`
-    state.hit[bodyTop + r] = { kind: 'field', index, x1: x0, x2: W }
+      ? ocSelected(pad(` ${label} ${clip(value, W - labelW - 4)}`, W - x0), theme)
+      : `  ${rgb(palette.text)}${label}${RESET} ${rgb(palette.muted)}${clip(value, W - labelW - 4)}${RESET}`
+    state.hit[bodyTop + rows.length] = { kind: 'field', index, x1: x0, x2: W }
     rows.push(line)
   }
   const field = fields[state.configSel]
-  rows.push(`${DIM} ${'─'.repeat(Math.min(W - 2, 70))}${RESET}`)
-  if (state.fieldError) rows.push(clip(` ${'\x1b[31m'}✖ ${state.fieldError}${RESET}`, W))
-  else if (field) rows.push(clip(` ${DIM}${field.about || ''}${RESET}`, W))
-  rows.push(` ${DIM}${field?.cycle ? 'enter cambia el valor' : 'enter para escribir el nuevo valor'} · se guarda en config.json (respaldo .bak)${RESET}`)
-  rows.push('')
+  if (state.fieldError) rows.push(` ${ESC}[38;2;224;108;117m✖ ${state.fieldError}${RESET}`)
+  else if (field) rows.push(` ${rgb(palette.muted)}${field.about || ''}${RESET}`)
+  rows.push(` ${rgb(palette.muted)}${field?.cycle ? 'enter cambia el valor' : 'enter para escribir el nuevo valor'} · se guarda en config.json (respaldo .bak)${RESET}`)
   return rows.slice(0, bodyH)
 }
 
 function renderSession(state, env, W, bodyH, bodyTop, x0) {
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const { config, session } = env
-  const rows = [
-    ` ${accent('💾 Sesión de WhatsApp', theme)}`,
-    '',
-    `  ${DIM}Estado   ${RESET}${describeSession(session)}`,
-    `  ${DIM}Número   ${RESET}${session.me ? String(session.me).split('@')[0] : '—'}`,
-    `  ${DIM}Archivos ${RESET}${session.files} · creds ${formatBytes(session.bytes)}`,
-    `  ${DIM}Carpeta  ${RESET}${clip(config.sessionDir, W - 13)}`,
-    `  ${DIM}Respaldos${RESET} ${env.backups?.length ? env.backups.slice(0, 3).join(', ') + (env.backups.length > 3 ? ` y ${env.backups.length - 3} más` : '') : 'ninguno'}`,
+  const rows = viewHeader(state, env, W, 'Sesión y respaldos')
+  rows.push(
+    `  ${rgb(palette.muted)}Estado   ${RESET}${describeSession(session)}`,
+    `  ${rgb(palette.muted)}Número   ${RESET}${session.me ? String(session.me).split('@')[0] : '—'}`,
+    `  ${rgb(palette.muted)}Archivos ${RESET}${session.files} · creds ${formatBytes(session.bytes)}`,
+    `  ${rgb(palette.muted)}Carpeta  ${RESET}${clip(config.sessionDir, W - 13)}`,
+    `  ${rgb(palette.muted)}Respaldos${RESET} ${env.backups?.length ? env.backups.slice(0, 3).join(', ') + (env.backups.length > 3 ? ` y ${env.backups.length - 3} más` : '') : 'ninguno'}`,
     ''
-  ]
+  )
   SESSION_ACTIONS.forEach((action, index) => {
     const text = `${action.icon} ${action.label}`
-    const line = index === state.sessionSel ? selectedPaint(pad(` ${text} `, W - x0), theme) : pad(`  ${text}`, W - x0)
+    const line = index === state.sessionSel ? ocSelected(pad(` ${text}`, W - x0), theme) : `  ${rgb(palette.text)}${text}${RESET}`
     state.hit[bodyTop + rows.length] = { kind: 'session-action', index, x1: x0, x2: W }
     rows.push(line)
   })
-  rows.push('', ` ${DIM}${SESSION_ACTIONS[state.sessionSel]?.hint || ''}${RESET}`)
+  rows.push('', ` ${rgb(palette.muted)}${SESSION_ACTIONS[state.sessionSel]?.hint || ''}${RESET}`)
   return rows.slice(0, bodyH)
 }
 
 function renderViewer(state, env, W, bodyH) {
-  const theme = env.theme || THEMES.ocean
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
   const viewer = state.viewer
   const { lines, matches } = viewerLines(viewer)
   const searching = viewer.searching || (viewer.filterable && viewer.query)
-  const headH = searching ? 2 : 1
-  const viewH = Math.max(1, bodyH - headH)
+  const rows = viewHeader(state, env, W, viewer.title)
+  if (searching) {
+    rows.push(` ${rgb(palette.primary)}🔎${RESET} ${viewer.query}${viewer.searching ? (COLOR_OK ? `${bgc(palette.primary)} ${RESET}` : '█') : ''} ${rgb(palette.muted)}${matches.length} coincidencia(s)${RESET}`)
+  }
+  const viewH = Math.max(1, bodyH - rows.length)
   const maxScroll = Math.max(0, lines.length - viewH)
   const scroll = Math.min(viewer.scroll, maxScroll)
-  const rows = []
-  if (searching) {
-    rows.push(` ${accent('🔎', theme, false)} ${viewer.query}${viewer.searching ? (COLOR_OK ? `${bg(theme.a)} ${RESET}` : '█') : ''} ${DIM}${matches.length} coincidencia(s) · línea ${Math.min(scroll + 1, lines.length)}/${lines.length}${RESET}`)
-    rows.push(`${DIM} ${'─'.repeat(Math.min(W - 2, 70))}${RESET}`)
-  } else {
-    rows.push(` ${DIM}${lines.length} líneas · ${scroll + 1}/${Math.max(1, lines.length)}${RESET}`)
-  }
-  for (const line of lines.slice(scroll, scroll + viewH)) rows.push(` ${clip(line, W - 1)}`)
+  rows.push(` ${rgb(palette.muted)}${lines.length} líneas · ${Math.min(scroll + 1, lines.length)}/${lines.length}${RESET}`)
+  for (const line of lines.slice(scroll, scroll + viewH - 1)) rows.push(` ${clip(line, W - 1)}`)
   return rows.slice(0, bodyH)
 }
 
-function renderOverlay(state, env, W, bodyH, bodyTop) {
-  const theme = env.theme || THEMES.ocean
+function dimLine(line) {
+  return `${ESC}[2m${line}${RESET}`
+}
+
+function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
+  const theme = env.theme || THEMES.opencode
+  const palette = pal(theme)
+  const base = (baseLines || []).map((line) => dimLine(line))
   let box = []
-  let boxW = 44
-  let buttons = null
+  let boxW = 60
+  let dialogBg = palette.bg
+
+  const wrap = (content, width) => `${bgc(dialogBg)} ${pad(content, width)} ${RESET}`
+  const headerRow = (title, width) => wrap(`${rgb(palette.text)}${ESC}[1m${title}${RESET}${bgc(dialogBg)}${' '.repeat(Math.max(1, width - textWidth(title) - 3))}${rgb(palette.muted)}esc${RESET}${bgc(dialogBg)}`, width + 2)
 
   if (state.overlay === 'palette') {
     const list = paletteList(state, env)
     state.palette.sel = Math.min(state.palette.sel, Math.max(0, list.length - 1))
-    boxW = Math.min(68, W - 4)
-    const inner = boxW - 4
+    boxW = Math.min(60, W - 2)
+    const inner = boxW - 6
     const shown = 9
     const start = windowStart(state.palette.sel, list.length, shown)
-    const wrap = (content) => `${DIM}│${RESET} ${pad(content, inner)} ${DIM}│${RESET}`
-    box = [
-      `${DIM}╭${'─'.repeat(boxW - 2)}╮${RESET}`,
-      wrap(accent('Paleta de comandos', theme)),
-      wrap(`› ${state.palette.query}${COLOR_OK ? `${bg(theme.a)} ${RESET}` : '█'}`),
-      wrap(`${DIM}${'─'.repeat(inner)}${RESET}`)
-    ]
-    if (!list.length) box.push(wrap(`${DIM}Sin resultados${RESET}`))
+    box = [wrap('', inner + 2), headerRow('Paleta de comandos', inner + 2)]
+    box.push(wrap(`${bgc(palette.element)} ${state.palette.query ? rgb(palette.text) + state.palette.query : rgb(palette.muted) + 'Buscar…'}${state.palette.query ? (COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.element)}` : '█') : ''}`, inner + 2))
+    box.push(wrap('', inner + 2))
+    if (!list.length) box.push(wrap(`   ${rgb(palette.muted)}Sin resultados${RESET}${bgc(dialogBg)}`, inner + 2))
     for (let n = 0; n < shown; n += 1) {
       const index = start + n
       const action = list[index]
       if (!action) break
-      const content = index === state.palette.sel ? selectedPaint(pad(` ${action.title} `, inner), theme) : `  ${action.title}`
+      const isField = String(action.id || '').startsWith('field:')
+      const kind = isField ? 'config' : 'acción'
+      const title = clip(action.title, 30)
+      const right = `${rgb(palette.muted)}${kind}${RESET}`
+      const content = index === state.palette.sel
+        ? ocSelected(pad(` ${title}`, inner - 8), theme) + ` ${right}`
+        : `   ${rgb(palette.text)}${title}${RESET}${bgc(dialogBg)} ${rgb(palette.muted)}${clip(action.hint || '', inner - 34)}${RESET}${bgc(dialogBg)}`
       box._hits = box._hits || {}
       box._hits[box.length] = { kind: 'palette', index }
-      box.push(wrap(content))
+      box.push(wrap(content, inner + 2))
     }
     const current = list[state.palette.sel]
-    if (current) box.push(wrap(`${DIM}${clip(current.hint || '', inner)}${RESET}`))
-    box.push(wrap(`${DIM}enter abrir · esc cerrar${RESET}`))
-    box.push(`${DIM}╰${'─'.repeat(boxW - 2)}╯${RESET}`)
+    if (current) box.push(wrap(`   ${rgb(palette.muted)}${clip(current.hint || '', inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap(`${rgb(palette.muted)}↑↓ navegar · enter abrir · esc cerrar${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap('', inner + 2))
   } else if (state.overlay === 'input' && state.input) {
-    boxW = Math.min(62, W - 4)
-    const inner = boxW - 4
-    box = [
-      `${DIM}╭${'─'.repeat(boxW - 2)}╮${RESET}`,
-      `${DIM}│${RESET} ${pad(accent(state.input.title, theme), inner)} ${DIM}│${RESET}`,
-      `${DIM}│${RESET} ${pad(`› ${state.buffer}${COLOR_OK ? `${bg(theme.a)} ${RESET}` : '█'}`, inner)} ${DIM}│${RESET}`
-    ]
-    if (state.fieldError) box.push(`${DIM}│${RESET} ${pad(`${'\x1b[31m'}✖ ${state.fieldError}${RESET}`, inner)} ${DIM}│${RESET}`)
-    if (state.input.hint) box.push(`${DIM}│${RESET} ${pad(`${DIM}${clip(state.input.hint, inner)}${RESET}`, inner)} ${DIM}│${RESET}`)
-    box.push(`${DIM}│${RESET} ${pad(`${DIM}enter confirmar · esc cancelar${RESET}`, inner)} ${DIM}│${RESET}`)
-    box.push(`${DIM}╰${'─'.repeat(boxW - 2)}╯${RESET}`)
+    boxW = Math.min(60, W - 2)
+    const inner = boxW - 6
+    box = [wrap('', inner + 2), headerRow(state.input.title, inner + 2), wrap('', inner + 2)]
+    box.push(wrap(`${bgc(palette.element)} ${rgb(palette.text)}${state.buffer}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.element)}` : '█'}`, inner + 2))
+    if (state.fieldError) box.push(wrap(`${ESC}[38;2;224;108;117m✖ ${state.fieldError}${RESET}${bgc(dialogBg)}`, inner + 2))
+    if (state.input.hint) box.push(wrap(`${rgb(palette.muted)}${clip(state.input.hint, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap(`${rgb(palette.muted)}enter confirmar · esc cancelar${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap('', inner + 2))
   } else if (state.overlay === 'confirm' && state.confirm) {
-    boxW = Math.min(58, W - 4)
-    const inner = boxW - 4
+    boxW = Math.min(60, W - 2)
+    const inner = boxW - 6
     const cancelTxt = '  Cancelar  '
     const okTxt = `  ${state.confirm.okLabel}  `
-    const cancel = state.confirmSel === 0 ? selectedPaint(cancelTxt, theme) : cancelTxt
-    const ok = state.confirmSel === 1 ? selectedPaint(okTxt, theme) : `${ESC}[31m${okTxt}${RESET}`
-    box = [
-      `${DIM}╭${'─'.repeat(boxW - 2)}╮${RESET}`,
-      `${DIM}│${RESET} ${pad(accent(state.confirm.title, theme), inner)} ${DIM}│${RESET}`
-    ]
-    for (const line of String(state.confirm.body || '').split('\n')) box.push(`${DIM}│${RESET} ${pad(clip(line, inner), inner)} ${DIM}│${RESET}`)
-    box.push(`${DIM}│${RESET} ${' '.repeat(inner)} ${DIM}│${RESET}`)
+    const cancel = state.confirmSel === 0 ? ocSelected(cancelTxt, theme) : `${rgb(palette.muted)}${cancelTxt}${RESET}`
+    const ok = state.confirmSel === 1 ? ocSelected(okTxt, theme) : `${ESC}[38;2;224;108;117m${okTxt}${RESET}`
+    box = [wrap('', inner + 2), headerRow(state.confirm.title, inner + 2), wrap('', inner + 2)]
+    for (const line of String(state.confirm.body || '').split('\n')) box.push(wrap(`  ${rgb(palette.text)}${clip(line, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap('', inner + 2))
     const btnRow = box.length
-    box.push(`${DIM}│${RESET} ${pad(`   ${cancel}    ${ok}`, inner)} ${DIM}│${RESET}`)
-    box.push(`${DIM}╰${'─'.repeat(boxW - 2)}╯${RESET}`)
-    buttons = { row: btnRow, items: [{ which: 0, xoff: 5, len: cancelTxt.length }, { which: 1, xoff: 5 + cancelTxt.length + 4, len: okTxt.length }] }
+    box.push(wrap(`   ${cancel}${bgc(dialogBg)}    ${ok}`, inner + 2))
+    box.push(wrap('', inner + 2))
+    box._buttons = { row: btnRow, items: [{ which: 0, xoff: 5, len: cancelTxt.length }, { which: 1, xoff: 5 + cancelTxt.length + 4, len: okTxt.length }] }
   } else if (state.overlay === 'help') {
-    boxW = Math.min(66, W - 4)
-    const inner = boxW - 4
-    box = [
-      `${DIM}╭${'─'.repeat(boxW - 2)}╮${RESET}`,
-      `${DIM}│${RESET} ${pad(accent('❓ Ayuda y atajos', theme), inner)} ${DIM}│${RESET}`
-    ]
-    for (const line of HELP_LINES.slice(0, Math.max(1, bodyH - 4))) box.push(`${DIM}│${RESET} ${pad(clip(line, inner), inner)} ${DIM}│${RESET}`)
-    box.push(`${DIM}╰${'─'.repeat(boxW - 2)}╯${RESET}`)
+    boxW = Math.min(88, W - 2)
+    const inner = boxW - 6
+    box = [wrap('', inner + 2), headerRow('Ayuda y atajos', inner + 2), wrap('', inner + 2)]
+    for (const line of HELP_LINES.slice(0, Math.max(1, bodyH - 10))) box.push(wrap(`  ${rgb(palette.text)}${clip(line, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
+    box.push(wrap('', inner + 2))
   }
 
   const leftPad = Math.max(0, Math.floor((W - boxW) / 2))
-  const topPad = Math.max(0, Math.floor((bodyH - box.length) / 2))
-  const rows = Array.from({ length: topPad }, () => '')
+  const topPad = Math.max(0, Math.floor(bodyH / 4))
+  const rows = base.slice(0, bodyH)
+  while (rows.length < bodyH) rows.push('')
   box.forEach((line, i) => {
-    if (box._hits?.[i]) state.hit[bodyTop + topPad + i] = { ...box._hits[i], x1: leftPad, x2: leftPad + boxW }
-    rows.push(' '.repeat(leftPad) + line)
+    const rowIndex = topPad + i
+    if (rowIndex >= bodyH) return
+    if (box._hits?.[i]) state.hit[bodyTop + rowIndex] = { ...box._hits[i], x1: leftPad, x2: leftPad + boxW }
+    rows[rowIndex] = ' '.repeat(leftPad) + line
   })
-  if (buttons) {
-    const absRow = bodyTop + topPad + buttons.row
-    state.hit[absRow] = buttons.items.map((btn) => ({ kind: 'confirm-btn', which: btn.which, x1: leftPad + btn.xoff, x2: leftPad + btn.xoff + btn.len }))
+  if (box._buttons) {
+    const absRow = bodyTop + topPad + box._buttons.row
+    state.hit[absRow] = box._buttons.items.map((btn) => ({ kind: 'confirm-btn', which: btn.which, x1: leftPad + btn.xoff + 1, x2: leftPad + btn.xoff + 1 + btn.len }))
   }
   return rows
 }
@@ -905,9 +995,9 @@ function saveRawConfig(cfg) {
 function loadUiTheme() {
   try {
     const data = JSON.parse(readFileSync(STATE_FILE, 'utf8'))
-    return THEMES[data.theme] ? data.theme : 'ocean'
+    return THEMES[data.theme] ? data.theme : 'opencode'
   } catch {
-    return 'ocean'
+    return 'opencode'
   }
 }
 
@@ -1060,6 +1150,7 @@ async function main() {
   function cycleTheme() {
     const next = THEME_ORDER[(THEME_ORDER.indexOf(theme.id) + 1) % THEME_ORDER.length]
     theme = THEMES[next]
+    setTerminalBg()
     saveUiTheme(next)
     refreshEnv()
     state.toast = `🎨 Tema ${theme.name}`
@@ -1170,9 +1261,14 @@ async function main() {
   let prevFrame = []
   let prevSize = ''
 
+  const hexOf = (color) => `#${color.map((v) => v.toString(16).padStart(2, '0')).join('')}`
+  const setTerminalBg = () => { try { process.stdout.write(`${ESC}]11;${hexOf(pal(theme).bg)}\x07`) } catch { /* terminal sin OSC */ } }
+
   function splashFrame(W, H) {
     const lines = Array.from({ length: H }, () => '')
-    const art = [...LOGO.map((line) => gradient(line, theme)), '', accent('🌊 Terminal del bot', theme), '\x1b[90mCargando tu océano…\x1b[0m']
+    const palette = pal(theme)
+    const spin = SPINNER[state.tick % SPINNER.length]
+    const art = [...logoLines(theme, W), '', `${rgb(palette.muted)}${spin} Cargando tu océano…${RESET}`]
     const top = Math.max(0, Math.floor((H - art.length) / 2))
     art.forEach((line, i) => {
       const left = ' '.repeat(Math.max(0, Math.floor((W - textWidth(line)) / 2)))
@@ -1202,7 +1298,7 @@ async function main() {
   }
 
   const cleanup = () => {
-    try { process.stdout.write(`${ESC}[?1000l${ESC}[?1006l${ESC}[?25h${ESC}[?1049l`) } catch { /* nada */ }
+    try { process.stdout.write(`${ESC}]111\x07${ESC}[?1000l${ESC}[?1006l${ESC}[?25h${ESC}[?1049l`) } catch { /* nada */ }
     try { process.stdin.setRawMode(false) } catch { /* sin TTY */ }
   }
 
@@ -1527,6 +1623,7 @@ async function main() {
   /* --------------------------------------------------------------- arranque */
 
   process.stdout.write(`${ESC}[?1049h${ESC}[?1000h${ESC}[?1006h${ESC}[?25l`)
+  setTerminalBg()
   process.on('exit', cleanup)
   process.on('SIGTERM', doQuit)
   process.stdout.on('resize', () => render(true))
