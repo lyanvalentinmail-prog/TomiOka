@@ -1520,6 +1520,10 @@ async function main() {
     if (!input) return
     if (input.kind === 'pair') {
       const digits = state.buffer.replace(/\D/g, '')
+      if (!digits && !env.config.pairingPhone) {
+        state.fieldError = 'Escribí el número con código de país (en la config está vacío).'
+        return
+      }
       if (digits && (digits.length < 8 || digits.length > 15)) {
         state.fieldError = 'El teléfono debe tener entre 8 y 15 dígitos con código de país.'
         return

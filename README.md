@@ -461,7 +461,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 231 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 236 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
