@@ -27,7 +27,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (238 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (242 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los ocho endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -170,7 +170,10 @@ la rueda hace scroll y un clic abre. En las listas largas,
 
 Lo mejor: el bot corre **dentro de la terminal**, en una consola en vivo
 con sus logs: el pairing code y el QR se ven ahí mismo, sin cambiar de
-pantalla. Con `i` escribes al bot, `r` lo reinicia y `x` lo detiene.
+pantalla. Con `i` escribes al bot, `r` lo reinicia y `x` lo detiene. Al
+vincular con pairing code no hay formularios: el bot te pide el número
+**en la consola misma** (la escritura se enfoca sola), lo tipeás con
+código de país, das Enter y el código de 8 dígitos sale ahí mismo.
 
 Desde ahí puedes iniciar el bot, vincular con pairing code o QR, ver el
 panel de estado (sesión, sistema y actividad, se refresca solo),
@@ -456,7 +459,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (238 pruebas)
+├── tests/                   # node --test (242 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -466,7 +469,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 238 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 242 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

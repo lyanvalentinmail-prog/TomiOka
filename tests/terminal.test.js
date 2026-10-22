@@ -334,6 +334,13 @@ test('parseKeys reconoce Ctrl+H, Delete y atajos de edición', () => {
   assert.deepEqual(parseKeys('\x1bOA\x1bOB').map((k) => k.name), ['up', 'down'], 'también acepta flechas SS3 de algunos Termux')
 })
 
+test('el pairing se hace escribiendo el número en la consola (sin QR)', () => {
+  const source = readFileSync(new URL('../scripts/terminal.js', import.meta.url), 'utf8')
+  assert.ok(source.includes("TOMIOKA_CONSOLE: '1'"), 'la consola avisa al bot que puede preguntar')
+  assert.ok(source.includes("spawnConsole('Vincular · pairing code'"), 'pairing arranca directo en la consola')
+  assert.ok(!source.includes("kind: 'pair'"), 'ya no hay diálogo previo de número')
+})
+
 test('la terminal queda expuesta como script npm y cubre las acciones del bot', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
   assert.equal(pkg.scripts.terminal, 'node scripts/terminal.js')

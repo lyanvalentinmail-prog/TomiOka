@@ -316,7 +316,7 @@ export function pad(text, width) {
 
 export const MENU_ITEMS = [
   { id: 'console', icon: '▶', label: 'Iniciar el bot', hint: 'Consola en vivo dentro de la terminal' },
-  { id: 'pair', icon: '🔢', label: 'Vincular · pairing code', hint: 'El código sale en la consola, sin salir de acá' },
+  { id: 'pair', icon: '🔢', label: 'Vincular · pairing code', hint: 'Tipeá tu número en la consola y ahí sale el código' },
   { id: 'qr', icon: '📷', label: 'Vincular · código QR', hint: 'El QR se dibuja en la consola' },
   { id: 'status', icon: '🌊', label: 'Estado del bot', hint: 'Panel con sesión, sistema y actividad' },
   { id: 'config', icon: '✏️', label: 'Editar configuración', hint: 'Nombre, prefijo, owners, pack, banner y más' },
@@ -1384,7 +1384,7 @@ async function main() {
 
   /* ---------------------------------------------------------- consola viva */
 
-  function spawnConsole(title, argv, cmd = process.execPath) {
+  function spawnConsole(title, argv, cmd = process.execPath, { focusInput = false } = {}) {
     const start = () => {
       bot.buffer.push(`\n🌊 ${title}\n`)
       bot.title = title
@@ -1393,11 +1393,20 @@ async function main() {
       bot.running = true
       state.mode = 'console'
       state.follow = true
-      state.consoleInput = false
-      const proc = spawn(cmd, argv, { cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env } })
+      state.consoleInput = focusInput
+      // TOMIOKA_CONSOLE=1: el bot sabe que puede preguntar por la consola
+      // (número de pairing, elegir método) y que el usuario responde ahí.
+      const proc = spawn(cmd, argv, { cwd: ROOT, stdio: ['pipe', 'pipe', 'pipe'], env: { ...process.env, TOMIOKA_CONSOLE: '1' } })
       bot.proc = proc
-      proc.stdout.on('data', (data) => { bot.buffer.push(data); dirty = true })
-      proc.stderr.on('data', (data) => { bot.buffer.push(data); dirty = true })
+      const onData = (data) => {
+        bot.buffer.push(data)
+        // Si el bot está preguntando algo, se enfoca la escritura sola:
+        // el usuario tipea el número y Enter, sin acordarse de la «i».
+        if (/(Número:|Número de WhatsApp|¿Cómo quieres vincular)/.test(String(data))) state.consoleInput = true
+        dirty = true
+      }
+      proc.stdout.on('data', onData)
+      proc.stderr.on('data', onData)
       proc.on('error', (error) => {
         bot.buffer.push(`\n✖ No se pudo iniciar: ${error.message}`)
         bot.running = false
@@ -1576,12 +1585,10 @@ async function main() {
       if (!bot.running) spawnConsole('Bot de TomiOka', [path.join(ROOT, 'scripts', 'boot.js')])
       else state.mode = 'console'
     } else if (id === 'pair') {
-      openInput({
-        kind: 'pair',
-        title: '🔢 Vincular con pairing code',
-        hint: 'Con código de país, sin + ni espacios. Vacío = usar el de la config.',
-        initial: env.config.pairingPhone || ''
-      })
+      // El número se escribe en la consola misma y el código sale ahí:
+      // sin teléfono en la config, el bot lo pregunta por consola y la
+      // escritura ya queda enfocada para tipearlo y dar Enter.
+      spawnConsole('Vincular · pairing code', [path.join(ROOT, 'scripts', 'boot.js'), '--pair'], process.execPath, { focusInput: !env.config.pairingPhone })
     } else if (id === 'qr') {
       spawnConsole('Vincular · código QR', [path.join(ROOT, 'scripts', 'boot.js'), '--qr'])
     } else if (id === 'status') {
@@ -1719,20 +1726,7 @@ async function main() {
   function submitInput() {
     const input = state.input
     if (!input) return
-    if (input.kind === 'pair') {
-      const digits = state.buffer.replace(/\D/g, '')
-      if (!digits && !env.config.pairingPhone) {
-        state.fieldError = 'Escribí el número con código de país (en la config está vacío).'
-        return
-      }
-      if (digits && (digits.length < 8 || digits.length > 15)) {
-        state.fieldError = 'El teléfono debe tener entre 8 y 15 dígitos con código de país.'
-        return
-      }
-      state.overlay = null
-      state.input = null
-      spawnConsole('Vincular · pairing code', [path.join(ROOT, 'scripts', 'boot.js'), '--pair', ...(digits ? ['--phone', digits] : [])])
-    } else if (input.kind === 'field') {
+    if (input.kind === 'field') {
       try {
         saveField(input.field, state.buffer)
         state.overlay = null
