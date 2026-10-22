@@ -131,31 +131,37 @@ También puedes usar `bash scripts/start.sh` (activa el wake-lock automáticamen
 
 ### 🖥️ Terminal del bot (Termux)
 
-TomiOka trae una terminal propia de **pantalla completa**: es un port
-de la TUI de **[OpenCode](https://github.com/anomalyco/opencode)**
-(MIT © opencode; gracias 💧), adaptada al bot: home centrada con su
-logo bitono «tomi/oka» y el prompt con borde `┃` sobre fondo panel,
-vista de sesión con sidebar de contexto, diálogos sobre el fondo
-atenuado y el tema oscuro original de OpenCode (`#0a0a0a`, primary
-`#fab283`) como tema por defecto. Sirve para manejar el bot desde el
-celular, sin editar archivos a mano:
+TomiOka trae una terminal propia de **pantalla completa**: es una
+**copia exacta de la TUI de [OpenCode](https://github.com/anomalyco/opencode)**
+(MIT © opencode; gracias 💧), medida sobre su código fuente y adaptada
+solo en marca y contenido: la misma home centrada (spacer de 3, logo
+bitono con sombra en la fuente de bloques original, prompt de máx. 75
+columnas con borde izquierdo `┃` en `#fab283`, fila de metadata
+`agente · modelo · proveedor`, sombra `▀` inferior y footer
+`⊙ estado … versión`), la paleta de comandos y los diálogos de
+60/88 columnas abiertos a ¼ de pantalla sobre el fondo atenuado, la
+sidebar de sesión de 42 columnas con fondo `#141414` y el tema oscuro
+original completo (`#0a0a0a`, panel `#141414`, element `#1e1e1e`,
+texto `#eeeeee`, muted `#808080`, primary `#fab283`). Sirve para
+manejar el bot desde el celular, sin editar archivos a mano:
 
 ```bash
 npm run terminal
 ```
 
-**Controles:** en la home **escribes y la lista se filtra** (como el
-prompt de OpenCode); `↑↓` mueve, `Enter` abre, `Esc` limpia la
-búsqueda y `q` sale (solo con la búsqueda vacía). `Ctrl+P` abre la
-**paleta de comandos** y `Ctrl+X` es la tecla líder de atajos, igual
-que en OpenCode: `Ctrl+X` y después `c` consola, `p` pairing, `q` QR,
-`s` estado, `e` editar, `m` menú, `k` comandos, `d` doctor, `u`
-actualizar, `t` tema, `x` salir. `?` muestra la ayuda y `t` cambia el
-tema (Océano, Atardecer, Menta, Violeta; se recuerda entre sesiones).
-También acepta mouse: la rueda hace scroll y el doble clic abre. En
-las listas largas, `PgUp`/`PgDn` y `g`/`G` saltan al principio o al
-final, y con `/` buscas dentro del menú (`n`/`N` salta entre
-coincidencias).
+**Controles:** en la home **escribes y las secciones se filtran**
+sobre el prompt (el autocomplete de OpenCode); `↑↓` mueve, `Enter`
+abre (sin texto abre la paleta) y `Esc` limpia la búsqueda. `Ctrl+P`
+abre la **paleta de comandos** y `Ctrl+X` es la tecla líder, igual
+que en OpenCode: `Ctrl+X` y después `b` sidebar, `c`/`n` consola,
+`p` pairing, `r` QR, `s` estado, `e` editar, `m` menú, `g` comandos,
+`l` sesión, `d` doctor, `v` verificar, `u` actualizar, `t` tema,
+`1…9` salto rápido a una sección y `q`/`x` salir. `Ctrl+C`/`Ctrl+D`
+salen (en la consola detienen el bot). `?` muestra la ayuda y `t`
+cambia el tema (Océano, Atardecer, Menta, Violeta; se recuerda entre
+sesiones). También acepta mouse: la rueda hace scroll y el clic abre.
+En las listas largas, `PgUp`/`PgDn` saltan por páginas, y con `/`
+buscas dentro del menú (`n`/`N` salta entre coincidencias).
 
 Lo mejor: el bot corre **dentro de la terminal**, en una consola en vivo
 con sus logs: el pairing code y el QR se ven ahí mismo, sin cambiar de

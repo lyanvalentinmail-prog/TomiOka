@@ -337,17 +337,17 @@ export const LOGIN_MODES = ['ask', 'pairing', 'qr']
 /** Campos editables con su valor actual ya formateado para la pantalla */
 export function editFields(config) {
   return [
-    { id: 'name', label: 'Nombre del bot', value: config.bot.name, raw: config.bot.name, about: 'El nombre que se ve en el menú y los mensajes' },
-    { id: 'team', label: 'Team / firma', value: config.bot.team, raw: config.bot.team, about: 'La firma que acompaña al nombre del bot' },
-    { id: 'prefix', label: 'Prefijo', value: config.prefixes[0], raw: config.prefixes[0], about: 'Con qué empiezan los comandos (ej: . o !)' },
-    { id: 'pairingPhone', label: 'Teléfono pairing', value: config.pairingPhone || '(sin definir)', raw: config.pairingPhone || '', about: 'Número por defecto para el pairing code' },
-    { id: 'owners', label: 'Owners', value: config.owner.numbers.join(', ') || '(ninguno)', raw: config.owner.numbers.join(', '), about: 'Dueños del bot, con código de país, separados por comas' },
-    { id: 'login', label: 'Modo de login', value: config.login, raw: config.login, cycle: LOGIN_MODES, about: 'Cómo vincula si no hay sesión: ask pregunta, pairing o qr directo' },
-    { id: 'packName', label: 'Pack · nombre', value: config.stickers.packName, raw: config.stickers.packName, about: 'Nombre del pack en los stickers que crea el bot' },
-    { id: 'packAuthor', label: 'Pack · autor', value: config.stickers.packAuthor, raw: config.stickers.packAuthor, about: 'Autor del pack en los stickers que crea el bot' },
-    { id: 'menuImage', label: 'Banner del menú', value: config.menu.image || '(sin banner)', raw: config.menu.image || '', hint: '"-" para quitar el banner', about: 'URL, link de Drive o ruta local de la imagen del menú' },
-    { id: 'sendAsCaption', label: 'Menú como pie de foto', value: config.menu.sendAsCaption === false ? 'no' : 'sí', raw: config.menu.sendAsCaption === false ? 'no' : 'sí', cycle: ['sí', 'no'], about: 'Pega el menú a la foto del banner si entra en el límite de WhatsApp' },
-    { id: 'showDescriptions', label: 'Descripciones en el menú', value: config.menu.showDescriptions ? 'sí' : 'no', raw: config.menu.showDescriptions ? 'sí' : 'no', cycle: ['sí', 'no'], about: 'Muestra la descripción junto a cada comando en .help' }
+    { id: 'name', group: 'Bot', label: 'Nombre del bot', value: config.bot.name, raw: config.bot.name, about: 'El nombre que se ve en el menú y los mensajes' },
+    { id: 'team', group: 'Bot', label: 'Team / firma', value: config.bot.team, raw: config.bot.team, about: 'La firma que acompaña al nombre del bot' },
+    { id: 'prefix', group: 'Bot', label: 'Prefijo', value: config.prefixes[0], raw: config.prefixes[0], about: 'Con qué empiezan los comandos (ej: . o !)' },
+    { id: 'pairingPhone', group: 'Vinculación', label: 'Teléfono pairing', value: config.pairingPhone || '(sin definir)', raw: config.pairingPhone || '', about: 'Número por defecto para el pairing code' },
+    { id: 'owners', group: 'Vinculación', label: 'Owners', value: config.owner.numbers.join(', ') || '(ninguno)', raw: config.owner.numbers.join(', '), about: 'Dueños del bot, con código de país, separados por comas' },
+    { id: 'login', group: 'Vinculación', label: 'Modo de login', value: config.login, raw: config.login, cycle: LOGIN_MODES, about: 'Cómo vincula si no hay sesión: ask pregunta, pairing o qr directo' },
+    { id: 'packName', group: 'Stickers', label: 'Pack · nombre', value: config.stickers.packName, raw: config.stickers.packName, about: 'Nombre del pack en los stickers que crea el bot' },
+    { id: 'packAuthor', group: 'Stickers', label: 'Pack · autor', value: config.stickers.packAuthor, raw: config.stickers.packAuthor, about: 'Autor del pack en los stickers que crea el bot' },
+    { id: 'menuImage', group: 'Menú', label: 'Banner del menú', value: config.menu.image || '(sin banner)', raw: config.menu.image || '', hint: '"-" para quitar el banner', about: 'URL, link de Drive o ruta local de la imagen del menú' },
+    { id: 'sendAsCaption', group: 'Menú', label: 'Menú como pie de foto', value: config.menu.sendAsCaption === false ? 'no' : 'sí', raw: config.menu.sendAsCaption === false ? 'no' : 'sí', cycle: ['sí', 'no'], about: 'Pega el menú a la foto del banner si entra en el límite de WhatsApp' },
+    { id: 'showDescriptions', group: 'Menú', label: 'Descripciones en el menú', value: config.menu.showDescriptions ? 'sí' : 'no', raw: config.menu.showDescriptions ? 'sí' : 'no', cycle: ['sí', 'no'], about: 'Muestra la descripción junto a cada comando en .help' }
   ]
 }
 
@@ -416,8 +416,16 @@ export function createState() {
     palette: { query: '', sel: 0 },
     input: null,
     confirm: null,
-    confirmSel: 0,
+    confirmSel: 1,
     fieldError: '',
+    scroll: 0,
+    maxScroll: 0,
+    viewH: 0,
+    query: '',
+    searching: false,
+    sidebar: true,
+    inputPrompt: null,
+    placeholder: HOME_PLACEHOLDERS[Math.floor(Math.random() * HOME_PLACEHOLDERS.length)],
     buffer: '',
     consoleInput: false,
     consoleBuffer: '',
@@ -447,29 +455,39 @@ const HINTS = {
 export const HELP_LINES = [
   'Atajos de teclado',
   '',
-  '  ctrl+p / ctrl+k   Paleta de comandos (busca todo)',
-  '  ctrl+x + tecla    Atajos: c consola · p pairing · q QR · s estado',
-  '                    e editar · m menú · k comandos · d doctor · u actualizar',
-  '                    t tema · h ayuda · x salir',
-  '  ↑ ↓  o  j k       Mover la selección / hacer scroll',
+  '  ctrl+p            Paleta de comandos (buscar todo)',
+  '  ctrl+x            Líder (tecla líder de OpenCode)',
+  '  ctrl+x b          Mostrar / ocultar la sidebar',
+  '  ctrl+x c          Consola del bot',
+  '  ctrl+x p          Pairing code',
+  '  ctrl+x r          Código QR',
+  '  ctrl+x s          Estado',
+  '  ctrl+x e          Editar configuración',
+  '  ctrl+x m          Menú de WhatsApp',
+  '  ctrl+x g          Comandos',
+  '  ctrl+x l          Sesión y respaldos',
+  '  ctrl+x d          Doctor',
+  '  ctrl+x v          Verificar pairing',
+  '  ctrl+x u          Actualizar (git pull)',
+  '  ctrl+x t          Cambiar el tema',
+  '  ctrl+x 1…9        Saltar a una sección',
+  '  ctrl+c / ctrl+d   Salir (en consola: detener el bot)',
+  '',
+  '  ↑ ↓ · pgup pgdn   Mover la selección / scrollear',
   '  enter             Abrir, guardar o confirmar',
   '  esc               Volver, cerrar o cancelar',
-  '  pgup pgdn · g G   Saltar por páginas / ir al inicio o final',
+  '  /                 Buscar en listas (n / N siguiente)',
   '  ?                 Esta ayuda',
-  '  t                 Cambiar el tema de colores',
-  '  q                 Salir de la terminal',
+  '  t                 Cambiar el tema',
+  '  q                 Salir',
   '',
   '  En la consola del bot:',
-  '  i                 Escribir una línea al bot (ej: el teléfono)',
+  '  i                 Escribirle al bot (ej: el teléfono)',
   '  r                 Reiniciar el proceso',
-  '  x  o  ctrl+c      Detener el proceso',
+  '  x                 Detener el proceso',
   '  c                 Limpiar la consola',
   '',
-  '  En el menú de WhatsApp y los comandos:',
-  '  /                 Buscar (n / N siguiente o anterior)',
-  '  (en comandos, escribir filtra la lista al instante)',
-  '',
-  '  Mouse: la rueda hace scroll y el doble clic abre.'
+  '  Mouse: la rueda hace scroll y el clic abre filas.'
 ]
 
 /** Líneas visibles de una vista de texto según su filtro/búsqueda */
@@ -491,88 +509,130 @@ export function viewerLines(viewer) {
 
 /* ------------------------------------------------------------------ render */
 /*
- * Render copiado de la TUI de OpenCode (MIT, anomalyco/opencode):
- * home centrada con su logo bitono y el prompt con borde ┃ sobre fondo
- * panel, sesión con sidebar de contexto, diálogos sobre fondo atenuado
- * a 1/4 de pantalla y filas seleccionadas con el color primary.
+ * Copia exacta de la TUI de OpenCode (MIT, anomalyco/opencode), medida
+ * sobre su código: tema oscuro (bg #0a0a0a, panel #141414, element
+ * #1e1e1e, texto #eeeeee, muted #808080, primary #fab283), logo bitono
+ * con sombra, prompt de 75 cols con borde ┃, diálogos de 60/88 cols a
+ * 1/4 de pantalla y sidebar de sesión de 42 cols.
  */
 
-/** Paleta de superficies estilo OpenCode según el tema activo */
+/** Paleta de superficies con los valores exactos del tema de OpenCode */
 export function pal(theme) {
   const t = theme || THEMES.opencode
   return {
     bg: t.bg || [10, 10, 10],
     panel: t.panel || [20, 20, 20],
     element: t.element || [30, 30, 30],
+    prompt: t.prompt || [18, 18, 18],
     text: t.text || [238, 238, 238],
     muted: t.muted || [128, 128, 128],
-    faint: [100, 100, 100],
     primary: t.a,
     secondary: t.b,
     border: t.border || [72, 72, 72],
     success: [127, 216, 143],
     error: [224, 108, 117],
-    warning: [245, 167, 66]
+    warning: [245, 167, 66],
+    info: [86, 182, 194]
   }
 }
 
 const rgb = (color) => `${ESC}[38;2;${color[0]};${color[1]};${color[2]}m`
 const bgc = (color) => `${ESC}[48;2;${color[0]};${color[1]};${color[2]}m`
+const fgText = (t, palette) => `${rgb(palette.text)}${t}${RESET}`
+const fgMuted = (t, palette) => `${rgb(palette.muted)}${t}${RESET}`
 
-/** Mezcla dos colores [r,g,b] (para la sombra del logo, como el tint de OpenCode) */
+/** Mezcla dos colores [r,g,b] (el tint de OpenCode, para la sombra del logo) */
 export function tint(base, overlay, alpha) {
   return base.map((v, i) => Math.round(v + (overlay[i] - v) * alpha))
 }
 
-/* Logo bitono tipo OpenCode: mitad muted + mitad clara, con sombra en los
- * medios bloques (_ = fondo sombra, el resto en el color de su mitad). */
+/*
+ * Fuente del logo de OpenCode (4 filas: una vacía y tres de glifo).
+ * _ = sombra de fondo · ^ = ▀ con sombra · ~ = ▀ en sombra · , = ▄ en sombra.
+ * Izquierda «tomi» en muted, derecha «oka» en texto negrita, como open/code.
+ */
 const GLYPHS = {
-  t: ['████', ' █  ', ' █  ', ' ▀  '],
-  o: ['█▀▀█', '█__█', '█__█', '▀▀▀▀'],
-  m: ['█▄_▄█', '█_▀_█', '█___█', '▀___▀'],
-  i: ['▀█▀', ' █ ', ' █ ', '▄█▄'],
-  k: ['█_▄▀', '██__', '█_█_', '▀__▀'],
-  a: ['█▀▀█', '█▄▄█', '█__█', '▀__▀']
+  t: [' █  ', '▀██▀', ' ▀  '],
+  o: ['█▀▀█', '█__█', '▀▀▀▀'],
+  m: ['█▄_▄█', '█_▀_█', '▀___▀'],
+  i: [' ▄  ', ' █  ', '▄█▄ '],
+  k: ['█ ▄▀', '██  ', '█ ▀▄'],
+  a: ['█▀▀█', '█^^█', '▀__▀']
 }
 
 function glyphWord(word) {
-  const rows = ['', '', '', '']
+  const rows = ['', '', '']
   ;[...word].forEach((letter, li) => {
-    const glyph = GLYPHS[letter] || ['    ', '    ', '    ', '    ']
+    const glyph = GLYPHS[letter] || ['    ', '    ', '    ']
     glyph.forEach((line, r) => { rows[r] += (li ? ' ' : '') + line })
   })
   return rows
 }
 
+/** Réplica del renderLine de OpenCode (sombra = tint(bg, fg, 0.25)) */
 function renderGlyphLine(line, color, palette, bold) {
   const shadow = tint(palette.bg, color, 0.25)
   let out = `${rgb(color)}${bold ? `${ESC}[1m` : ''}`
   for (const char of line) {
-    if (char === '_') out += `${bgc(shadow)} ${rgb(color)}`
+    if (char === '_') out += `${bgc(shadow)} ${rgb(color)}${bold ? `${ESC}[1m` : ''}`
+    else if (char === '^') out += `${bgc(shadow)}▀${rgb(color)}${bold ? `${ESC}[1m` : ''}`
+    else if (char === '~') out += `${rgb(shadow)}▀${rgb(color)}${bold ? `${ESC}[1m` : ''}`
+    else if (char === ',') out += `${rgb(shadow)}▄${rgb(color)}${bold ? `${ESC}[1m` : ''}`
     else if (char === ' ') out += `${RESET} ${rgb(color)}${bold ? `${ESC}[1m` : ''}`
     else out += char
   }
   return out + RESET
 }
 
-/** El logo de la home, como el de OpenCode (se adapta al ancho) */
-export function logoLines(theme, width = 80) {
+/** El logo como el de OpenCode: se adapta a ancho y alto igual que el suyo */
+export function logoLines(theme, width = 80, height = 24) {
   const palette = pal(theme)
+  if (height < 12) return []
   const left = glyphWord('tomi')
   const right = glyphWord('oka')
-  if (width < 24) return right.map((line) => renderGlyphLine(line, palette.text, palette, true))
+  if (width < 22) return right.map((line) => renderGlyphLine(line, palette.text, palette, true))
   if (width < 44) {
     return [
       ...left.map((line) => renderGlyphLine(line, palette.muted, palette, false)),
       ...right.map((line) => renderGlyphLine(line, palette.text, palette, true))
     ]
   }
-  return left.map((line, i) => `${renderGlyphLine(line, palette.muted, palette, false)} ${renderGlyphLine(right[i], palette.text, palette, true)}`)
+  const blank = ' '.repeat(Math.max(...left.map((l) => l.length)))
+  return [
+    `${renderGlyphLine(blank, palette.muted, palette, false)} ${renderGlyphLine(' '.repeat(Math.max(...right.map((l) => l.length))), palette.text, palette, true)}`,
+    ...left.map((line, i) => `${renderGlyphLine(line, palette.muted, palette, false)} ${renderGlyphLine(right[i], palette.text, palette, true)}`)
+  ]
 }
 
 function clockOf(date) {
   const p = (n) => String(n).padStart(2, '0')
   return `${p(date.getHours())}:${p(date.getMinutes())}:${p(date.getSeconds())}`
+}
+
+
+/** Parte un texto en líneas de ancho máximo (para mensajes de diálogos) */
+function wrap(text, width) {
+  const out = []
+  for (const raw of String(text).split('\n')) {
+    let line = raw
+    while (textWidth(line) > width) {
+      let cut = line.lastIndexOf(' ', width)
+      if (cut < 1) cut = width
+      out.push(line.slice(0, cut).trimEnd())
+      line = line.slice(cut).trimStart()
+    }
+    out.push(line)
+  }
+  return out
+}
+
+/** Colorea una línea de log según su contenido (como los niveles de OpenCode) */
+function colorizeLogLine(line, palette) {
+  const text = String(line)
+  if (/^(✖|error|falló|failed)/i.test(text.trim())) return `${ESC}[38;2;224;108;117m${text}${RESET}`
+  if (/código de vinculación|pairing|pairing code/i.test(text)) return `${rgb(palette.warning)}${ESC}[1m${text}${RESET}`
+  if (/^(⏹|🌊|▶|✔|conectado|vinculado)/i.test(text.trim())) return `${rgb(palette.success)}${text}${RESET}`
+  return `${rgb(palette.text)}${text}${RESET}`
 }
 
 /** Acciones visibles en la paleta según el texto escrito */
@@ -594,32 +654,68 @@ function windowStart(selected, total, size) {
   return Math.min(Math.max(0, selected - Math.floor(size / 2)), total - size)
 }
 
-/** Fila seleccionada estilo OpenCode: fondo primary, texto oscuro y negrita */
+/** Fila seleccionada de OpenCode: fondo primary #fab283, texto #0a0a0a negrita */
 export function ocSelected(text, theme) {
   if (!COLOR_OK) return String(text)
   const palette = pal(theme)
-  return `${bgc(palette.primary)}${ESC}[38;2;16;16;16m${ESC}[1m${text}${RESET}`
+  return `${bgc(palette.primary)}${rgb(palette.bg)}${ESC}[1m${text}${RESET}`
 }
 
-/** Caja de prompt estilo OpenCode: borde ┃ primary, fondo panel, meta y sombra ▀ */
-function promptBox({ theme, width, input, meta, cursor = true }) {
+export const HOME_PLACEHOLDERS = [
+  'Iniciá el bot',
+  'Vinculá con pairing code',
+  'Editá el nombre del bot',
+  'Creá un respaldo de la sesión',
+  'Mirá el menú de WhatsApp'
+]
+
+/**
+ * El Prompt de OpenCode: borde izquierdo ┃ en primary, fondo prompt,
+ * paddingTop 1, fila de metadata (agente · modelo · proveedor) y la
+ * sombra ▀ inferior con el ╹ en el borde.
+ */
+function promptBox({ theme, width, input, meta, narrow = false }) {
   const palette = pal(theme)
   const bw = Math.max(20, width)
+  const padIn = narrow ? 1 : 2
   const innerW = bw - 1
-  const bgRow = (content) => `${rgb(palette.primary)}┃${bgc(palette.panel)}${content}${RESET}`
+  const row = (content) => `${rgb(palette.primary)}┃${bgc(palette.prompt)}${pad(content, innerW)}${RESET}`
   const lines = [
-    bgRow(' '.repeat(innerW)),
-    bgRow(pad(`  ${input}`, innerW)),
-    bgRow(pad(`  ${meta}`, innerW))
+    row(''),
+    row(`${' '.repeat(padIn)}${input}`),
+    row(''),
+    row(`${' '.repeat(padIn)}${meta}`)
   ]
-  lines.push(`${rgb(palette.panel)}${'▀'.repeat(bw)}${RESET}`)
+  lines.push(`${rgb(palette.primary)}╹${rgb(palette.prompt)}${'▀'.repeat(Math.max(0, bw - 1))}${RESET}`)
   return lines
 }
 
-function promptInputText(state, theme, placeholder) {
+function inputContent(text, palette, placeholder) {
+  const cursor = COLOR_OK ? `${bgc(palette.text)}${rgb(palette.prompt)} ${bgc(palette.prompt)}` : '█'
+  if (text) return `${rgb(palette.text)}${text}${cursor}`
+  return `${cursor}${rgb(palette.muted)}${placeholder || ''}`
+}
+
+function metaContent({ theme, agent, model, provider, showAgent = true }) {
   const palette = pal(theme)
-  if (state.homeQuery) return `${rgb(palette.text)}${state.homeQuery}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.panel)}${rgb(palette.text)}` : '█'}`
-  return `${rgb(palette.muted)}${placeholder}`
+  const parts = []
+  if (showAgent && agent) parts.push(`${rgb(palette.primary)}${agent}${bgc(palette.prompt)}`)
+  if (model) {
+    if (parts.length) parts.push(`${rgb(palette.muted)}·${bgc(palette.prompt)}`)
+    parts.push(`${rgb(palette.text)}${model}${bgc(palette.prompt)}`)
+  }
+  if (provider) parts.push(`${rgb(palette.muted)}${provider}${bgc(palette.prompt)}`)
+  return parts.join(' ')
+}
+
+/** Fila footer bajo el prompt: ubicación/estado a la izquierda, atajos a la derecha */
+function promptFooter({ theme, width, left, showShortcuts = true }) {
+  const palette = pal(theme)
+  const right = showShortcuts
+    ? `${rgb(palette.text)}ctrl+p${RESET} ${rgb(palette.muted)}commands${RESET}  ${rgb(palette.text)}ctrl+x${RESET} ${rgb(palette.muted)}leader${RESET}`
+    : ''
+  const gap = Math.max(1, width - textWidth(left) - textWidth(right))
+  return `${left}${' '.repeat(gap)}${right}`
 }
 
 /**
@@ -631,17 +727,19 @@ export function renderFrame(state, env, width = 80, height = 24) {
   const H = Math.max(10, height)
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const now = env.now || new Date()
   const linked = Boolean(env.session?.registered)
   state.hit = {}
 
+  const showFooter = state.mode === 'menu' && !state.overlay
   const footer = []
-  if (state.toast) footer.push(clip(`  ${ESC}[33m${state.toast}${RESET}`, W))
-  const leftFoot = state.leader
-    ? `${rgb(palette.primary)}ctrl+x …${RESET} ${rgb(palette.muted)}pulsá una tecla${RESET}`
-    : `${linked ? rgb(palette.success) : rgb(palette.error)}⊙${RESET} ${rgb(palette.text)}${linked ? 'vinculado' : 'sin sesión'}${RESET}${env.bot?.running ? `  ${rgb(palette.success)}⏺${RESET} ${rgb(palette.muted)}bot en consola${RESET}` : ''}`
-  const rightFoot = `${rgb(palette.muted)}tomioka v1.0.0 · ${theme.name} · ${clockOf(now)}${RESET}`
-  footer.push(`  ${leftFoot}${' '.repeat(Math.max(1, W - 4 - textWidth(leftFoot) - textWidth(rightFoot)))}${rightFoot}  `)
+  if (showFooter) {
+    if (H >= 16) footer.push('')
+    const dot = linked ? rgb(palette.success) : rgb(palette.error)
+    const leftFoot = `  ${dot}⊙${RESET} ${linked ? fgText(String(env.session.me || 'vinculado').split('@')[0], palette) : fgMuted('sin sesión', palette)}${env.bot?.running ? `  ${rgb(palette.success)}⏺${RESET} ${fgMuted('bot en consola', palette)}` : ''}`
+    const rightFoot = fgMuted(env.config?.bot?.version || '1.0', palette)
+    footer.push(`${leftFoot}${' '.repeat(Math.max(1, W - 2 - textWidth(leftFoot) - textWidth(rightFoot)))}${rightFoot}  `)
+    if (H >= 16) footer.push('')
+  }
 
   const bodyH = Math.max(3, H - footer.length)
   let body = renderMain(state, env, W, bodyH, 0)
@@ -649,6 +747,15 @@ export function renderFrame(state, env, width = 80, height = 24) {
 
   const frame = [...body.slice(0, bodyH), ...footer]
   while (frame.length < H) frame.splice(frame.length - footer.length, 0, '')
+
+  if (state.toast) {
+    const idx = H - footer.length - 1
+    if (idx >= 0 && idx < frame.length) {
+      const toastText = ` ${state.toast} `
+      const toast = COLOR_OK ? `${bgc(palette.element)}${rgb(palette.text)}${toastText}${RESET}` : toastText
+      frame[idx] = `${' '.repeat(Math.max(0, W - textWidth(toastText) - 1))}${toast}`
+    }
+  }
   return frame.slice(0, H).map((line) => clip(line, W))
 }
 
@@ -667,274 +774,357 @@ function renderHome(state, env, W, bodyH, bodyTop) {
   const list = homeList(state)
   state.sel = Math.min(state.sel, Math.max(0, list.length - 1))
 
-  const bw = Math.max(28, Math.min(75, W - 4))
-  const left = Math.max(1, Math.floor((W - bw) / 2))
+  const padX = W < 44 ? 1 : 2
+  const bw = Math.max(28, Math.min(75, W - padX * 2))
+  const left = padX + Math.floor((W - padX * 2 - bw) / 2)
   const padL = ' '.repeat(left)
-  const listRows = Math.min(8, list.length)
-  const logo = W >= 40 ? logoLines(theme, W) : []
-  const contentH = logo.length + 1 + 4 + 1 + listRows + 1
-  const top = Math.max(0, Math.floor((bodyH - contentH) * 0.42))
-  const rows = Array.from({ length: top }, () => '')
 
-  const logoLeft = Math.max(0, Math.floor((W - (logo[0] ? textWidth(logo[0]) : 0)) / 2))
-  for (const line of logo) rows.push(' '.repeat(logoLeft) + line)
+  const logo = logoLines(theme, W, bodyH + 4)
+  const logoW = logo.length ? Math.max(...logo.map((line) => textWidth(line))) : 0
+  const logoLeft = ' '.repeat(Math.max(0, Math.floor((W - logoW) / 2)))
+
+  const querying = Boolean(state.homeQuery)
+  const listRows = querying ? Math.min(8, Math.max(list.length, 1)) : 0
+  const promptRows = 6 // 4 de la caja + sombra + footer del prompt
+  const fixed = logo.length + 1 + listRows + promptRows
+  const room = bodyH - fixed - 3
+  const top = room > 0 ? 3 + Math.floor(room / 2) : 0
+  const rows = Array.from({ length: top }, () => '')
+  for (const line of logo) rows.push(logoLeft + line)
   if (logo.length) rows.push('')
 
-  const meta = `${rgb(palette.primary)}${ESC}[1m${clip(config.bot.name, 24)}${RESET}${bgc(palette.panel)} ${rgb(palette.muted)}· bot de WhatsApp · prefijo ${config.prefixes[0]} · ${session?.registered ? 'vinculado' : 'sin sesión'}${RESET}${bgc(palette.panel)}`
-  const box = promptBox({ theme, width: bw, input: promptInputText(state, theme, 'Buscá una acción… (ej: pairing, sticker, tema)'), meta })
-  for (const line of box) rows.push(padL + line)
+  if (querying) {
+    const listTop = bodyTop + rows.length
+    if (!list.length) rows.push(padL + fgMuted(`Sin resultados para «${clip(state.homeQuery, 30)}»`, palette))
+    const start = windowStart(state.sel, list.length, 8)
+    for (let i = 0; i < Math.min(8, list.length); i += 1) {
+      const index = start + i
+      const item = list[index]
+      if (!item) break
+      const running = item.id === 'console' && env.bot?.running ? ' ⏺' : ''
+      const text = `${item.icon} ${item.label}${running}`
+      const hint = clip(item.hint || '', Math.max(8, bw - textWidth(text) - 14))
+      const line = index === state.sel
+        ? ocSelected(pad(` ${text}`, bw), theme)
+        : `${fgText(` ${text}`, palette)} ${fgMuted(hint, palette)}`
+      state.hit[listTop + i] = { kind: 'section', index, itemId: item.id, x1: left, x2: left + bw }
+      rows.push(padL + line)
+    }
+  }
+
+  const meta = metaContent({
+    theme,
+    agent: clip(config.bot.name, 24),
+    model: 'WhatsApp',
+    provider: session?.registered ? `sesión ${String(session.me || '').split('@')[0]}` : 'sin sesión',
+    showAgent: W >= 44
+  })
+  const box = promptBox({
+    theme,
+    width: bw,
+    narrow: W < 44,
+    input: inputContent(state.homeQuery, palette, state.placeholder || HOME_PLACEHOLDERS[0]),
+    meta
+  })
+  for (const line of box.slice(0, 4)) rows.push(padL + line)
+  rows.push(padL + box[4])
 
   const location = ROOT.replace(/^.*\/home\/[^/]+/, '~')
-  rows.push(padL + `${rgb(palette.muted)}${clip(location, 30)}${RESET}${' '.repeat(Math.max(1, bw - 30 - 22))}${rgb(palette.text)}ctrl+p${RESET} ${rgb(palette.muted)}commands${RESET}  ${rgb(palette.text)}?${RESET} ${rgb(palette.muted)}help${RESET}`)
-
-  const listTop = bodyTop + rows.length
-  const start = windowStart(state.sel, list.length, listRows)
-  for (let i = 0; i < listRows; i += 1) {
-    const index = start + i
-    const item = list[index]
-    if (!item) break
-    const running = item.id === 'console' && env.bot?.running ? ' ⏺' : ''
-    const text = `${item.icon} ${item.label}${running}`
-    const line = index === state.sel ? ocSelected(pad(` ${text} `, bw), theme) : `${rgb(palette.text)} ${pad(text, bw - 1)}${RESET}`
-    state.hit[listTop + i] = { kind: 'section', index, itemId: item.id, x1: left, x2: left + bw }
-    rows.push(padL + line)
-  }
-  if (!list.length) rows.push(padL + `${rgb(palette.muted)}Sin resultados para «${clip(state.homeQuery, 30)}»${RESET}`)
-  rows.push('')
-  rows.push(padL + `${rgb(palette.muted)}↑↓ navegar · enter abrir · ctrl+x atajos de OpenCode${RESET}`)
+  rows.push(padL + promptFooter({
+    theme,
+    width: bw,
+    left: fgMuted(clip(location, Math.max(10, bw - 30)), palette),
+    showShortcuts: W >= 64
+  }))
   return rows.slice(0, bodyH)
 }
 
 function renderConsole(state, env, W, bodyH, bodyTop) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const bot = env.bot || { running: false, title: '', lines: [] }
-  const wide = W >= 100
-  const sideW = wide ? Math.min(42, Math.floor(W * 0.36)) : 0
-  const mainW = W - (wide ? sideW + 1 : 0)
-
-  const spin = bot.running ? SPINNER[state.tick % SPINNER.length] : '⏹'
-  const title = ` ${rgb(palette.text)}${ESC}[1m${spin} ${clip(bot.title || 'Consola del bot', mainW - 24)}${RESET} ${rgb(palette.muted)}${bot.running ? 'corriendo' : 'detenido'}${state.follow ? '' : ' · ⬇ líneas nuevas (G para seguir)'}${RESET}`
-  const all = bot.lines || []
-  const viewH = Math.max(1, bodyH - 2 - 5)
-  const maxStart = Math.max(0, all.length - viewH)
-  const start = state.follow ? maxStart : Math.min(state.botScroll, maxStart)
-
-  const main = [title, '']
-  if (!all.length) main.push(` ${rgb(palette.muted)}La consola está vacía. Inicia el bot o vincula para ver la actividad.${RESET}`)
-  for (const line of all.slice(start, start + viewH)) main.push(` ${clip(line, mainW - 1)}`)
-  while (main.length < 2 + viewH) main.push('')
-
-  const input = state.consoleInput
-    ? `${rgb(palette.text)}${state.consoleBuffer}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.panel)}` : '█'}`
-    : `${rgb(palette.muted)}${bot.running ? 'Escribí al bot… (enter para enviar)' : 'El bot está detenido · r para reiniciar'}${state.consoleInput ? '' : ''}`
-  const editLine = state.consoleInput || true
-    ? (state.consoleInput ? input : `${rgb(palette.muted)}Pulsá i para escribir al bot…${RESET}${bgc(palette.panel)}`)
-    : input
-  const meta = `${rgb(palette.primary)}${ESC}[1mbot${RESET}${bgc(palette.panel)} ${rgb(palette.muted)}· ${bot.running ? 'corriendo' : 'detenido'} · ${all.length} líneas${RESET}${bgc(palette.panel)}`
-  for (const line of promptBox({ theme, width: mainW, input: state.consoleInput ? input : editLine, meta })) main.push(line)
-  main.push(` ${rgb(palette.muted)}${state.follow ? 'siguiendo la salida' : 'scroll manual'}${RESET}${' '.repeat(Math.max(1, mainW - 24 - 30))}${rgb(palette.text)}x${RESET} ${rgb(palette.muted)}detener${RESET}  ${rgb(palette.text)}r${RESET} ${rgb(palette.muted)}reiniciar${RESET}  ${rgb(palette.text)}esc${RESET} ${rgb(palette.muted)}volver${RESET}`)
-
-  if (!wide) return main.slice(0, bodyH)
-
+  const bufLines = env.bot?.lines || []
   const { config, session } = env
-  const muted = (t) => `${rgb(palette.muted)}${t}${RESET}`
-  const head = (t) => `${rgb(palette.text)}${ESC}[1m${t}${RESET}`
-  const sidePlain = [
-    head('Sesión'),
-    muted(describeSession(session)),
-    '',
-    head('Contexto'),
-    `${muted('Número')}  ${session.me ? String(session.me).split('@')[0] : '—'}`,
-    `${muted('Prefijo')} ${config.prefixes.join(' ')}`,
-    `${muted('Login')}   ${config.login}`,
-    `${muted('Owners')}  ${config.owner.numbers.length}`,
-    `${muted('Tema')}    ${theme.name}`,
-    '',
-    head('Consola'),
-    bot.running ? `${rgb(palette.success)}⏺${RESET} corriendo` : '⏹ detenido',
-    muted(`${all.length} líneas de registro`),
-    '',
-    muted('ctrl+x y después:'),
-    `${rgb(palette.text)}c${RESET} ${muted('consola')}  ${rgb(palette.text)}p${RESET} ${muted('pairing')}`,
-    `${rgb(palette.text)}e${RESET} ${muted('editar')}   ${rgb(palette.text)}m${RESET} ${muted('menú')}`,
-    `${rgb(palette.text)}k${RESET} ${muted('comandos')} ${rgb(palette.text)}x${RESET} ${muted('salir')}`
-  ]
-  const side = sidePlain.map((line) => `${bgc(palette.panel)} ${pad(line, sideW - 1)}${RESET}`)
-  return main.slice(0, bodyH).map((line, i) => `${pad(line, mainW)}${side[i] || ''}`)
-}
+  const running = Boolean(env.bot?.running)
 
-function viewHeader(state, env, W, title) {
-  const theme = env.theme || THEMES.opencode
-  const palette = pal(theme)
-  return [
-    ` ${rgb(palette.text)}${ESC}[1m${title}${RESET}`,
-    ` ${rgb(palette.muted)}${HINTS[state.mode] || ''}${RESET}`,
-    ''
-  ]
+  const sideOn = state.sidebar && W >= 110
+  const sideW = sideOn ? 42 : 0
+  const mainW = W - sideW
+  const viewH = bodyH - 6
+  state.viewH = viewH
+
+  const entries = bufLines
+  const total = entries.length
+  state.maxScroll = Math.max(0, total - viewH)
+  state.scroll = Math.min(state.scroll, state.maxScroll)
+  const end = total - state.scroll
+  const start = Math.max(0, end - viewH)
+
+  const rows = []
+  for (let i = start; i < end; i += 1) {
+    const entry = entries[i]
+    const plain = String(entry)
+    const colored = COLOR_OK ? colorizeLogLine(plain, palette) : plain
+    rows.push(`  ${colored}`)
+  }
+  while (rows.length < viewH) rows.push('')
+
+  const cmdText = state.consoleInput ? state.consoleBuffer : ''
+  const cbox = promptBox({
+    theme, width: mainW, narrow: W < 44,
+    input: inputContent(cmdText, palette, state.consoleInput ? 'escribí un comando y Enter… (` sale)' : 'tocá i para escribir…'),
+    meta: metaContent({ theme, agent: clip(config.bot.name, 24), model: 'WhatsApp', provider: running ? 'corriendo' : 'detenido', showAgent: W >= 44 })
+  })
+  rows.push(cbox[0], cbox[1], cbox[2], cbox[3], cbox[4])
+  const spinner = running ? `${rgb(palette.primary)}${SPINNER[state.tick % SPINNER.length]}${RESET} ` : ''
+  const left = running
+    ? `${spinner}${fgText('ejecutando', palette)}${fgMuted('…', palette)}`
+    : fgMuted(clip(config.sessionDir || 'sessions', Math.max(12, mainW - 30)), palette)
+  rows.push(promptFooter({ theme, width: mainW, left, showShortcuts: W >= 64 }))
+
+  if (!sideOn) return rows.slice(0, bodyH)
+
+  // Sidebar de sesión de OpenCode: 42 cols, fondo #141414, padding 1 2
+  const side = (() => {
+    const lines = []
+    const put = (content) => lines.push(`${bgc(palette.panel)}  ${pad(content, sideW - 4)}${RESET}`)
+    const title = clip(env.bot?.title || config.bot.title || config.bot.name, sideW - 6)
+    put(`${rgb(palette.text)}${ESC}[1m${title}${RESET}${bgc(palette.panel)}`)
+    put('')
+    put(`${rgb(palette.text)}${ESC}[1mContexto${RESET}${bgc(palette.panel)}`)
+    put(fgMuted(`Sesión ${session?.registered ? 'activa' : 'sin sesión'}`, palette) + bgc(palette.panel))
+    if (session?.me) put(fgMuted(`Número ${String(session.me).split('@')[0]}`, palette) + bgc(palette.panel))
+    put(fgMuted(`Prefijo ${config.bot.prefix}`, palette) + bgc(palette.panel))
+    put(fgMuted(`Líneas ${total}`, palette) + bgc(palette.panel))
+    put('')
+    put(`${rgb(palette.text)}${ESC}[1mBot${RESET}${bgc(palette.panel)}`)
+    put(fgMuted(`${running ? '● corriendo' : '○ detenido'} · reloj ${clockOf(new Date(env.now ?? Date.now()))}`, palette) + bgc(palette.panel))
+    put(fgMuted(`Tema ${theme.name}`, palette) + bgc(palette.panel))
+    put('')
+    put(`${rgb(palette.text)}${ESC}[1mAtajos${RESET}${bgc(palette.panel)}`)
+    for (const hint of ['i escribir', 'r reiniciar', 'x detener', 'g comandos', 'ctrl+x b sidebar']) {
+      put(fgMuted(hint, palette) + bgc(palette.panel))
+    }
+    while (lines.length < bodyH - 2) lines.push(`${bgc(palette.panel)}${' '.repeat(sideW)}${RESET}`)
+    lines.push(`${bgc(palette.panel)}  ${fgMuted(config.bot.version || '1.0', palette)}${bgc(palette.panel)}${' '.repeat(Math.max(0, sideW - 3 - textWidth(config.bot.version || '1.0')))}${RESET}`)
+    return lines
+  })()
+
+  return rows.slice(0, bodyH).map((line, i) => {
+    const main = pad(line, mainW)
+    return `${main}${side[i] || `${bgc(palette.panel)}${' '.repeat(sideW)}${RESET}`}`
+  })
 }
 
 function renderConfig(state, env, W, bodyH, bodyTop, x0) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
   const fields = editFields(env.config)
-  const rows = viewHeader(state, env, W, 'Editar configuración')
-  const detailH = 3
-  const listH = Math.max(1, bodyH - rows.length - detailH)
-  const start = windowStart(state.configSel, fields.length, listH)
-  for (let r = 0; r < listH; r += 1) {
-    const index = start + r
-    const field = fields[index]
-    if (!field) { rows.push(''); continue }
-    const labelW = Math.min(26, Math.floor(W * 0.34))
-    const label = pad(field.label, labelW)
-    const value = field.cycle ? `${field.value} ⇄` : field.value
-    const line = index === state.configSel
-      ? ocSelected(pad(` ${label} ${clip(value, W - labelW - 4)}`, W - x0), theme)
-      : `  ${rgb(palette.text)}${label}${RESET} ${rgb(palette.muted)}${clip(value, W - labelW - 4)}${RESET}`
-    state.hit[bodyTop + rows.length] = { kind: 'field', index, x1: x0, x2: W }
-    rows.push(line)
+  state.sel = Math.min(state.sel, fields.length - 1)
+  const rows = ['', `   ${rgb(palette.text)}${ESC}[1mEditar configuración${RESET}`, '']
+  const listTop = bodyTop + rows.length
+
+  let lastGroup = ''
+  let rowCursor = 0
+  const visible = fields.slice(0, bodyH - 6)
+  for (let index = 0; index < visible.length; index += 1) {
+    const field = visible[index]
+    if (field.group && field.group !== lastGroup) {
+      lastGroup = field.group
+      if (index > 0) rows.push('')
+      rows.push(`   ${fgMuted(field.group, palette)}`)
+      rowCursor = rows.length - 1 - listTop
+    }
+    const value = clip(String(field.value), 26).padEnd(27)
+    const text = pad(` ${field.label} `, 23) + value
+    const content = index === state.sel ? ocSelected(pad(text, W - 6), theme) : `${fgText(text, palette)} ${fgMuted(field.hint || '', palette)}`
+    state.hit[bodyTop + rows.length] = { kind: 'field', index, x1: x0, x2: x0 + W }
+    rows.push(`   ${content}`)
+    rowCursor += 1
   }
-  const field = fields[state.configSel]
-  if (state.fieldError) rows.push(` ${ESC}[38;2;224;108;117m✖ ${state.fieldError}${RESET}`)
-  else if (field) rows.push(` ${rgb(palette.muted)}${field.about || ''}${RESET}`)
-  rows.push(` ${rgb(palette.muted)}${field?.cycle ? 'enter cambia el valor' : 'enter para escribir el nuevo valor'} · se guarda en config.json (respaldo .bak)${RESET}`)
+
+  const error = env.edit?.error
+  const detail = error
+    ? `${ESC}[38;2;224;108;117m${clip(error, W - 6)}${RESET}`
+    : fgMuted('Enter edita · e edita el JSON · Esc vuelve', palette)
+  rows.push('', `   ${detail}`)
   return rows.slice(0, bodyH)
 }
 
 function renderSession(state, env, W, bodyH, bodyTop, x0) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const { config, session } = env
-  const rows = viewHeader(state, env, W, 'Sesión y respaldos')
-  rows.push(
-    `  ${rgb(palette.muted)}Estado   ${RESET}${describeSession(session)}`,
-    `  ${rgb(palette.muted)}Número   ${RESET}${session.me ? String(session.me).split('@')[0] : '—'}`,
-    `  ${rgb(palette.muted)}Archivos ${RESET}${session.files} · creds ${formatBytes(session.bytes)}`,
-    `  ${rgb(palette.muted)}Carpeta  ${RESET}${clip(config.sessionDir, W - 13)}`,
-    `  ${rgb(palette.muted)}Respaldos${RESET} ${env.backups?.length ? env.backups.slice(0, 3).join(', ') + (env.backups.length > 3 ? ` y ${env.backups.length - 3} más` : '') : 'ninguno'}`,
-    ''
-  )
-  SESSION_ACTIONS.forEach((action, index) => {
-    const text = `${action.icon} ${action.label}`
-    const line = index === state.sessionSel ? ocSelected(pad(` ${text}`, W - x0), theme) : `  ${rgb(palette.text)}${text}${RESET}`
-    state.hit[bodyTop + rows.length] = { kind: 'session-action', index, x1: x0, x2: W }
-    rows.push(line)
+  const info = describeSession(env.session)
+  const actions = backupActions(env.session)
+  state.sel = Math.min(state.sel, actions.length - 1)
+  const lines = String(info.text || info).split('\n')
+  const rows = ['', `   ${rgb(palette.text)}${ESC}[1mSesión y respaldos${RESET}`, '']
+  for (const line of lines.slice(0, bodyH - actions.length - 8)) {
+    rows.push(`   ${fgMuted(clip(line, W - 6), palette)}`)
+  }
+  rows.push('')
+  const listTop = bodyTop + rows.length
+  actions.forEach((action, index) => {
+    const text = ` ${action.label} — ${action.hint}`
+    const content = index === state.sel ? ocSelected(pad(text, Math.min(64, W - 6)), theme) : `${fgText(text, palette)}`
+    state.hit[listTop + index] = { kind: 'session-action', index, actionId: action.id, x1: x0, x2: x0 + W }
+    rows.push(`   ${content}`)
   })
-  rows.push('', ` ${rgb(palette.muted)}${SESSION_ACTIONS[state.sessionSel]?.hint || ''}${RESET}`)
+  rows.push('', `   ${fgMuted('Enter ejecuta · Esc vuelve', palette)}`)
   return rows.slice(0, bodyH)
 }
 
 function renderViewer(state, env, W, bodyH) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const viewer = state.viewer
-  const { lines, matches } = viewerLines(viewer)
-  const searching = viewer.searching || (viewer.filterable && viewer.query)
-  const rows = viewHeader(state, env, W, viewer.title)
-  if (searching) {
-    rows.push(` ${rgb(palette.primary)}🔎${RESET} ${viewer.query}${viewer.searching ? (COLOR_OK ? `${bgc(palette.primary)} ${RESET}` : '█') : ''} ${rgb(palette.muted)}${matches.length} coincidencia(s)${RESET}`)
+  const view = env.view || { title: '', lines: [] }
+  const rows = ['', `  ${rgb(palette.text)}${ESC}[1m${clip(view.title, W - 4)}${RESET}`]
+  if (view.error) rows.push(`  ${ESC}[38;2;224;108;117m${clip(view.error, W - 4)}${RESET}`)
+  if (state.searching) {
+    rows.push(`  ${COLOR_OK ? `${bgc(palette.element)}${rgb(palette.primary)}` : '> '}${state.query} ${COLOR_OK ? bgc(palette.element) + ' ' + RESET : ''}`)
+  } else if (state.query) {
+    const count = countMatches(view.lines, state.query)
+    rows.push(`  ${fgMuted(`«${clip(state.query, 30)}» · ${count} coincidencia${count === 1 ? '' : 's'}`, palette)}`)
   }
-  const viewH = Math.max(1, bodyH - rows.length)
-  const maxScroll = Math.max(0, lines.length - viewH)
-  const scroll = Math.min(viewer.scroll, maxScroll)
-  rows.push(` ${rgb(palette.muted)}${lines.length} líneas · ${Math.min(scroll + 1, lines.length)}/${lines.length}${RESET}`)
-  for (const line of lines.slice(scroll, scroll + viewH - 1)) rows.push(` ${clip(line, W - 1)}`)
+  const viewH = bodyH - rows.length - 1
+  state.viewH = viewH
+  state.maxScroll = Math.max(0, view.lines.length - viewH)
+  state.scroll = Math.min(state.scroll, state.maxScroll)
+  let shown = view.lines.slice(state.scroll, state.scroll + viewH)
+  if (state.query) shown = shown.map((line) => highlightMatches(line, palette))
+  for (const line of shown) rows.push(`  ${rgb(palette.text)}${line}${RESET}`)
+  while (rows.length < bodyH) rows.push('')
+  rows.push(`  ${fgMuted('Ctrl+X líder · / buscar · n/N siguiente · ↑↓ PgUp/PgDn navegar · Esc vuelve', palette)}`)
   return rows.slice(0, bodyH)
 }
 
-function dimLine(line) {
-  return `${ESC}[2m${line}${RESET}`
-}
-
+/** Copia los diálogos de OpenCode: fondo #141414 sin borde, top = ¼ del alto */
 function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const base = (baseLines || []).map((line) => dimLine(line))
-  let box = []
-  let boxW = 60
-  let dialogBg = palette.bg
+  const dimmed = baseLines.slice(0, bodyH).map((line) => `${ESC}[2m${line}${RESET}`)
+  while (dimmed.length < bodyH) dimmed.push('')
+  const dialogBg = palette.panel
 
-  const wrap = (content, width) => `${bgc(dialogBg)} ${pad(content, width)} ${RESET}`
-  const headerRow = (title, width) => wrap(`${rgb(palette.text)}${ESC}[1m${title}${RESET}${bgc(dialogBg)}${' '.repeat(Math.max(1, width - textWidth(title) - 3))}${rgb(palette.muted)}esc${RESET}${bgc(dialogBg)}`, width + 2)
+  if (state.overlay === 'confirm') {
+    const boxW = Math.min(60, W - 4)
+    const left = Math.floor((W - boxW) / 2)
+    const top = bodyTop + Math.max(1, Math.floor(bodyH / 4))
+    const title = state.confirm?.title || 'Confirmar'
+    const message = state.confirm?.message || ''
+    const lines = []
+    lines.push('')
+    lines.push(`   ${rgb(palette.text)}${ESC}[1m${clip(title, boxW - 10)}${RESET}${bgc(dialogBg)}${' '.repeat(Math.max(1, boxW - 3 - textWidth(title) - 3))}${fgMuted('esc', palette)}${bgc(dialogBg)}   `)
+    lines.push('')
+    for (const line of wrap(message, boxW - 6).slice(0, 4)) lines.push(`   ${fgMuted(line, palette)}${bgc(dialogBg)}`)
+    lines.push('')
+    const cancelLabel = state.confirm?.cancelLabel || 'Cancelar'
+    const okLabel = state.confirm?.okLabel || 'Confirmar'
+    const toTitle = (s) => s.charAt(0).toUpperCase() + s.slice(1)
+    const cancelBox = ` ${toTitle(cancelLabel)} `
+    const okBox = ` ${toTitle(okLabel)} `
+    const buttonsW = cancelBox.length + okBox.length
+    const btnRow = top + lines.length
+    const cancel = state.confirmSel === 0 ? ocSelected(cancelBox, theme) : `${bgc(dialogBg)}${rgb(palette.muted)}${cancelBox}${RESET}`
+    const ok = state.confirmSel === 1 ? ocSelected(okBox, theme) : `${bgc(dialogBg)}${rgb(palette.muted)}${okBox}${RESET}`
+    lines.push(`${' '.repeat(Math.max(3, boxW - 3 - buttonsW))}${cancel}${bgc(dialogBg)}${ok}`)
+    state.hit[btnRow] = {
+      kind: 'confirm-btn',
+      x1: left + boxW - 3 - buttonsW, x2: left + boxW - 3 - cancelBox.length,
+      x3: left + boxW - 3 - cancelBox.length, x4: left + boxW - 3
+    }
+    lines.push('')
+    const full = lines.map((line) => {
+      const stripped = String(line).replace(/ +$/, '')
+      return `${bgc(dialogBg)}${stripped}${bgc(dialogBg)}${' '.repeat(Math.max(0, boxW - textWidth(stripped)))}${RESET}`
+    })
+    for (let i = 0; i < full.length && top + i < bodyH; i += 1) {
+      dimmed[top + i] = `${' '.repeat(left)}${full[i]}`
+    }
+    return dimmed
+  }
+
+  const size = state.overlay === 'help' ? 88 : 60
+  const boxW = Math.min(size, W - 4)
+  const left = Math.floor((W - boxW) / 2)
+  const top = bodyTop + Math.max(1, Math.floor(bodyH / 4))
+  const inner = boxW - 6
+  const box = []
+  const push = (content) => {
+    const stripped = String(content).replace(/ +$/, '')
+    box.push(`${bgc(dialogBg)}${stripped}${bgc(dialogBg)}${' '.repeat(Math.max(0, boxW - textWidth(stripped)))}${RESET}`)
+  }
+  const header = (title) => {
+    push('')
+    push(`   ${rgb(palette.text)}${ESC}[1m${clip(title, boxW - 12)}${RESET}${bgc(dialogBg)}${' '.repeat(Math.max(1, boxW - 3 - textWidth(title) - 3))}${fgMuted('esc', palette)}`)
+  }
+  const footerLine = (text) => push(`   ${fgMuted(text, palette)}`)
 
   if (state.overlay === 'palette') {
     const list = paletteList(state, env)
     state.palette.sel = Math.min(state.palette.sel, Math.max(0, list.length - 1))
-    boxW = Math.min(60, W - 2)
-    const inner = boxW - 6
-    const shown = 9
-    const start = windowStart(state.palette.sel, list.length, shown)
-    box = [wrap('', inner + 2), headerRow('Paleta de comandos', inner + 2)]
-    box.push(wrap(`${bgc(palette.element)} ${state.palette.query ? rgb(palette.text) + state.palette.query : rgb(palette.muted) + 'Buscar…'}${state.palette.query ? (COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.element)}` : '█') : ''}`, inner + 2))
-    box.push(wrap('', inner + 2))
-    if (!list.length) box.push(wrap(`   ${rgb(palette.muted)}Sin resultados${RESET}${bgc(dialogBg)}`, inner + 2))
-    for (let n = 0; n < shown; n += 1) {
-      const index = start + n
+    header('Paleta de comandos')
+    const q = state.palette.query
+    push(COLOR_OK ? `   ${bgc(palette.element)}${q ? rgb(palette.primary) : rgb(palette.muted)} ${q || 'Buscar'} ${RESET}` : `   > ${q || ''}`)
+    push('')
+    const maxRows = Math.max(3, bodyH - top - 8)
+    const start = windowStart(state.palette.sel, list.length, maxRows)
+    if (!list.length) push(`   ${fgMuted('Sin resultados', palette)}`)
+    let lastGroup = null
+    for (let i = 0; i < Math.min(maxRows, list.length); i += 1) {
+      const index = start + i
       const action = list[index]
-      if (!action) break
-      const isField = String(action.id || '').startsWith('field:')
-      const kind = isField ? 'config' : 'acción'
-      const title = clip(action.title, 30)
-      const right = `${rgb(palette.muted)}${kind}${RESET}`
+      const rowText = ` ${action.title}`
+      if (!state.palette.query && action.group && action.group !== lastGroup) {
+        lastGroup = action.group
+        push(`    ${fgMuted(action.group, palette)}`)
+      }
+      const desc = action.description ? clip(action.description, Math.max(10, inner - textWidth(rowText) - 12)) : ''
+      const group = action.group && state.palette.query ? clip(action.group, 14) : ''
+      const groupPad = group ? Math.max(1, inner - textWidth(rowText) - textWidth(desc) - textWidth(group) - 2) : 0
       const content = index === state.palette.sel
-        ? ocSelected(pad(` ${title}`, inner - 8), theme) + ` ${right}`
-        : `   ${rgb(palette.text)}${title}${RESET}${bgc(dialogBg)} ${rgb(palette.muted)}${clip(action.hint || '', inner - 34)}${RESET}${bgc(dialogBg)}`
-      box._hits = box._hits || {}
-      box._hits[box.length] = { kind: 'palette', index }
-      box.push(wrap(content, inner + 2))
+        ? ocSelected(pad(`${rowText}${desc ? ` ${desc}` : ''}`, inner), theme)
+        : `${fgText(rowText, palette)} ${desc ? fgMuted(desc, palette) : ''}${group ? `${' '.repeat(groupPad)}${fgMuted(group, palette)}` : ''}`
+      state.hit[top + box.length] = { kind: 'palette', index, x1: left + 3, x2: left + 3 + inner }
+      push(`   ${content}`)
     }
-    const current = list[state.palette.sel]
-    if (current) box.push(wrap(`   ${rgb(palette.muted)}${clip(current.hint || '', inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap(`${rgb(palette.muted)}↑↓ navegar · enter abrir · esc cerrar${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap('', inner + 2))
-  } else if (state.overlay === 'input' && state.input) {
-    boxW = Math.min(60, W - 2)
-    const inner = boxW - 6
-    box = [wrap('', inner + 2), headerRow(state.input.title, inner + 2), wrap('', inner + 2)]
-    box.push(wrap(`${bgc(palette.element)} ${rgb(palette.text)}${state.buffer}${COLOR_OK ? `${bgc(palette.primary)} ${bgc(palette.element)}` : '█'}`, inner + 2))
-    if (state.fieldError) box.push(wrap(`${ESC}[38;2;224;108;117m✖ ${state.fieldError}${RESET}${bgc(dialogBg)}`, inner + 2))
-    if (state.input.hint) box.push(wrap(`${rgb(palette.muted)}${clip(state.input.hint, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap(`${rgb(palette.muted)}enter confirmar · esc cancelar${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap('', inner + 2))
-  } else if (state.overlay === 'confirm' && state.confirm) {
-    boxW = Math.min(60, W - 2)
-    const inner = boxW - 6
-    const cancelTxt = '  Cancelar  '
-    const okTxt = `  ${state.confirm.okLabel}  `
-    const cancel = state.confirmSel === 0 ? ocSelected(cancelTxt, theme) : `${rgb(palette.muted)}${cancelTxt}${RESET}`
-    const ok = state.confirmSel === 1 ? ocSelected(okTxt, theme) : `${ESC}[38;2;224;108;117m${okTxt}${RESET}`
-    box = [wrap('', inner + 2), headerRow(state.confirm.title, inner + 2), wrap('', inner + 2)]
-    for (const line of String(state.confirm.body || '').split('\n')) box.push(wrap(`  ${rgb(palette.text)}${clip(line, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap('', inner + 2))
-    const btnRow = box.length
-    box.push(wrap(`   ${cancel}${bgc(dialogBg)}    ${ok}`, inner + 2))
-    box.push(wrap('', inner + 2))
-    box._buttons = { row: btnRow, items: [{ which: 0, xoff: 5, len: cancelTxt.length }, { which: 1, xoff: 5 + cancelTxt.length + 4, len: okTxt.length }] }
-  } else if (state.overlay === 'help') {
-    boxW = Math.min(88, W - 2)
-    const inner = boxW - 6
-    box = [wrap('', inner + 2), headerRow('Ayuda y atajos', inner + 2), wrap('', inner + 2)]
-    for (const line of HELP_LINES.slice(0, Math.max(1, bodyH - 10))) box.push(wrap(`  ${rgb(palette.text)}${clip(line, inner)}${RESET}${bgc(dialogBg)}`, inner + 2))
-    box.push(wrap('', inner + 2))
+    push('')
+    footerLine('enter abrir · ↑↓ navegar · esc cerrar')
+    push('')
+  } else if (state.overlay === 'input') {
+    const prompt = state.inputPrompt || {}
+    header(prompt.title || 'Editar')
+    if (prompt.description) {
+      for (const line of wrap(prompt.description, inner)) push(`   ${fgMuted(line, palette)}`)
+      push('')
+    }
+    push(COLOR_OK ? `   ${bgc(palette.element)}${rgb(palette.primary)} ${prompt.draft || ''} ${RESET}` : `   > ${prompt.draft || ''}`)
+    if (prompt.error) push(`   ${ESC}[38;2;224;108;117m${clip(prompt.error, inner)}${RESET}`)
+    else if (prompt.hint) push(`   ${fgMuted(clip(prompt.hint, inner), palette)}`)
+    push('')
+    footerLine('enter confirmar · esc cancelar')
+    push('')
+  } else {
+    header('Ayuda')
+    push('')
+    for (const line of HELP_LINES.slice(0, Math.max(3, bodyH - top - 6))) {
+      push(`   ${rgb(colorOfHelpLine(line, palette))}${clip(line, inner)}${RESET}${bgc(dialogBg)}`)
+    }
+    push('')
+    footerLine('esc cerrar')
+    push('')
   }
 
-  const leftPad = Math.max(0, Math.floor((W - boxW) / 2))
-  const topPad = Math.max(0, Math.floor(bodyH / 4))
-  const rows = base.slice(0, bodyH)
-  while (rows.length < bodyH) rows.push('')
-  box.forEach((line, i) => {
-    const rowIndex = topPad + i
-    if (rowIndex >= bodyH) return
-    if (box._hits?.[i]) state.hit[bodyTop + rowIndex] = { ...box._hits[i], x1: leftPad, x2: leftPad + boxW }
-    rows[rowIndex] = ' '.repeat(leftPad) + line
-  })
-  if (box._buttons) {
-    const absRow = bodyTop + topPad + box._buttons.row
-    state.hit[absRow] = box._buttons.items.map((btn) => ({ kind: 'confirm-btn', which: btn.which, x1: leftPad + btn.xoff + 1, x2: leftPad + btn.xoff + 1 + btn.len }))
+  for (let i = 0; i < box.length && top + i < bodyH; i += 1) {
+    dimmed[top + i] = `${' '.repeat(left)}${box[i]}`
   }
-  return rows
+  return dimmed
 }
+
+function colorOfHelpLine(line, palette) {
+  if (line.startsWith('═')) return palette.primary
+  return palette.text
+}
+
 
 /* --------------------------------------------------------- entrada de teclas */
 
@@ -968,6 +1158,7 @@ export function parseKeys(chunk) {
     if (ch === '\r' || ch === '\n') keys.push({ name: 'enter' })
     else if (ch === '\x7f') keys.push({ name: 'backspace' })
     else if (ch === '\x03') keys.push({ name: 'ctrl-c' })
+    else if (ch === '\x04') keys.push({ name: 'ctrl-d' })
     else if (ch === '\x10') keys.push({ name: 'ctrl-p' })
     else if (ch === '\x0b') keys.push({ name: 'ctrl-k' })
     else if (ch === '\x15') keys.push({ name: 'ctrl-u' })
@@ -1127,7 +1318,7 @@ async function main() {
 
   const openConfirm = (confirm) => {
     state.confirm = confirm
-    state.confirmSel = 0
+    state.confirmSel = 1
     state.overlay = 'confirm'
   }
 
@@ -1227,14 +1418,16 @@ async function main() {
     const actions = MENU_ITEMS.map((item) => ({
       id: `section:${item.id}`,
       title: item.label,
-      hint: item.hint,
+      description: item.hint,
+      group: 'Secciones',
       run: () => activateSection(item.id)
     }))
     editFields(env.config).forEach((field, index) => {
       actions.push({
         id: `field:${field.id}`,
         title: `Editar · ${field.label}`,
-        hint: field.about || '',
+        description: field.about || '',
+        group: field.group ? `Configuración · ${field.group}` : 'Configuración',
         run: () => {
           state.mode = 'config'
           state.configSel = index
@@ -1246,12 +1439,12 @@ async function main() {
       })
     })
     if (bot.running) {
-      actions.push({ id: 'bot:stop', title: 'Detener el bot', hint: 'Corta el proceso de la consola', run: () => { stopBot() } })
-      actions.push({ id: 'bot:restart', title: 'Reiniciar el bot', hint: 'Vuelve a lanzar el proceso de la consola', run: () => { if (bot.argv) spawnConsole(bot.title, bot.argv, bot.cmd) } })
+      actions.push({ id: 'bot:stop', title: 'Detener el bot', description: 'Corta el proceso de la consola', group: 'Bot', run: () => { stopBot() } })
+      actions.push({ id: 'bot:restart', title: 'Reiniciar el bot', description: 'Vuelve a lanzar el proceso de la consola', group: 'Bot', run: () => { if (bot.argv) spawnConsole(bot.title, bot.argv, bot.cmd) } })
     }
-    actions.push({ id: 'console:clear', title: 'Limpiar la consola', hint: 'Borra el historial de logs', run: () => { bot.buffer.clear(); state.mode = 'console' } })
-    actions.push({ id: 'backup', title: 'Crear respaldo de la sesión', hint: 'Copia con fecha junto a la sesión', run: () => createBackup() })
-    actions.push({ id: 'refresh', title: 'Refrescar estado', hint: 'Relee config.json y la sesión', run: () => { refreshEnv(); state.toast = '🌊 Estado refrescado' } })
+    actions.push({ id: 'console:clear', title: 'Limpiar la consola', description: 'Borra el historial de logs', group: 'Bot', run: () => { bot.buffer.clear(); state.mode = 'console' } })
+    actions.push({ id: 'backup', title: 'Crear respaldo de la sesión', description: 'Copia con fecha junto a la sesión', group: 'Sesión', run: () => createBackup() })
+    actions.push({ id: 'refresh', title: 'Refrescar estado', description: 'Relee config.json y la sesión', group: 'Sesión', run: () => { refreshEnv(); state.toast = '🌊 Estado refrescado' } })
     return actions
   }
   env.actions = buildActions()
@@ -1383,6 +1576,7 @@ async function main() {
         if (!state.overlay && state.mode === 'console' && bot.running && !state.consoleInput) { stopBot(); return }
         return quitRequest()
       }
+      if (key.name === 'ctrl-d' && state.overlay !== 'input') return quitRequest()
       if (state.toast && state.overlay !== 'input') state.toast = ''
 
       /* overlays primero */
@@ -1436,13 +1630,22 @@ async function main() {
       /* tecla líder estilo OpenCode: ctrl+x y después una letra */
       if (state.leader) {
         state.leader = false
-        const map = { c: 'console', p: 'pair', q: 'qr', s: 'status', e: 'config', m: 'menu', k: 'commands', g: 'session', d: 'doctor', v: 'verify', u: 'update', t: 'theme', h: 'help', x: 'exit' }
-        const id = map[key.char || '']
+        const ch = key.char || ''
+        if (ch === 'b') { state.sidebar = !state.sidebar; dirty = true; return }
+        if (/^[0-9]$/.test(ch)) {
+          const item = MENU_ITEMS[ch === '0' ? 9 : Number(ch) - 1]
+          if (item) await activateSection(item.id)
+          dirty = true
+          return
+        }
+        const map = { c: 'console', n: 'console', p: 'pair', r: 'qr', s: 'status', e: 'config', m: 'menu', g: 'commands', l: 'session', d: 'doctor', v: 'verify', u: 'update', t: 'theme', h: 'help', q: 'exit', x: 'exit' }
+        const id = map[ch]
         if (id) await activateSection(id)
         dirty = true
         return
       }
       if (key.name === 'ctrl-x' && !(state.mode === 'console' && state.consoleInput)) { state.leader = true; dirty = true; return }
+      if (state.mode === 'menu' && (key.name === 'enter' || key.name === 'return') && !state.homeQuery) { state.overlay = 'palette'; state.palette.query = ''; state.palette.sel = 0; dirty = true; return }
 
       if (state.mode === 'menu') {
         const list = homeList(state)
