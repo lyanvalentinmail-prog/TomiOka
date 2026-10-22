@@ -61,7 +61,15 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
   async function resolveVersion(mod) {
     if (!versionPromise) {
       versionPromise = (async () => {
-        try { return (await mod.fetchLatestBaileysVersion()).version } catch { return undefined }
+        try {
+          // Con timeout: si la red deja colgada la consulta, se usa la
+          // versión incluida en Baileys en vez de no conectar nunca.
+          const latest = await Promise.race([
+            mod.fetchLatestBaileysVersion(),
+            sleep(8_000).then(() => null)
+          ])
+          return latest?.version
+        } catch { return undefined }
       })()
     }
     return versionPromise
@@ -88,6 +96,8 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
       getMessage: async () => undefined
     })
     rt.sock = sock
+    rt.pairingAttempts = 0
+    rt.lastPairingAttemptAt = 0
     emit(rt, { status: rt.status === 'open' ? 'open' : 'connecting' })
 
     sock.ev.on('creds.update', () => { saveCreds().catch(() => {}) })
@@ -168,6 +178,17 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
       error.statusCode = 409
       return Promise.reject(error)
     }
+    // Freno anti-martilleo: pedir el código muchas veces seguidas hace
+    // que WhatsApp corte la conexión. Máximo 3 intentos por socket y
+    // al menos 1,5 s entre intentos (igual que el bot principal).
+    if (rt.pairingAttempts >= 3) {
+      return Promise.reject(new Error('Se alcanzó el máximo de intentos de pairing en esta conexión. Pide un código nuevo.'))
+    }
+    if (Date.now() - (rt.lastPairingAttemptAt || 0) < 1_500) {
+      return Promise.reject(new Error('Espera un momento antes de pedir otro código.'))
+    }
+    rt.pairingAttempts += 1
+    rt.lastPairingAttemptAt = Date.now()
     rt.pairingPromise = (async () => {
       const raw = await rt.sock.requestPairingCode(rt.phone)
       rt.pairingCode = String(raw || '').replace(/[^A-Za-z0-9]/g, '')
@@ -194,7 +215,8 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
         sock: null, starting: null, status: 'created',
         registered: false, pairingCode: '', pairingFormatted: '', pairingCodeAt: null,
         pairingPromise: null, qr: '', qrAt: null, lastError: '',
-        attempts: 0, stopped: false, intentionalClose: false, reconnectTimer: null
+        attempts: 0, pairingAttempts: 0, lastPairingAttemptAt: 0,
+        stopped: false, intentionalClose: false, reconnectTimer: null
       }
       sessions.set(id, rt)
     }

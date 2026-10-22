@@ -918,4 +918,17 @@ const server = createServer(async (req, res) => {
 
 server.listen(PORT, HOST, () => {
   console.log(`🌊 TomiOka · Panel web en http://${HOST}:${PORT}`)
+  // Reconexión automática: los sub-bots ya vinculados vuelven solos
+  // cuando el panel arranca, sin esperar a que alguien toque Conectar.
+  for (const instance of readSubbots()) {
+    try {
+      const credsFile = path.join(ROOT, instance.sessionDir || `sessions/${instance.id}`, 'creds.json')
+      if (!existsSync(credsFile)) continue
+      const registered = JSON.parse(readFileSync(credsFile, 'utf8'))?.registered
+      if (registered) {
+        console.log(`🔌 Reconectando sub-bot vinculado: ${instance.id}`)
+        linkSessions.start(liveInstance(instance)).catch(() => {})
+      }
+    } catch { /* sesión ilegible: se vincula a mano desde el panel */ }
+  }
 })

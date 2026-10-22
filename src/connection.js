@@ -247,8 +247,13 @@ export async function startBot({ config, logger, baileysLogger }) {
 
     let version
     try {
-      const latest = await fetchLatestBaileysVersion()
-      version = latest.version
+      // Con timeout de 8 s: si la red deja colgada la consulta, se sigue
+      // con la versión incluida en Baileys en vez de no conectar nunca.
+      const latest = await Promise.race([
+        fetchLatestBaileysVersion(),
+        sleep(8_000).then(() => null)
+      ])
+      version = latest?.version
       logger.debug(`Baileys version ${version?.join('.')}`)
     } catch {
       logger.debug('No se pudo consultar la última versión de WhatsApp Web, usando la incluida.')

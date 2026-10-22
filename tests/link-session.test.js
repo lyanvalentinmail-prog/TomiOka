@@ -78,6 +78,24 @@ test('el gestor pide el código a Baileys y refleja pairing → open → stopped
   assert.equal(manager.getState('test-bot').status, 'stopped')
 })
 
+test('si WhatsApp rechaza el pedido, no se martillea: máximo 3 intentos por conexión', async () => {
+  const mod = fakeRuntime()
+  let calls = 0
+  mod.sock.requestPairingCode = async () => { calls += 1; throw new Error('Connection Closed') }
+  const manager = createLinkSessionManager({ loadRuntime: async () => mod })
+  const instance = {
+    id: 'test-rechazo',
+    phone: '59899123456',
+    pairingMode: 'pairing',
+    sessionDirAbs: mkdtempSync(path.join(os.tmpdir(), 'tomioka-link-'))
+  }
+  await assert.rejects(
+    manager.requestPairing(instance, { waitMs: 2000 }),
+    (error) => error.statusCode === 504
+  )
+  assert.ok(calls >= 1 && calls <= 3, `requestPairingCode se llamó ${calls} veces (debe ser 1..3)`)
+})
+
 test('sin número válido no se intenta pedir el código', async () => {
   const manager = createLinkSessionManager({ loadRuntime: async () => fakeRuntime() })
   await assert.rejects(
