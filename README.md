@@ -27,7 +27,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (204 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (205 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints contiene solo los ocho comandos de WhatsApp del menú (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -49,10 +49,13 @@ acotada y veraz. Incluye:
 5. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
 6. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
 
-> El panel local no crea cuentas web, no vende planes ni guarda tickets: esos
-> endpoints responden `501` con el motivo. La vinculación de WhatsApp sí es real
-> desde el panel (pairing code de Baileys) o, si prefieres, por terminal con
-> `npm run pair`/`npm run qr` usando el comando que el propio panel genera.
+> El panel tiene cuentas locales reales: registro/login con contraseña cifrada
+> (scrypt, en `data/web-accounts.json`), sesiones con token y API keys propias.
+> Los emails de `OWNER_EMAIL` (por defecto `Lyanvalentinmail@gmail.com`) tienen
+> rol **OWNER** y acceso al panel de administración de Endpoints. No vende planes
+> ni guarda tickets: esos endpoints responden `501` con el motivo. La vinculación
+> de WhatsApp sí es real desde el panel (pairing code de Baileys) o, si
+> prefieres, por terminal con `npm run pair`/`npm run qr`.
 
 ### Desplegar la página: Render (Blueprint) o Vercel
 
@@ -391,7 +394,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (204 pruebas)
+├── tests/                   # node --test (205 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -401,7 +404,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 204 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 205 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

@@ -3,17 +3,19 @@
 #  En Render: New + → Blueprint → elegí este repo y aplicá este archivo.
 #  Botón directo: https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka
 #
-#  Levanta SOLO el panel web (web/ servido por scripts/serve-web.js).
-#  El bot de WhatsApp (Baileys) sigue corriendo donde lo tengas
-#  (Termux/VPS): necesita sesión persistente y proceso siempre activo.
+#  Levanta el panel web (web/ servido por scripts/serve-web.js).
+#  El build instala las dependencias (Baileys incluido): sin eso el
+#  pairing code del panel no puede abrir el socket de WhatsApp.
+#  Nota: en el plan free el disco es efímero; las sesiones de WhatsApp
+#  y las cuentas del panel se pierden al reiniciar el servicio. Para
+#  uso permanente, Termux/VPS o un disco persistente.
 # ═══════════════════════════════════════════════════════════════════
 services:
   - type: web
     name: tomioka-panel
     runtime: node
     plan: free
-    # El panel no necesita compilar nada: es HTML/CSS/JS servido por Node.
-    buildCommand: echo "Panel web listo (sin paso de build)"
+    buildCommand: npm install
     # serve-web.js escucha en process.env.PORT, que Render asigna solo.
     startCommand: node scripts/serve-web.js
     healthCheckPath: /
@@ -21,3 +23,5 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      - key: OWNER_EMAIL
+        value: Lyanvalentinmail@gmail.com

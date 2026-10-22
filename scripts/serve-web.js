@@ -13,7 +13,7 @@
  */
 import { createServer } from 'node:http'
 import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto'
 import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -26,6 +26,14 @@ const REGISTRY_FILE = path.join(DATA_DIR, 'web-subbots.json')
 const PORT = Number(process.env.PORT) || 3000
 const HOST = process.env.HOST || '0.0.0.0'
 const REPOSITORY = 'https://github.com/lyanvalentinmail-prog/TomiOka'
+const ACCOUNTS_FILE = path.join(DATA_DIR, 'web-accounts.json')
+const OWNER_EMAILS = new Set(['lyanvalentinmail@gmail.com'])
+for (const email of String(process.env.OWNER_EMAILS || process.env.OWNER_EMAIL || '').split(/[,;\s]+/)) {
+  const clean = email.trim().toLowerCase()
+  if (clean) OWNER_EMAILS.add(clean)
+}
+const SESSION_TTL_MS = 30 * 24 * 3600 * 1000
+const KEY_MAX_DAYS = 100
 const STARTED_AT = Date.now()
 let apiRequests = 0
 let commandsCache = null
@@ -371,6 +379,96 @@ function readBody(req) {
   })
 }
 
+/* ── cuentas locales del panel (registro/login/API keys) ─────────
+ * Se guardan en data/web-accounts.json con la contraseña cifrada
+ * (scrypt + sal) y las sesiones como hash del token. Los emails en
+ * OWNER_EMAILS (más OWNER_EMAIL) tienen rol owner. */
+function readAccounts() {
+  try {
+    ensureRegistry()
+    if (!existsSync(ACCOUNTS_FILE)) return { users: [], sessions: {}, apiKeys: [], usage: [] }
+    const parsed = JSON.parse(readFileSync(ACCOUNTS_FILE, 'utf8'))
+    return {
+      users: Array.isArray(parsed.users) ? parsed.users : [],
+      sessions: parsed.sessions && typeof parsed.sessions === 'object' ? parsed.sessions : {},
+      apiKeys: Array.isArray(parsed.apiKeys) ? parsed.apiKeys : [],
+      usage: Array.isArray(parsed.usage) ? parsed.usage : []
+    }
+  } catch { return { users: [], sessions: {}, apiKeys: [], usage: [] } }
+}
+
+function writeAccounts(store) {
+  ensureRegistry()
+  writeFileSync(ACCOUNTS_FILE, `${JSON.stringify(store, null, 2)}\n`)
+}
+
+function hashPassword(password) {
+  const salt = randomBytes(16).toString('hex')
+  return `${salt}:${scryptSync(String(password), salt, 64).toString('hex')}`
+}
+
+function verifyPassword(password, stored) {
+  const [salt, hash] = String(stored || '').split(':')
+  if (!salt || !hash) return false
+  const test = scryptSync(String(password), salt, 64)
+  const original = Buffer.from(hash, 'hex')
+  return original.length === test.length && timingSafeEqual(original, test)
+}
+
+function tokenHash(token) { return createHash('sha256').update(String(token)).digest('hex') }
+
+function createSession(store, userId) {
+  const token = `ses_${randomBytes(24).toString('hex')}`
+  store.sessions[tokenHash(token)] = { userId, createdAt: Date.now(), expiresAt: Date.now() + SESSION_TTL_MS }
+  return token
+}
+
+function publicUser(user) {
+  const isOwner = OWNER_EMAILS.has(String(user.email || '').toLowerCase())
+  return {
+    id: user.id, username: user.username, email: user.email,
+    isOwner, plan: isOwner ? 'OWNER' : (user.plan || 'Free'),
+    credits: user.credits || 0, createdAt: user.createdAt
+  }
+}
+
+function authUser(req) {
+  const header = String(req.headers.authorization || '')
+  const token = header.startsWith('Bearer ') ? header.slice(7).trim() : ''
+  if (!token) return null
+  const store = readAccounts()
+  const session = store.sessions[tokenHash(token)]
+  if (!session || session.expiresAt < Date.now()) return null
+  const user = store.users.find((item) => item.id === session.userId)
+  return user ? { store, user, token } : null
+}
+
+function publicKey(record) {
+  const now = Date.now()
+  const status = record.revokedAt ? 'revoked' : (record.expiresAt < now ? 'expired' : 'active')
+  return {
+    id: record.id, name: record.name, prefix: record.prefix, status,
+    createdAt: record.createdAt, expiresAt: record.expiresAt,
+    daysLeft: status === 'active' ? Math.max(0, Math.ceil((record.expiresAt - now) / 86_400_000)) : 0,
+    requests: record.requests || 0, lastUsedAt: record.lastUsedAt || null, revokedAt: record.revokedAt || null
+  }
+}
+
+function accountLimits(user) {
+  return { maxActiveKeys: publicUser(user).isOwner ? 25 : 3, maxDays: KEY_MAX_DAYS }
+}
+
+function usageSummary(store, user) {
+  const keys = store.apiKeys.filter((key) => key.userId === user.id)
+  return {
+    activeKeys: keys.filter((key) => publicKey(key).status === 'active').length,
+    totalKeys: keys.length,
+    requests: keys.reduce((sum, key) => sum + (key.requests || 0), 0),
+    recent: store.usage.filter((row) => row.userId === user.id).slice(-15).reverse(),
+    limits: accountLimits(user)
+  }
+}
+
 function findStoredInstance(id) {
   const items = readSubbots()
   const index = items.findIndex((item) => item.id === id)
@@ -388,6 +486,12 @@ function menuPreview(instance) {
   return lines.join('\n').trim()
 }
 
+function dependencyError(res, error) {
+  if (!/Cannot find package|ERR_MODULE_NOT_FOUND/.test(String(error?.message || error))) return false
+  sendJson(res, 503, { ok: false, error: 'El servidor no tiene instaladas las dependencias de WhatsApp (@whiskeysockets/baileys). Ejecuta npm install y reinicia el panel, o vincula por terminal con npm run pair.' })
+  return true
+}
+
 async function handleApi(req, res, url) {
   apiRequests++
   const method = req.method || 'GET'
@@ -402,7 +506,7 @@ async function handleApi(req, res, url) {
     return sendJson(res, 200, { ok: true, service: 'TomiOka', status: 'ok', uptimeMs: Date.now() - STARTED_AT, commands: commands.filter((command) => !command.hidden).length })
   }
   if (method === 'GET' && apiPath === '/me') {
-    return sendJson(res, 200, { ok: true, bot: { name: 'TomiOka', repository: REPOSITORY }, panel: { mode: 'local', accounts: false, store: false }, limits: {}, qrExpiresInSec: 20 })
+    return sendJson(res, 200, { ok: true, bot: { name: 'TomiOka', repository: REPOSITORY }, panel: { mode: 'local', accounts: true, store: false }, limits: {}, qrExpiresInSec: 20 })
   }
   if (method === 'GET' && apiPath === '/state') return sendJson(res, 200, snapshot())
   if (method === 'GET' && apiPath === '/stream') {
@@ -426,6 +530,18 @@ async function handleApi(req, res, url) {
   if (whatsappMatch) {
     const item = ENDPOINT_CATEGORIES.flatMap((category) => category.items).find((endpoint) => endpoint.path === `/api/whatsapp/${whatsappMatch[1]}`)
     if (!item) return sendJson(res, 404, { ok: false, error: 'Endpoint no encontrado en TomiOka.' })
+    const keyValue = String(req.headers['x-api-key'] || url.searchParams.get('key') || '')
+    if (keyValue) {
+      const store = readAccounts()
+      const record = store.apiKeys.find((key) => key.keyHash === tokenHash(keyValue))
+      if (record) {
+        record.requests = (record.requests || 0) + 1
+        record.lastUsedAt = Date.now()
+        store.usage.push({ userId: record.userId, keyName: record.name, endpoint: item.path, status: 501, durationMs: 0, createdAt: Date.now() })
+        store.usage = store.usage.slice(-500)
+        writeAccounts(store)
+      }
+    }
     return sendJson(res, 501, { ok: false, error: `${item.name} se ejecuta en WhatsApp con ${item.usage}; no es un endpoint HTTP del panel local.`, command: item.command, usage: item.usage })
   }
 
@@ -435,10 +551,133 @@ async function handleApi(req, res, url) {
   if (method === 'GET' && apiPath === '/credits/plans') return sendJson(res, 200, { ok: true, plans: [] })
   if (apiPath.startsWith('/credits/')) return notImplemented(res, 'La tienda y los créditos')
   if (apiPath === '/tickets' || apiPath.startsWith('/tickets/')) return notImplemented(res, 'Los tickets web (usa GitHub Issues)')
-  if (apiPath === '/account/logout' && method === 'POST') return sendJson(res, 200, { ok: true })
+  if (apiPath === '/account/register' && method === 'POST') {
+    const email = String(body.email || '').trim().toLowerCase()
+    const username = String(body.username || '').trim()
+    const password = String(body.password || '')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJson(res, 400, { ok: false, error: 'Escribe un email válido.' })
+    if (username.length < 3 || username.length > 32) return sendJson(res, 400, { ok: false, error: 'El usuario debe tener entre 3 y 32 caracteres.' })
+    if (password.length < 8) return sendJson(res, 400, { ok: false, error: 'La contraseña debe tener al menos 8 caracteres.' })
+    const store = readAccounts()
+    if (store.users.some((user) => user.email === email)) return sendJson(res, 409, { ok: false, error: 'Ya existe una cuenta con ese email. Inicia sesión.' })
+    if (store.users.some((user) => user.username.toLowerCase() === username.toLowerCase())) return sendJson(res, 409, { ok: false, error: 'Ese nombre de usuario ya está en uso.' })
+    const user = {
+      id: `usr_${randomBytes(8).toString('hex')}`, username, email,
+      passwordHash: hashPassword(password), plan: 'Free', credits: 0, createdAt: Date.now()
+    }
+    store.users.push(user)
+    const token = createSession(store, user.id)
+    writeAccounts(store)
+    return sendJson(res, 201, { ok: true, token, user: publicUser(user) })
+  }
+  if (apiPath === '/account/login' && method === 'POST') {
+    const email = String(body.email || '').trim().toLowerCase()
+    const store = readAccounts()
+    const user = store.users.find((item) => item.email === email)
+    if (!user || !verifyPassword(body.password || '', user.passwordHash)) {
+      return sendJson(res, 401, { ok: false, error: 'Email o contraseña incorrectos.' })
+    }
+    const token = createSession(store, user.id)
+    writeAccounts(store)
+    return sendJson(res, 200, { ok: true, token, user: publicUser(user) })
+  }
+  if (apiPath === '/account/logout' && method === 'POST') {
+    const auth = authUser(req)
+    if (auth) {
+      delete auth.store.sessions[tokenHash(auth.token)]
+      writeAccounts(auth.store)
+    }
+    return sendJson(res, 200, { ok: true })
+  }
   if (apiPath.startsWith('/account/')) {
-    if (method === 'GET') return sendJson(res, 401, { ok: false, error: 'No hay cuentas web en el panel local de TomiOka.' })
-    return notImplemented(res, 'Las cuentas web')
+    const auth = authUser(req)
+    if (!auth) return sendJson(res, 401, { ok: false, error: 'Inicia sesión para continuar.' })
+    const { store, user } = auth
+
+    if (apiPath === '/account/me' && method === 'GET') {
+      return sendJson(res, 200, { ok: true, user: publicUser(user), usage: usageSummary(store, user), limits: accountLimits(user) })
+    }
+    if (apiPath === '/account/usage' && method === 'GET') {
+      return sendJson(res, 200, { ok: true, ...usageSummary(store, user) })
+    }
+    if (apiPath === '/account/keys' && method === 'GET') {
+      return sendJson(res, 200, { ok: true, keys: store.apiKeys.filter((key) => key.userId === user.id).map(publicKey) })
+    }
+    if (apiPath === '/account/keys' && method === 'POST') {
+      const name = String(body.name || '').trim().slice(0, 60) || 'Mi API key'
+      const days = Number(body.days)
+      if (!Number.isInteger(days) || days < 1 || days > KEY_MAX_DAYS) return sendJson(res, 400, { ok: false, error: `La vigencia debe ser de 1 a ${KEY_MAX_DAYS} días.` })
+      const mine = store.apiKeys.filter((key) => key.userId === user.id)
+      if (mine.filter((key) => publicKey(key).status === 'active').length >= accountLimits(user).maxActiveKeys) {
+        return sendJson(res, 403, { ok: false, error: 'Alcanzaste el máximo de API keys activas de tu cuenta.' })
+      }
+      const fullKey = `tk_${randomBytes(20).toString('hex')}`
+      const record = {
+        id: `key_${randomBytes(8).toString('hex')}`, userId: user.id, name,
+        prefix: fullKey.slice(0, 12), keyHash: tokenHash(fullKey),
+        createdAt: Date.now(), expiresAt: Date.now() + days * 86_400_000,
+        requests: 0, lastUsedAt: null, revokedAt: null
+      }
+      store.apiKeys.push(record)
+      writeAccounts(store)
+      return sendJson(res, 201, { ok: true, key: fullKey, apiKey: publicKey(record), message: 'API key creada. Guárdala: no se vuelve a mostrar.' })
+    }
+    const keyMatch = apiPath.match(/^\/account\/keys\/([^/]+)(?:\/(renew))?$/)
+    if (keyMatch) {
+      const record = store.apiKeys.find((key) => key.id === decodeURIComponent(keyMatch[1]) && key.userId === user.id)
+      if (!record) return sendJson(res, 404, { ok: false, error: 'API key no encontrada.' })
+      if (method === 'DELETE') {
+        record.revokedAt = Date.now()
+        writeAccounts(store)
+        return sendJson(res, 200, { ok: true, apiKey: publicKey(record) })
+      }
+      if (method === 'POST' && keyMatch[2] === 'renew') {
+        const days = Number(body.days)
+        if (!Number.isInteger(days) || days < 1 || days > KEY_MAX_DAYS) return sendJson(res, 400, { ok: false, error: `La renovación debe ser de 1 a ${KEY_MAX_DAYS} días.` })
+        if (record.revokedAt) return sendJson(res, 400, { ok: false, error: 'Una key revocada no se puede renovar.' })
+        record.expiresAt = Math.max(Date.now(), record.expiresAt) + days * 86_400_000
+        writeAccounts(store)
+        return sendJson(res, 200, { ok: true, apiKey: publicKey(record) })
+      }
+    }
+    if (apiPath === '/account/owner/overview' && method === 'GET') {
+      if (!publicUser(user).isOwner) return sendJson(res, 403, { ok: false, error: 'Solo el owner puede ver este panel.' })
+      const users = store.users.map((item) => {
+        const keys = store.apiKeys.filter((key) => key.userId === item.id)
+        return { ...publicUser(item), activeKeys: keys.filter((key) => publicKey(key).status === 'active').length, requests: keys.reduce((sum, key) => sum + (key.requests || 0), 0) }
+      })
+      const keys = store.apiKeys.map((record) => ({ ...publicKey(record), email: store.users.find((item) => item.id === record.userId)?.email || '' }))
+      return sendJson(res, 200, {
+        ok: true,
+        totals: {
+          users: users.length,
+          activeKeys: keys.filter((key) => key.status === 'active').length,
+          requests: keys.reduce((sum, key) => sum + (key.requests || 0), 0),
+          requests24h: store.usage.filter((row) => row.createdAt > Date.now() - 86_400_000).length
+        },
+        users, keys, topEndpoints: []
+      })
+    }
+    const ownerMatch = apiPath.match(/^\/account\/owner\/(users|keys)\/([^/]+)$/)
+    if (ownerMatch && method === 'DELETE') {
+      if (!publicUser(user).isOwner) return sendJson(res, 403, { ok: false, error: 'Solo el owner puede hacer esto.' })
+      const targetId = decodeURIComponent(ownerMatch[2])
+      if (ownerMatch[1] === 'keys') {
+        const record = store.apiKeys.find((key) => key.id === targetId)
+        if (!record) return sendJson(res, 404, { ok: false, error: 'API key no encontrada.' })
+        record.revokedAt = Date.now()
+      } else {
+        const target = store.users.find((item) => item.id === targetId)
+        if (!target) return sendJson(res, 404, { ok: false, error: 'Usuario no encontrado.' })
+        if (publicUser(target).isOwner) return sendJson(res, 403, { ok: false, error: 'No se puede eliminar a un owner.' })
+        store.users = store.users.filter((item) => item.id !== targetId)
+        store.apiKeys = store.apiKeys.filter((key) => key.userId !== targetId)
+        for (const [hash, session] of Object.entries(store.sessions)) if (session.userId === targetId) delete store.sessions[hash]
+      }
+      writeAccounts(store)
+      return sendJson(res, 200, { ok: true })
+    }
+    return sendJson(res, 404, { ok: false, error: 'Ruta de cuenta no encontrada.' })
   }
 
   if (apiPath === '/instances') {
@@ -538,6 +777,7 @@ async function handleApi(req, res, url) {
         await linkSessions.start(liveInstance(instance))
         return sendJson(res, 200, { ok: true, started: true, ...linkPayload(instance) })
       } catch (error) {
+        if (dependencyError(res, error)) return
         return sendJson(res, 500, { ok: false, error: `No se pudo abrir la sesión de WhatsApp: ${error.message}` })
       }
     }
@@ -546,6 +786,7 @@ async function handleApi(req, res, url) {
         const result = await linkSessions.requestPairing(liveInstance(instance), { waitMs: body.waitMs ?? 15_000, force: Boolean(body.force) })
         return sendJson(res, 200, { ok: true, ...result, issuedAt: result.issuedAt ?? result.pairingCodeAt ?? Date.now() })
       } catch (error) {
+        if (dependencyError(res, error)) return
         return sendJson(res, error.statusCode || 500, { ok: false, error: error.message })
       }
     }

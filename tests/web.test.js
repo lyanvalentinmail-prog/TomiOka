@@ -87,9 +87,11 @@ test('endpoints: solo los ocho de WhatsApp, agrupados en Descargas y Stickers', 
 test('el servidor sirve la SPA y responde la API local real', async (t) => {
   const port = 3219
   const base = `http://127.0.0.1:${port}`
+  const suffix = Date.now()
+  const ownerEmail = `dueno-${suffix}@example.com`
   const child = spawn(process.execPath, ['scripts/serve-web.js'], {
     cwd: root,
-    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1' },
+    env: { ...process.env, PORT: String(port), HOST: '127.0.0.1', OWNER_EMAIL: ownerEmail },
     stdio: 'ignore'
   })
   t.after(() => { child.kill() })
@@ -160,6 +162,51 @@ test('el servidor sirve la SPA y responde la API local real', async (t) => {
 
   const removed = await fetch(`${base}/api/instances/${created.instance.id}`, { method: 'DELETE' })
   assert.equal(removed.status, 200)
+
+  // Login real: registro como owner (OWNER_EMAIL), login, sesión y API keys
+  const jsonHeaders = { 'content-type': 'application/json' }
+  const register = await fetch(`${base}/api/account/register`, {
+    method: 'POST', headers: jsonHeaders,
+    body: JSON.stringify({ email: ownerEmail, username: `dueno${suffix}`, password: 'secreto123' })
+  })
+  assert.equal(register.status, 201)
+  const regData = await register.json()
+  assert.ok(regData.token.startsWith('ses_'))
+  assert.equal(regData.user.isOwner, true)
+  assert.equal(regData.user.email, ownerEmail)
+
+  const wrong = await fetch(`${base}/api/account/login`, {
+    method: 'POST', headers: jsonHeaders,
+    body: JSON.stringify({ email: ownerEmail, password: 'incorrecta' })
+  })
+  assert.equal(wrong.status, 401)
+
+  const login = await fetch(`${base}/api/account/login`, {
+    method: 'POST', headers: jsonHeaders,
+    body: JSON.stringify({ email: ownerEmail, password: 'secreto123' })
+  })
+  assert.equal(login.status, 200)
+  const loginData = await login.json()
+  assert.equal(loginData.user.isOwner, true)
+  const authHeaders = { ...jsonHeaders, authorization: `Bearer ${loginData.token}` }
+
+  const me = await (await fetch(`${base}/api/account/me`, { headers: authHeaders })).json()
+  assert.equal(me.user.email, ownerEmail)
+  assert.equal(me.user.plan, 'OWNER')
+  assert.equal((await fetch(`${base}/api/account/me`)).status, 401)
+
+  const keyRes = await fetch(`${base}/api/account/keys`, {
+    method: 'POST', headers: authHeaders, body: JSON.stringify({ name: 'Test', days: 30 })
+  })
+  assert.equal(keyRes.status, 201)
+  const keyData = await keyRes.json()
+  assert.ok(keyData.key.startsWith('tk_'))
+  const keys = await (await fetch(`${base}/api/account/keys`, { headers: authHeaders })).json()
+  assert.ok(keys.keys.some((key) => key.id === keyData.apiKey.id && key.status === 'active'))
+
+  const overview = await (await fetch(`${base}/api/account/owner/overview`, { headers: authHeaders })).json()
+  assert.ok(overview.totals.users >= 1)
+  assert.equal((await fetch(`${base}/api/account/owner/overview`)).status, 401)
 })
 
 test('el pairing code del panel lo pide Baileys a WhatsApp, no se inventa', () => {
@@ -169,6 +216,15 @@ test('el pairing code del panel lo pide Baileys a WhatsApp, no se inventa', () =
   assert.ok(link.includes('requestPairingCode'), 'usa la API real de Baileys')
   assert.ok(link.includes('formatPairingCode'))
   assert.ok(link.includes('useMultiFileAuthState'), 'persiste la sesión del sub-bot')
+})
+
+test('el login del panel es real: cuentas cifradas, sesiones y owner', () => {
+  for (const route of ['/account/register', '/account/login', '/account/me', '/account/keys', '/account/usage', '/account/owner/overview']) {
+    assert.ok(server.includes(route), `falta la ruta ${route}`)
+  }
+  assert.ok(server.includes('scryptSync') && server.includes('createSession'), 'contraseñas cifradas y sesiones con token')
+  assert.ok(server.includes('lyanvalentinmail@gmail.com'), 'el email del owner viene por defecto')
+  assert.ok(read('render.yaml').includes('npm install'), 'Render debe instalar las dependencias (Baileys) en el build')
 })
 
 test('package.json expone cómo servir la página', () => {
