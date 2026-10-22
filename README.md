@@ -391,6 +391,14 @@ npm start
 > El free tier es anónimo y compartido (cuota por IP): puede saturarse. Para un bot con tráfico real,
 > conviene poner la clave.
 
+Para confirmar que la IA responde en tu equipo (y ver qué modelo contesta cada comando):
+
+```bash
+npm run ai:test
+```
+
+`npm test` y `npm run verify` **simulan** el gateway y no tocan la red; `ai:test` hace la llamada real.
+
 ### Detalles técnicos
 
 `src/lib/ai.js` habla con el gateway sin dependencias nuevas (solo `fetch` de Node 20+):
@@ -593,8 +601,19 @@ TomiOka/
 ```bash
 npm test           # 287 pruebas (menú, endpoints, IA, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
+npm run ai:test    # llamada REAL a las tres IA: qué modelo responde, con qué protocolo y en cuánto tiempo
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
-npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
+npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión, IA + prueba real
+```
+
+`npm test` y `npm run verify` simulan el gateway de IA (no tocan la red). Para confirmar que la IA
+funciona en **tu** equipo usa `npm run ai:test`, que hace la llamada de verdad y muestra por cada
+comando el modelo configurado, el protocolo, el endpoint, quién contestó realmente y si fue un
+respaldo. Acepta una pregunta propia:
+
+```bash
+npm run ai:test                          # pregunta por defecto a las tres
+npm run ai:test -- "hola, ¿qué modelo eres?"
 ```
 
 ### Si algo no convierte (stickers, toimg, tovideo…)

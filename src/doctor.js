@@ -6,6 +6,8 @@ import { ensureDirs, loadConfig } from './config.js'
 import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
 import { canWrite, tempInfo } from './lib/tmp.js'
 import { indexInfo } from './lib/emojimix.js'
+import { askAi } from './lib/ai.js'
+import { truncate } from './lib/text.js'
 import { driveFileId, loadMenuImage } from './lib/banner.js'
 import { describeSession, inspectSession } from './lib/session.js'
 import { commandList, visibleCommands } from './commands/index.js'
@@ -36,7 +38,7 @@ function humanBytes(bytes) {
   return `${value.toFixed(1)} ${units[unit]}`
 }
 
-export async function runDoctor({ config = loadConfig() } = {}) {
+export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) {
   title('Diagnóstico de TomiOka Bot')
   const problems = []
   const recommendations = []
@@ -126,6 +128,52 @@ export async function runDoctor({ config = loadConfig() } = {}) {
     ok(`catálogo emojimix disponible${emojiIndex.total ? ` (${emojiIndex.total} combinaciones)` : ''}`)
   } else {
     info('catálogo emojimix: se descargará en el primer uso (~95 MB)')
+  }
+
+  // IA (OpenCode): estado y prueba real de conexión
+  if (config.ai?.enabled === false) {
+    info('IA: desactivada (ai.enabled = false)')
+  } else if (config.ai) {
+    const withKey = Boolean(String(config.ai.apiKey || '').trim())
+    const brand = config.ai.models?.deepseek?.[0] || 'deepseek'
+    info(`IA (OpenCode): ${withKey ? `clave configurada · ${brand}` : 'SIN clave → free tier'}`)
+
+    if (probeAi) {
+      info('  probando conexión con la IA (puede tardar unos segundos)...')
+      const startedAt = Date.now()
+      try {
+        // DeepSeek es la que responde sin clave: valida red, gateway y la
+        // puerta del free tier de una sola vez.
+        // Acotado a propósito: el diagnóstico no puede colgar minutos si la
+        // red anda mal. Sin respaldo y con un solo intento por modelo, la
+        // prueba es DeepSeek y nada más (que es la que anda sin clave).
+        const answer = await askAi({
+          request: 'deepseek',
+          prompt: 'Responde exactamente: OK',
+          config: {
+            ...config.ai,
+            timeoutMs: Math.min(Number(config.ai.timeoutMs) || 90000, 20000),
+            retriesPerModel: 1,
+            freeTierFallback: false
+          }
+        })
+        ok(`  IA respondiendo con ${answer.model} (${Date.now() - startedAt} ms)`)
+        if (answer.fallback) {
+          warn('  usó un modelo de respaldo (no el de la marca)')
+          if (!withKey) {
+            recommendations.push(
+              'Sin OPENCODE_API_KEY, Gemini y ChatGPT responden con un modelo gratuito de respaldo. ' +
+                'Con clave usan gemini-3-flash y gpt-5.6-terra. Prueba las tres con "npm run ai:test".'
+            )
+          }
+        }
+      } catch (error_) {
+        warn(`  no se pudo hablar con la IA: ${truncate(error_.message, 140)}`)
+        recommendations.push(
+          'La IA no respondió. Revisa el internet del equipo y prueba "npm run ai:test" para ver el detalle.'
+        )
+      }
+    }
   }
 
   // Banner del menú
