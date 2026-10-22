@@ -53,7 +53,7 @@ test('loadConfig mezcla defaults, config.json y normaliza', () => {
   assert.ok(Array.isArray(config.menu.categories))
   assert.equal(config.menu.categories.length, 6)
   assert.deepEqual(config.menu.categories[0].commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])
-  assert.deepEqual(config.menu.categories[1].commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix'])
+  assert.deepEqual(config.menu.categories[1].commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack'])
   assert.deepEqual(config.menu.categories[2].commands, ['toimg', 'tovideo', 'take'])
   assert.deepEqual(config.menu.categories[3].commands, ['pack'])
   assert.deepEqual(config.menu.categories[4].commands, ['gemini', 'chatgpt', 'deepseek'])
@@ -61,6 +61,8 @@ test('loadConfig mezcla defaults, config.json y normaliza', () => {
   assert.ok(config.paths.session.endsWith('sessions'))
   assert.equal(config.stickers.size, 512)
   assert.equal(typeof DEFAULTS.stickers.maxStaticKB, 'number')
+  assert.equal(config.search.provider, 'stickerly')
+  assert.equal(config.search.baseUrl, 'https://api.sticker.ly')
 })
 
 test('loadConfig respeta BOT_PREFIX y SESSION_DIR', () => {

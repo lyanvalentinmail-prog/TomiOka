@@ -81,6 +81,28 @@ export const DEFAULTS = {
       'flint-40b-free'
     ]
   },
+  // 🔎 Búsqueda de stickers y paquetes (Sticker.ly). Ver src/lib/sticker-search.js
+  search: {
+    enabled: true,
+    provider: 'stickerly', // "stickerly" | "custom"
+    baseUrl: 'https://api.sticker.ly',
+    customBaseUrl: '', // con provider "custom": tu propia API
+    userAgent: 'androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)',
+    referer: 'https://sticker.ly/',
+    timeoutMs: 20000,
+    maxResults: 3,
+    sessionMinutes: 10,
+    packStickerLimit: 30,
+    maxBytes: 8388608,
+    language: 'es'
+  },
+  // ⚡ Rendimiento: lo que el usuario nota como "instantáneo".
+  performance: {
+    stickerCache: true, // no repetir conversiones del mismo archivo
+    stickerCacheEntries: 24,
+    stickerCacheMB: 32,
+    warmUp: true // deja lista la carpeta temporal y FFmpeg al arrancar
+  },
   behavior: {
     cooldownMs: 2500,
     reactToCommands: true,
@@ -107,6 +129,7 @@ export const DEFAULTS = {
     categories: [
       {
         emoji: '🌊',
+        title: '𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘',
         description: '𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌',
         kaomoji: '( ˶ˆ꒳ˆ˵ )',
         divider: ['💧', '💦'],
@@ -114,13 +137,15 @@ export const DEFAULTS = {
       },
       {
         emoji: '💧',
+        title: '𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘',
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['🐟', '💙'],
-        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
+        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack']
       },
       {
         emoji: '💦',
+        title: '𝕮𝖔𝖓𝖛𝖊𝖗𝖘𝖎𝖔́𝖓',
         description: '𝖢𝗈𝗇𝗏𝖾𝗋𝗌𝗂𝗈́𝗇',
         kaomoji: '( ˶ᵕ˶ )',
         divider: ['🌊', '💧'],
@@ -128,6 +153,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '🐟',
+        title: '𝕻𝖆𝖈𝖐𝖘',
         description: '𝖯𝖺𝖼𝗄𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['💙', '🌊'],
@@ -135,6 +161,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '💙',
+        title: '𝕬𝕴',
         description: '𝖠𝖨',
         kaomoji: '( ᵕ ᴗ ᵕ )',
         divider: ['💦', '🐟'],
@@ -142,6 +169,7 @@ export const DEFAULTS = {
       },
       {
         emoji: '🌊',
+        title: '𝕴𝖓𝖋𝖔',
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
         divider: ['💧', '💙'],
@@ -226,6 +254,10 @@ export function loadConfig({ file = process.env.CONFIG_PATH || path.join(ROOT, '
   // IA (OpenCode): la clave también puede venir del entorno, útil en Termux/VPS.
   if (process.env.OPENCODE_API_KEY) merged.ai.apiKey = process.env.OPENCODE_API_KEY
   if (process.env.AI_ENABLED) merged.ai.enabled = process.env.AI_ENABLED !== '0'
+  // Búsqueda de stickers: permite cambiar de proveedor/servidor sin tocar el JSON.
+  if (process.env.STICKER_SEARCH_PROVIDER) merged.search.provider = process.env.STICKER_SEARCH_PROVIDER
+  if (process.env.STICKER_SEARCH_BASE_URL) merged.search.baseUrl = process.env.STICKER_SEARCH_BASE_URL
+  if (process.env.STICKER_SEARCH_ENABLED) merged.search.enabled = process.env.STICKER_SEARCH_ENABLED !== '0'
 
   const config = { ...merged }
 

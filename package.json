@@ -20,6 +20,7 @@
     "emojimix:sync": "node src/tools/sync-emojimix.js",
     "verify": "node scripts/verify-commands.js",
     "ai:test": "node scripts/test-ai.js",
+    "search:test": "node scripts/test-search.js",
     "selftest": "node scripts/selftest.js",
     "web": "node scripts/serve-web.js"
   },
@@ -37,7 +38,7 @@
     "pino": "^9.6.0",
     "qrcode-terminal": "^0.12.0"
   },
-  "author": "Tomi\u00f3ka Team",
+  "author": "Tomióka Team",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/lyanvalentinmail-prog/TomiOka.git"

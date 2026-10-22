@@ -25,11 +25,12 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - ⬇️ **Descargadores** con `yt-dlp`: videos públicos de TikTok, Instagram y Pinterest y audio/video de YouTube (`.ytmp3` / `.ytmp4`).
 - 🧠 **IA en el chat**: `.gemini`, `.chatgpt` y `.deepseek` consultan los modelos de **OpenCode** (`opencode.ai`).
   Sin ninguna clave usan el free tier del gateway; con `OPENCODE_API_KEY` usan el modelo oficial de cada marca.
+- 🔎 **Buscador de stickers**: `.search <texto>` trae stickers de **Sticker.ly** (packs públicos y privados) y `.searchpack` busca paquetes, los lista y los importa como paquete nativo — también por código o enlace (`https://sticker.ly/s/XXXXXX`).
 - ✍️ **Stickers de texto**: `.brat` (fondo verde lima), `.attp` (animado con colores) y `.ttp` (texto con borde), generados localmente con FFmpeg.
 - 🖼️ **Menú con banner**: `.help` carga el menú completo directamente como pie de foto del banner en un único mensaje (por defecto `banner.jpg` de Google Drive, con caché local), nunca por separado. Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los que llevan banner se eliminan para todos y los de solo texto quedan editados como **"Menu eliminado."**.
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (287 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (330 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -270,6 +271,9 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 | `.tovideo` | `.tomp4` | Pasa un sticker a video MP4 (los estáticos se convierten en un video de 2 s) |
 | `.take nombre,autor` | `.autor`, `.rename` | Cambia nombre y autor del sticker; también acepta fotos/videos (los convierte antes) |
 | `.emojimix 😺 🐼` | `.mix` | Combina dos emojis (o sin argumentos para una mezcla aleatoria) |
+| `.search <texto> [n]` | `.ssearch`, `.buscar` | Busca stickers en Sticker.ly (packs públicos o privados) y los envía; `n` = cuántos (1-10) |
+| `.searchpack <texto>` | `.spack`, `.packsearch` | Busca paquetes y los lista numerados; `.searchpack 2` envía el elegido |
+| `.searchpack get <código\|enlace>` | | Importa un paquete por su código (`OD5GZR`) o enlace, ideal para los privados |
 | `.pack nombre,autor` | `.packsticker` | Inicia un pack; envía **varias fotos/videos** (se convierten solos) y cierra con `.pack done` |
 | **🧠 AI** | | |
 | `.gemini <pregunta>` | `.geminiai`, `.google-ai` | Le pregunta a Gemini (Google). También sirve respondiendo a un mensaje |
@@ -306,6 +310,13 @@ El prefijo por defecto es `.` (se cambia en `config.json`).
 .take Olas del mar,Tomi 🌊
 .toimg
 .tovideo
+
+# buscar stickers y paquetes (Sticker.ly)
+.search gatitos          ← manda 3 stickers
+.search anime 5          ← manda 5
+.searchpack gatitos      ← lista paquetes: usa .searchpack 1, 2…
+.searchpack get OD5GZR   ← importa un paquete por código (también privados)
+.searchpack https://sticker.ly/s/OD5GZR
 
 # emojis
 .emojimix 😺 🐼
@@ -346,6 +357,39 @@ Configurable en `pack`:
 | `acceptVideos` | `true` | Los videos y GIFs también (sticker animado) |
 | `maxStickers` | `30` | Tope de stickers por pack |
 | `autoDoneAfter` | `0` | `0` = cierra solo con `.pack done`; con `N` descarga el pack al llegar a N |
+
+### 🔎 Cómo funcionan `.search` y `.searchpack`
+
+Los dos usan la API móvil de **Sticker.ly**, donde están los packs públicos y también los
+privados (cada pack privado se abre con su código, por ejemplo `https://sticker.ly/s/OD5GZR`).
+
+```
+.search gatitos          → busca y manda 3 stickers de Sticker.ly
+.search anime 5          → manda 5 (máximo 10)
+.search -p 2 memes       → segunda página de resultados
+.searchpack gatitos      → lista los paquetes encontrados
+.searchpack 2            → envía ese paquete a WhatsApp (tarjeta nativa "Agregar")
+.searchpack get OD5GZR   → importa por código, sin buscar (para los privados)
+.searchpack https://sticker.ly/s/OD5GZR
+.searchpack cancel       → olvida la lista guardada
+```
+
+- **`.search`** descarga cada sticker y lo envía como sticker real, con el nombre del pack
+  y su autor en los metadatos. Si el archivo ya es un WebP válido se manda tal cual (sin
+  recodificar); si viene en PNG/GIF se convierte con FFmpeg.
+- **`.searchpack`** guarda la lista por chat durante `search.sessionMinutes` (10 por defecto),
+  así el número que eliges se refiere a esa búsqueda. Al elegir uno descarga hasta
+  `search.packStickerLimit` stickers (máximo 30, el tope de WhatsApp) y lo envía con el
+  mismo pipeline que `.pack done`: tarjeta nativa y, si falla, el `.wasticker` como documento.
+- El progreso se ve en **un solo mensaje** que se edita (`⏳ descargando 3/12…`), nunca uno por sticker.
+- Los errores se explican en castellano: servicio bloqueado, ruta cambiada, sin internet o
+  código inexistente. Para saber qué falla en tu equipo: `npm run search:test`.
+
+> La API de Sticker.ly no está documentada y sus rutas cambian de vez en cuando. El bot prueba
+> varias rutas en orden y recuerda la que funciona; si un día dejan de responder, se puede
+> cambiar `search.baseUrl` desde `config.json` (o `STICKER_SEARCH_BASE_URL`) sin tocar el código.
+> Con `search.provider: "custom"` se puede apuntar a una API propia que devuelva
+> `{ result: [...] }` o `{ data: [...] }`.
 
 El paquete viaja como ZIP cifrado (`contents.json` + stickers + vista previa), igual que un `.wasticker`,
 pero se envía como `stickerPackMessage` para que WhatsApp lo reconozca directamente. El mismo ZIP queda
@@ -441,6 +485,22 @@ Configurable en `ai` (`config.json`):
 | `timeoutMs` / `maxTokens` / `temperature` | `90000` / `1024` / `0.7` | Ajustes del pedido |
 | `maxInputChars` / `maxChars` | `6000` / `3500` | Recorte del prompt y de la respuesta |
 
+Configurable en `search` (`config.json`):
+
+| Opción | Por defecto | Qué hace |
+|--------|-------------|----------|
+| `enabled` | `true` | Apaga `.search` y `.searchpack` |
+| `provider` | `"stickerly"` | `stickerly` (API móvil) o `custom` (tu propia API) |
+| `baseUrl` | `https://api.sticker.ly` | Servidor de búsqueda |
+| `customBaseUrl` | `""` | Base propia cuando `provider` es `custom` |
+| `userAgent` / `referer` | los de la app | Identificación que exige la API móvil |
+| `timeoutMs` | `20000` | Tiempo máximo por pedido |
+| `maxResults` | `3` | Stickers que envía `.search` si no se indica cantidad |
+| `sessionMinutes` | `10` | Cuánto dura la lista que elige `.searchpack <n>` |
+| `packStickerLimit` | `30` | Stickers por paquete importado (tope de WhatsApp) |
+| `maxBytes` | `8388608` | Tamaño máximo de cada archivo descargado |
+| `language` | `"es"` | Idioma que se envía en la búsqueda |
+
 Los modelos que ofrece OpenCode cambian seguido; se pueden listar en vivo con:
 
 ```bash
@@ -483,6 +543,20 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "autoDoneAfter": 0              // 0 = cerrar solo con .pack done
   },
   "emojimix": { "enabled": true },
+  "search": {                        // 🔎 .search / .searchpack (Sticker.ly)
+    "enabled": true,
+    "provider": "stickerly",         // "stickerly" | "custom"
+    "baseUrl": "https://api.sticker.ly",
+    "customBaseUrl": "",             // con provider "custom": tu propia API
+    "userAgent": "androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)",
+    "referer": "https://sticker.ly/",
+    "timeoutMs": 20000,
+    "maxResults": 3,                 // stickers que manda .search por defecto
+    "sessionMinutes": 10,            // vigencia de la lista de .searchpack
+    "packStickerLimit": 30,          // máximo de stickers por paquete importado
+    "maxBytes": 8388608,
+    "language": "es"
+  },
   "ai": {                            // 🧠 Gemini, ChatGPT y DeepSeek vía OpenCode
     "enabled": true,
     "apiKey": "",                    // mejor por OPENCODE_API_KEY; vacío = free tier
@@ -496,6 +570,12 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "freeModels": ["deepseek-v4.1-flash-free", "glm-5.3-flash-free", "big-pickle"],
     "freeTierFallback": true,        // si la marca falla, prueba los gratuitos
     "maxChars": 3500                 // la respuesta entra en un mensaje de WhatsApp
+  },
+  "performance": {                   // ⚡ para que todo se sienta instantáneo
+    "stickerCache": true,            // no reconvertir el mismo archivo
+    "stickerCacheEntries": 24,       // cuántos stickers guarda en memoria
+    "stickerCacheMB": 32,            // tope de memoria de la caché
+    "warmUp": true                   // deja listo FFmpeg y la carpeta temporal al arrancar
   },
   "behavior": {
     "cooldownMs": 2500,             // anti-spam por usuario
@@ -514,23 +594,40 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
     "categories": [             // el menú lista TODOS los comandos visibles, en 6 categorías
       {
-        "emoji": "📥",
-        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
+        "emoji": "🌊",
+        "title": "𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘",      // nombre que sale en el encabezado del menú
+        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌", // nombre de respaldo si no hay title
         "kaomoji": "( ˶ˆ꒳ˆ˵ )",
-        "divider": ["⬇️", "🎬"],
+        "divider": ["💧", "💦"],
         "commands": ["tiktok", "instagram", "pinterest", "ytmp3", "ytmp4"]
       },
       {
-        "emoji": "🎨",
+        "emoji": "💧",
+        "title": "𝕾𝖙𝖎𝖈𝖐𝖊𝖗𝖘",
         "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
-        "divider": ["✨", "🖼️"],
-        "commands": ["brat", "attp", "ttp", "sticker"]
+        "divider": ["🐟", "💙"],
+        "commands": ["brat", "attp", "ttp", "sticker", "gif", "emojimix"]
       }
     ]
   }
 }
 ```
+
+**Encabezado de cada categoría.** El menú ya no numera las categorías como
+`Categoría01`, `Categoría02`… Ahora muestra el nombre real de cada una:
+
+```
+ㅤㅤ◢ 𝟎𝟏 ◣
+🌊ㅤ׃ㅤ 𝕯𝖊𝖘𝖈𝖆𝖗𝖌𝖆𝖘 ㅤ׃
+ㅤㅤㅤ( ˶ˆ꒳ˆ˵ )
+୨ৎㅤ.tiktok
+```
+
+El texto del encabezado sale de `title` y, si no existe, de `description`
+(así las categorías que crea el panel web siguen funcionando sin tocar nada).
+El `◢ 𝟎𝟏 ◣` es solo el adorno del índice: podés cambiar el nombre de una
+categoría editando `menu.categories` en `config.json` sin tocar el código.
 
 ### Variables de entorno (opcionales)
 
@@ -547,6 +644,44 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
 | `MENU_IMAGE` | `https://.../menu.jpg` | Banner del menú (URL, Drive o ruta local) |
 | `OPENCODE_API_KEY` | `sk-...` | Clave de OpenCode para que la IA use los modelos oficiales (sin clave va al free tier) |
 | `AI_ENABLED` | `0` | Apaga la categoría AI sin tocar el JSON |
+| `STICKER_SEARCH_PROVIDER` | `custom` | Cambia el proveedor de `.search` sin tocar el JSON |
+| `STICKER_SEARCH_BASE_URL` | `https://…` | Otro servidor de búsqueda de stickers |
+| `STICKER_SEARCH_ENABLED` | `0` | Apaga `.search` y `.searchpack` |
+
+### ⚡ Rendimiento (por qué ahora es instantáneo)
+
+El bot ya no espera a WhatsApp para empezar a trabajar. Cambios concretos:
+
+| Antes | Ahora |
+|-------|-------|
+| `escribiendo…` y la reacción ⏳ se esperaban **antes** de ejecutar el comando (dos viajes de red completos) | Salen **en paralelo** con el comando: el sticker empieza a convertirse de inmediato |
+| Al cerrar, el ✅ y el "dejó de escribir" iban uno detrás del otro | Van **a la vez**, y no frenan el siguiente mensaje de la cola |
+| Cada conversión repetida volvía a llamar a FFmpeg | **Caché de conversiones**: mismo archivo + mismos ajustes = resultado al instante (`.sticker` y después `.take`, o el mismo sticker en dos búsquedas) |
+| Cada conversión probaba la carpeta temporal con `mkdir` + `access` + `mkdtemp` | La carpeta base se elige **una vez por proceso** y después es un solo `mkdir` |
+| `.search` descargaba y enviaba un sticker por vez | Descarga y convierte **3 en paralelo** y los envía en orden |
+| `.searchpack` bajaba 3 stickers a la vez | **4** a la vez, con el progreso en un solo mensaje |
+| Al agregar fotos al pack, cada aviso de progreso frenaba la conversión siguiente | La reacción y la edición del progreso van **en paralelo** con el trabajo |
+| El primer `.sticker` pagaba la detección de FFmpeg y la carpeta temporal | **Precalentado** al arrancar (`performance.warmUp`) |
+
+Medición real en este repo (latencia de WhatsApp simulada en 120 ms, `.help` con banner):
+
+```
+antes:  resultado visible a los 361 ms  ·  handler libre recién a los 722 ms
+ahora:  resultado visible a los 121 ms  ·  handler libre a los 243 ms
+```
+
+Y con conversión de por medio (FFmpeg simulado en 350 ms, `.sticker`):
+
+```
+1ª vez:  515 ms (conversión + envío)
+2ª vez:  121 ms (una sola espera: la del envío, gracias a la caché)
+```
+
+`.debug` muestra el estado de la caché (`archivos · MB · aciertos`). Para apagarla:
+
+```jsonc
+"performance": { "stickerCache": false }
+```
 
 ---
 
@@ -567,6 +702,10 @@ TomiOka/
 │   │   ├── ffmpeg.js        # detección de FFmpeg + argumentos
 │   │   ├── downloaders.js   # TikTok/Instagram/Pinterest/YouTube con yt-dlp
 │   │   ├── ai.js            # cliente de IA (OpenCode: Gemini, ChatGPT, DeepSeek)
+│   │   ├── sticker-search.js # búsqueda de stickers y paquetes (Sticker.ly)
+│   │   ├── searches.js      # selección temporal de `.searchpack`
+│   │   ├── cache.js         # caché LRU de conversiones (stickers al instante)
+│   │   ├── concurrency.js   # mapLimit y avisos en segundo plano
 │   │   ├── text-sticker.js  # stickers de texto Brat / ATTP / TTP
 │   │   ├── media.js         # imagen/GIF/video ↔ sticker
 │   │   ├── sticker.js       # EXIF (nombre/autor), demux WebP
@@ -588,8 +727,9 @@ TomiOka/
 │   ├── start.sh             # arranque con wake-lock
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
-│   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (287 pruebas)
+│   ├── verify-commands.js   # prueba end-to-end de todos los comandos
+│   └── test-search.js       # llamada REAL a la búsqueda de stickers
+├── tests/                   # node --test (330 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -599,9 +739,10 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 287 pruebas (menú, endpoints, IA, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 330 pruebas (menú, endpoints, IA, búsqueda de stickers, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal, rendimiento)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
 npm run ai:test    # llamada REAL a las tres IA: qué modelo responde, con qué protocolo y en cuánto tiempo
+npm run search:test # llamada REAL a Sticker.ly: qué ruta responde, cuántos resultados y si el sticker baja bien
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, yt-dlp, carpetas, banner, espacio, sesión, IA + prueba real
 ```
@@ -680,6 +821,8 @@ npm run emojimix:sync
 | `.take` no cambia el nombre | WhatsApp cachea el pack: el bot ya genera un `pack-id` nuevo; borra el sticker del chat y reenvíalo |
 | `.take` con una foto dice "Bad header" | Versión anterior: ahora acepta fotos y videos y los convierte antes |
 | Todo lo que usa FFmpeg falla en Termux | `TMPDIR` inválido: el bot usa `data/tmp` como respaldo; verifica con `.debug` o `npm run selftest` |
+| `.search` dice que no hay conexión o 403 | Prueba `npm run search:test`; suele ser el internet del equipo, un bloqueo temporal o `search.baseUrl` desactualizado |
+| `.searchpack` no encuentra un paquete privado | Pasa el **código** completo (`OD5GZR`) o el enlace `https://sticker.ly/s/…`; si el dueño revocó el enlace, ya no se puede abrir |
 | `.emojimix` tarda la primera vez | Está descargando el catálogo (~95 MB); luego queda en `data/emojimix-index.json` |
 | WhatsApp dice "no se puede ver la información del sticker" | Corregido: el bloque EXIF ahora declara el largo del JSON (antes quedaba en 0 y WhatsApp no leía el nombre/autor). Generá el sticker de nuevo |
 | Los stickers salían con fondo negro o cortados | Corregido: los metadatos se escriben sin re-muxear, así que el sticker mantiene la transparencia y todos los cuadros del GIF/video |

@@ -4,6 +4,7 @@ import { isAnimatedExtension } from '../lib/ffmpeg.js'
 import { isWebp, readSticker, writeStickerMetadata } from '../lib/sticker.js'
 import { splitNameAuthor } from '../lib/text.js'
 import { buildStickerPackZip, prepareStickerPackMessage } from '../lib/sticker-pack.js'
+import { fireAndForget } from '../lib/concurrency.js'
 
 const DONE = new Set(['done', 'listo', 'fin', 'finish', 'terminar', 'zip'])
 const CANCEL = new Set(['cancel', 'cancelar', 'salir', 'stop'])
@@ -101,30 +102,33 @@ async function toStickerBuffer(ctx, target) {
   return { buffer: result.buffer, emojis: [], converted: true, animated }
 }
 
-async function finishPack(ctx, session) {
-  const config = ctx.config
-  if (!session) {
-    throw new Error(
-      `No hay ningún pack en curso. Inicia uno con *.pack nombre,autor* (máximo ${config.pack.maxStickers} stickers).`
-    )
-  }
-  if (!session.stickers.length) {
-    throw new Error('El pack está vacío. Envía al menos una foto o un sticker antes de usar *.pack done*.')
-  }
+/**
+ * Arma y envía un paquete de stickers a WhatsApp.
+ *
+ * Se usa en `.pack done` y también en `.searchpack` cuando el usuario elige un
+ * paquete de la búsqueda: los dos terminan mandando lo mismo (tarjeta nativa
+ * con "Agregar" y, si eso falla, el `.wasticker` como documento).
+ *
+ * @param {object} ctx contexto del comando
+ * @param {{name:string, author:string, stickers:Array<{buffer:Buffer, emojis?:string[], animated?:boolean}>, description?:string, identifier?:string}} options
+ * @returns {Promise<{identifier:string, pack:object, sentNative:boolean}>}
+ */
+export async function deliverPack(ctx, { name, author, stickers = [], description = '', identifier } = {}) {
+  if (!stickers.length) throw new Error('El pack está vacío: necesita al menos un sticker.')
 
-  await ctx.typing()
+  fireAndForget(ctx.typing(), ctx.logger, 'pack typing')
 
-  const identifier = `tomioka_${Date.now().toString(36)}`
+  const packId = identifier || `tomioka_${Date.now().toString(36)}`
   const prepared = []
 
-  for (const [index, sticker] of session.stickers.entries()) {
+  for (const [index, sticker] of stickers.entries()) {
     let buffer = sticker.buffer
     try {
       buffer = await writeStickerMetadata(buffer, {
-        packName: session.name,
-        packAuthor: session.author,
+        packName: name,
+        packAuthor: author,
         emojis: sticker.emojis || [],
-        packId: identifier
+        packId
       })
     } catch (error) {
       ctx.logger?.warn?.(`No se pudo escribir metadatos en el sticker ${index + 1}: ${error.message}`)
@@ -142,12 +146,12 @@ async function finishPack(ctx, session) {
   let tray = null
   let trayFileName = null
   try {
-    const trayPng = await stickerToTray(prepared[0].buffer, { size: config.pack.traySize })
-    trayFileName = `${identifier}.png`
+    const trayPng = await stickerToTray(prepared[0].buffer, { size: ctx.config.pack.traySize })
+    trayFileName = `${packId}.png`
     tray = trayPng
     try {
-      tray = await imageToWebp(trayPng, { size: config.pack.traySize, quality: 85 })
-      trayFileName = `${identifier}.webp`
+      tray = await imageToWebp(trayPng, { size: ctx.config.pack.traySize, quality: 85 })
+      trayFileName = `${packId}.webp`
     } catch (error) {
       ctx.logger?.debug?.(`El ícono del pack queda en PNG: ${error.message}`)
     }
@@ -159,10 +163,10 @@ async function finishPack(ctx, session) {
     stickers: prepared,
     tray,
     trayFileName,
-    packId: identifier,
-    name: session.name,
-    publisher: session.author,
-    description: `Pack de ${session.name}`
+    packId,
+    name,
+    publisher: author,
+    description: description || `Pack de ${name}`
   })
 
   // 1) Intento principal: mensaje nativo de WhatsApp (tarjeta con "Agregar").
@@ -170,10 +174,10 @@ async function finishPack(ctx, session) {
   if (typeof ctx.sock?.waUploadToServer === 'function' && typeof ctx.sock?.relayMessage === 'function') {
     try {
       const message = await prepareStickerPackMessage({
-        packId: identifier,
-        name: session.name,
-        publisher: session.author,
-        description: `Pack de ${session.name}`,
+        packId,
+        name,
+        publisher: author,
+        description: description || `Pack de ${name}`,
         zip: pack.zip,
         stickers: pack.stickers,
         trayIconFileName: pack.trayIconFileName,
@@ -191,17 +195,38 @@ async function finishPack(ctx, session) {
   if (!sentNative) {
     await ctx.sendDocument(
       pack.zip,
-      `${safeFileName(session.name)}.wasticker`,
+      `${safeFileName(name)}.wasticker`,
       'application/zip',
       [
         '✅ *Pack listo*',
-        `▸ ${session.name}`,
+        `▸ ${name}`,
         `▸ ${pack.stickers.length} sticker(s) · ${(pack.zip.length / 1024).toFixed(0)} KB`,
         '',
         'Impórtalo con una app de packs (Sticker Maker / .wasticker)'
       ].join('\n')
     )
   }
+
+  return { identifier: packId, pack, sentNative }
+}
+
+async function finishPack(ctx, session) {
+  const config = ctx.config
+  if (!session) {
+    throw new Error(
+      `No hay ningún pack en curso. Inicia uno con *.pack nombre,autor* (máximo ${config.pack.maxStickers} stickers).`
+    )
+  }
+  if (!session.stickers.length) {
+    throw new Error('El pack está vacío. Envía al menos una foto o un sticker antes de usar *.pack done*.')
+  }
+
+  const { pack, sentNative } = await deliverPack(ctx, {
+    name: session.name,
+    author: session.author,
+    stickers: session.stickers,
+    description: `Pack de ${session.name}`
+  })
 
   // El mensaje de progreso queda cerrado con el resultado
   await ctx.finishLive(packSlot(ctx), `✅ *${session.name}* enviado · ${pack.stickers.length} sticker(s).`)
@@ -231,8 +256,10 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
   }
 
   const isSticker = target.kind === 'sticker'
-  if (!isSticker && !silent) await ctx.typing('composing')
-  if (!isSticker && silent) await ctx.react('⏳')
+  // Los avisos van en segundo plano: la conversión (lo que el usuario espera)
+  // arranca ya mismo en vez de esperar un viaje de red.
+  if (!isSticker && !silent) fireAndForget(ctx.typing('composing'), ctx.logger, 'pack typing')
+  if (!isSticker && silent) fireAndForget(ctx.react('⏳'), ctx.logger, 'pack react')
 
   const converted = await toStickerBuffer(ctx, target)
   const result = ctx.store.packs.add(session, {
@@ -254,16 +281,19 @@ async function addMediaToSession(ctx, session, { silent = false } = {}) {
   const label = KIND_LABEL[target.kind] || 'Sticker'
   const extra = count === max ? `\n✅ ¡Completaste los *${max}* stickers! Envía *.pack done* para enviar el pack.` : ''
 
-  if (silent) await ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '✅')
-
-  // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno por
-  // cada foto/sticker.
-  await ctx.sendLive(
-    packSlot(ctx),
-    `✅ ${label} *${count}/${max}* agregada a *${session.name}*` +
-      `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
-      `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
-  )
+  // La reacción con el número y la edición del progreso salen en paralelo:
+  // el mensaje de avance se actualiza igual, pero sin sumar dos esperas.
+  await Promise.allSettled([
+    silent ? ctx.react(COUNT_EMOJIS[Math.min(count, 10) - 1] || '✅') : null,
+    // Siempre el mismo mensaje: se edita con el avance en vez de mandar uno
+    // por cada foto/sticker.
+    ctx.sendLive(
+      packSlot(ctx),
+      `✅ ${label} *${count}/${max}* agregada a *${session.name}*` +
+        `${converted.converted ? ' (convertida a sticker)' : ''}.\n` +
+        `Cuando termines: *.pack done* · cancelar: *.pack cancel*${extra}`
+    )
+  ])
 
   // Descarga automática opcional: pack.autoDoneAfter = N (> 0)
   const autoDoneAfter = Number(ctx.config.pack.autoDoneAfter) || 0

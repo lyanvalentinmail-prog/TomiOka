@@ -1,4 +1,7 @@
 import { loadConfig } from '../src/config.js'
+import { CommandContext } from '../src/lib/context.js'
+import { createStore } from '../src/handler.js'
+import { commands } from '../src/commands/index.js'
 import { resolveFfmpeg } from '../src/lib/ffmpeg.js'
 import { finishLiveMessage, retireLiveMessages, sendLiveMessage } from '../src/lib/live-messages.js'
 
@@ -78,4 +81,32 @@ export function textMessage(text, { jid = '59891111111@s.whatsapp.net', pushName
 export async function ffmpegAvailable() {
   const info = await resolveFfmpeg()
   return Boolean(info?.webp)
+}
+
+/**
+ * Contexto listo para probar un comando como si fuera un mensaje de WhatsApp.
+ * (Los tests de comandos ya existentes tienen su propia versión; esta es la
+ * que usan los tests nuevos.)
+ */
+export function commandContext(
+  text,
+  { config = testConfig(), store = null, sock = null, jid = '59891111111@s.whatsapp.net', pushName = 'Tester' } = {}
+) {
+  const activeSock = sock || fakeSock()
+  const activeStore = store || createStore(config, silentLogger)
+  const msg = {
+    key: { remoteJid: jid, fromMe: false, id: `cmd-${Math.random().toString(36).slice(2)}` },
+    pushName,
+    message: { extendedTextMessage: { text } }
+  }
+  const ctx = new CommandContext({
+    sock: activeSock,
+    msg,
+    config,
+    logger: silentLogger,
+    store: activeStore,
+    text
+  })
+  ctx.commands = commands
+  return { ctx, sock: activeSock, store: activeStore }
 }

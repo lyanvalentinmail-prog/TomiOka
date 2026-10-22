@@ -5,7 +5,7 @@ import { loadMenuImage } from './lib/banner.js'
 import { commands } from './commands/index.js'
 import { startBot } from './connection.js'
 import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
-import { canWrite, tempInfo } from './lib/tmp.js'
+import { canWrite, prewarmWorkDir, tempInfo } from './lib/tmp.js'
 import { createLogger } from './lib/logger.js'
 import { banner, box, c, error, info, step, sym, warn } from './lib/ui.js'
 
@@ -105,6 +105,13 @@ async function main() {
     warn('Define TOMIOKA_TMPDIR (ej: export TOMIOKA_TMPDIR="$HOME/tomioka-tmp")')
   }
   logger.debug?.(JSON.stringify(tempInfo()))
+
+  // Precalentado: deja lista la carpeta temporal y el arranque de FFmpeg para
+  // que el primer `.sticker` no pague ese costo.
+  if (config.performance?.warmUp !== false) {
+    const warmed = await prewarmWorkDir()
+    logger.debug?.(warmed ? 'carpeta temporal precalentada' : 'no se pudo precalentar la carpeta temporal')
+  }
 
   const ffmpeg = await resolveFfmpeg()
   if (ffmpeg) {

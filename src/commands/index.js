@@ -10,6 +10,8 @@ import help from './help.js'
 import instagram from './instagram.js'
 import pack from './pack.js'
 import pinterest from './pinterest.js'
+import search from './search.js'
+import searchpack from './searchpack.js'
 import sticker from './sticker.js'
 import take from './take.js'
 import tiktok from './tiktok.js'
@@ -30,6 +32,8 @@ export const commandList = [
   ttp,
   sticker,
   gif,
+  search,
+  searchpack,
   toimg,
   tovideo,
   take,

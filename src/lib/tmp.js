@@ -7,7 +7,8 @@ import { ROOT } from '../config.js'
 const PREFIX = 'tomioka-'
 
 /** Última carpeta base usada (para el diagnóstico) */
-const state = { base: null, errors: [] }
+const state = { base: null, errors: [], verified: false, envKey: '' }
+let counter = 0
 
 /**
  * Carpetas candidatas para archivos temporales.
@@ -25,18 +26,47 @@ export function tempCandidates() {
   return [...new Set(list.filter((dir) => typeof dir === 'string' && dir.trim()))]
 }
 
+/** Firma de las variables que cambian la carpeta base elegida */
+function envKey() {
+  return `${process.env.TOMIOKA_TMPDIR || ''}|${process.env.TMPDIR || ''}`
+}
+
+/** Olvida la carpeta base verificada (tests o cambios en caliente) */
+export function resetWorkDirCache() {
+  state.verified = false
+  state.base = null
+}
+
 /**
  * Crea una carpeta temporal escribible, probando varias ubicaciones.
  * @returns {Promise<{dir:string, base:string}>}
  */
 export async function createWorkDir() {
+  // La carpeta base se comprueba una sola vez por proceso: después se crea
+  // el subdirectorio de trabajo con un solo mkdir (antes eran tres llamadas
+  // al sistema en cada conversión: mkdir + access + mkdtemp).
+  if (state.verified && state.base && state.envKey === envKey()) {
+    const dir = path.join(state.base, `${PREFIX}${process.pid}-${++counter}`)
+    try {
+      await mkdir(dir, { recursive: true })
+      return { dir, base: state.base }
+    } catch (error) {
+      // La base dejó de servir (por ejemplo, se borró data/tmp): se vuelve a probar.
+      state.verified = false
+      state.errors.push(`${state.base} (${error.code || error.message})`)
+    }
+  }
+
   const errors = []
   for (const base of tempCandidates()) {
     try {
       await mkdir(base, { recursive: true })
       await access(base, constants.W_OK)
-      const dir = await mkdtemp(path.join(base, PREFIX))
+      const dir = path.join(base, `${PREFIX}${process.pid}-${++counter}`)
+      await mkdir(dir, { recursive: true })
       state.base = base
+      state.verified = true
+      state.envKey = envKey()
       state.errors = errors
       return { dir, base }
     } catch (error) {
@@ -48,6 +78,21 @@ export async function createWorkDir() {
     `No hay ninguna carpeta temporal escribible: ${errors.join(' · ')}. ` +
       'Define TOMIOKA_TMPDIR con una ruta válida (por ejemplo el almacenamiento interno de Termux).'
   )
+}
+
+/**
+ * Deja lista la carpeta temporal antes de que haga falta (arranque del bot):
+ * la primera conversión no paga la búsqueda de una carpeta escribible.
+ * @returns {Promise<boolean>}
+ */
+export async function prewarmWorkDir() {
+  try {
+    const { dir } = await createWorkDir()
+    await rm(dir, { recursive: true, force: true })
+    return true
+  } catch {
+    return false
+  }
 }
 
 /**

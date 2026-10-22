@@ -59,11 +59,14 @@ function categoryBlock(category, index, { config, commands }) {
   const prefix = config.prefixes[0]
   const [left, right] = category.divider || ['💧', '🌊']
   const number = boldDigits(String(index + 1).padStart(2, '0'))
+  // Nombre real de la categoría: antes se escribía "Categoría01", "Categoría02"…
+  // con el índice. Ahora manda `title` (nombre estilizado), después
+  // `description` y, como último recurso, un nombre genérico numerado.
+  const name = String(category.title || category.description || `Comandos ${index + 1}`).trim()
 
   const lines = [
     `${FILLER}${FILLER}◢ ${number} ◣`,
-    `${category.emoji || '🌊'}${FILLER}׃${FILLER} 𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆${number} ${FILLER}׃`,
-    `${FILLER}${FILLER}𓂃 ${category.description || '𝖼𝗈𝗆𝖺𝗇𝖽𝗈𝗌'} 𓂃`,
+    `${category.emoji || '🌊'}${FILLER}׃${FILLER} ${name} ${FILLER}׃`,
     `${FILLER}${FILLER}${FILLER}${category.kaomoji || '( ᵕ ᵗ ᵕ )'}`
   ]
 
