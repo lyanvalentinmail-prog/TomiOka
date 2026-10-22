@@ -130,10 +130,42 @@ test('el menú muestra solo el comando, sin descripciones', () => {
 test('el menú agrupa todos los comandos en seis categorías', () => {
   const menu = buildMenu({ config, commands, sender: {} })
   assert.equal((menu.match(/◢ /g) || []).length, 6, 'seis bloques de categoría')
-  assert.equal((menu.match(/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/g) || []).length, 6)
   const commandLines = menu.split('\n').filter((line) => line.startsWith('୨ৎ'))
   const visibleCount = commandList.filter((command) => !command.hidden).length
   assert.equal(commandLines.length, visibleCount, 'una línea por comando, sin separación')
+})
+
+test('el menú muestra el nombre real de cada categoría, no "Categoría01"', () => {
+  const menu = buildMenu({ config, commands, sender: {} })
+  // Ya no hay encabezados genéricos numerados
+  assert.ok(!/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/.test(menu), 'no debe quedar "CategoríaNN"')
+  assert.ok(!/Categor[ií]a\s*0?\d/i.test(menu), 'no debe quedar "Categoria 01" en texto plano')
+  // Cada categoría por defecto lleva su nombre visible en el encabezado
+  for (const category of config.menu.categories) {
+    const name = category.title || category.description
+    assert.ok(name, 'toda categoría tiene nombre visible')
+    const heading = menu.split('\n').find((line) => line.includes(` ${name} `) && line.includes('׃'))
+    assert.ok(heading, `falta el encabezado de la categoría ${name}`)
+    assert.equal((menu.match(new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length, 1, `${name} se repite en el menú`)
+  }
+  assert.deepEqual(
+    config.menu.categories.map((category) => category.title),
+    ['𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤', '𝕊𝕥𝕚𝕔𝕜𝕖𝕣𝕤', 'ℂ𝕠𝕟𝕧𝕖𝕣𝕤𝕚𝕠́𝕟', 'ℙ𝕒𝕔𝕜𝕤', '𝔸𝕀', '𝕀𝕟𝕗𝕠']
+  )
+})
+
+test('sin title, el encabezado usa la description de la categoría', () => {
+  const custom = testConfig({
+    menu: {
+      ...config.menu,
+      categories: [
+        { emoji: '💧', description: 'Mis stickers', kaomoji: '( ᵕ ᵗ ᵕ )', commands: ['sticker'] }
+      ]
+    }
+  })
+  const menu = buildMenu({ config: custom, commands, sender: {} })
+  assert.ok(menu.includes('💧ㅤ׃ㅤ Mis stickers ㅤ׃'))
+  assert.ok(!/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/.test(menu))
 })
 
 test('el menú respeta las categorías configuradas', () => {
@@ -146,7 +178,8 @@ test('el menú respeta las categorías configuradas', () => {
     }
   })
   const menu = buildMenu({ config: custom, commands, sender: {} })
-  assert.ok(menu.includes('𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆𝟎𝟏'))
+  assert.ok(menu.includes('Solo sticker'))
+  assert.ok(!/𝕮𝖆𝖙𝖊𝖌𝖔𝖗𝖎𝖆/.test(menu))
   assert.ok(menu.includes('.sticker'))
   assert.ok(!menu.includes('.toimg'))
 })

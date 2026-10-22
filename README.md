@@ -514,23 +514,40 @@ Y se ponen en `ai.models` o `ai.freeModels` sin tocar el código.
     "phrases": ["El océano también guarda secretos 🌊", "Un sticker vale más que mil palabras 💧"],
     "categories": [             // el menú lista TODOS los comandos visibles, en 6 categorías
       {
-        "emoji": "📥",
-        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌",
+        "emoji": "🌊",
+        "title": "𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤",      // nombre que sale en el encabezado del menú
+        "description": "𝖣𝖾𝗌𝖼𝖺𝗋𝗀𝖺𝗌", // nombre de respaldo si no hay title
         "kaomoji": "( ˶ˆ꒳ˆ˵ )",
-        "divider": ["⬇️", "🎬"],
+        "divider": ["💧", "💦"],
         "commands": ["tiktok", "instagram", "pinterest", "ytmp3", "ytmp4"]
       },
       {
-        "emoji": "🎨",
+        "emoji": "💧",
+        "title": "𝕊𝕥𝕚𝕔𝕜𝕖𝕣𝕤",
         "description": "𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌",
         "kaomoji": "( ᵕ ᵗ ᵕ )",
-        "divider": ["✨", "🖼️"],
-        "commands": ["brat", "attp", "ttp", "sticker"]
+        "divider": ["🐟", "💙"],
+        "commands": ["brat", "attp", "ttp", "sticker", "gif", "emojimix"]
       }
     ]
   }
 }
 ```
+
+**Encabezado de cada categoría.** El menú ya no numera las categorías como
+`Categoría01`, `Categoría02`… Ahora muestra el nombre real de cada una:
+
+```
+ㅤㅤ◢ 𝟎𝟏 ◣
+🌊ㅤ׃ㅤ 𝔻𝕖𝕤𝕔𝕒𝕣𝕘𝕒𝕤 ㅤ׃
+ㅤㅤㅤ( ˶ˆ꒳ˆ˵ )
+୨ৎㅤ.tiktok
+```
+
+El texto del encabezado sale de `title` y, si no existe, de `description`
+(así las categorías que crea el panel web siguen funcionando sin tocar nada).
+El `◢ 𝟎𝟏 ◣` es solo el adorno del índice: podés cambiar el nombre de una
+categoría editando `menu.categories` en `config.json` sin tocar el código.
 
 ### Variables de entorno (opcionales)
 
