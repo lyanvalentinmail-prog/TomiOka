@@ -174,17 +174,52 @@ export function buildHeaders({ apiKey = '', userAgent = 'opencode/1.18.30' } = {
   return headers
 }
 
-/** URL completa del modelo según su protocolo. */
-export function endpointFor(modelId, { baseUrl, googleBaseUrl }) {
+/**
+ * URLs candidatas para un modelo, en orden de prueba.
+ *
+ * OpenCode expone el gateway en dos esquemas y ambos circulan en documentos
+ * oficiales: la tabla de endpoints separa por familia
+ * (`/inference/openai/v1`, `/inference/anthropic/v1`, `/inference/google/v1beta`)
+ * y el CLI usa una base unificada (`/inference/v1`). Como no hay forma de saber
+ * cuál responde sin probar, se intenta la documentada y luego la unificada.
+ */
+export function endpointCandidates(modelId, config = {}) {
   const protocol = protocolForModel(modelId)
-  const base = String(baseUrl || '').replace(/\/+$/, '')
+  const base = trimSlash(config.baseUrl || 'https://opencode.ai/inference/v1')
+  const googleBase = trimSlash(config.googleBaseUrl || 'https://opencode.ai/inference/google/v1beta')
+
   if (protocol === 'google') {
-    const googleBase = String(googleBaseUrl || '').replace(/\/+$/, '')
-    return `${googleBase}/models/${modelId}:streamGenerateContent?alt=sse`
+    const model = `${googleBase}/models/${modelId}`
+    return unique([`${model}:streamGenerateContent?alt=sse`, `${model}:generateContent`])
   }
-  if (protocol === 'responses') return `${base}/responses`
-  if (protocol === 'messages') return `${base}/messages`
-  return `${base}/chat/completions`
+  if (protocol === 'responses') {
+    const family = trimSlash(config.openaiBaseUrl || base.replace(/\/v1$/, '/openai/v1'))
+    return unique([`${family}/responses`, `${base}/responses`])
+  }
+  if (protocol === 'messages') {
+    const family = trimSlash(config.anthropicBaseUrl || base.replace(/\/v1$/, '/anthropic/v1'))
+    return unique([`${family}/messages`, `${base}/messages`])
+  }
+  const family = trimSlash(config.openaiBaseUrl || base.replace(/\/v1$/, '/openai/v1'))
+  return unique([`${family}/chat/completions`, `${base}/chat/completions`])
+}
+
+const trimSlash = (value) => String(value || '').replace(/\/+$/, '')
+const unique = (list) => [...new Set(list.filter(Boolean))]
+
+/**
+ * Índice del endpoint que funcionó por protocolo: así el segundo pedido no
+ * vuelve a pagar el intento fallido del primer esquema.
+ */
+const preferredEndpoint = new Map()
+
+export function resetEndpointPreference() {
+  preferredEndpoint.clear()
+}
+
+/** URL principal del modelo (la primera candidata). */
+export function endpointFor(modelId, config = {}) {
+  return endpointCandidates(modelId, config)[0]
 }
 
 function toChatMessages({ prompt, system, history = [] }) {
@@ -365,18 +400,8 @@ async function readStream(response, protocol) {
 }
 
 /** Intenta un modelo concreto una vez. */
-async function callModel(modelId, request, config) {
-  const protocol = protocolForModel(modelId)
-  const url = endpointFor(modelId, config)
-  const body = buildBody({
-    modelId,
-    prompt: request.prompt,
-    system: request.system || '',
-    history: request.history || [],
-    maxTokens: config.maxTokens,
-    temperature: config.temperature
-  })
-
+/** Un intento contra una URL concreta del gateway. */
+async function attemptEndpoint({ url, modelId, protocol, body, config }) {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), config.timeoutMs)
   let response
@@ -415,10 +440,7 @@ async function callModel(modelId, request, config) {
   }
 
   const result = await readStream(response, protocol)
-  const text = String(result.text || '')
-    // Algunas respuestas traen el texto partido en líneas de razonamiento.
-    .replace(/\r\n/g, '\n')
-    .trim()
+  const text = String(result.text || '').replace(/\r\n/g, '\n').trim()
 
   if (!text) {
     // Sin texto: o el modelo solo devolvió llamadas a herramientas (que se
@@ -429,7 +451,41 @@ async function callModel(modelId, request, config) {
     )
   }
 
-  return { text, protocol, model: modelId }
+  return { text, protocol, model: modelId, url }
+}
+
+/** Intenta un modelo concreto, probando los esquemas de URL del gateway. */
+async function callModel(modelId, request, config) {
+  const protocol = protocolForModel(modelId)
+  const body = buildBody({
+    modelId,
+    prompt: request.prompt,
+    system: request.system || '',
+    history: request.history || [],
+    maxTokens: config.maxTokens,
+    temperature: config.temperature
+  })
+
+  const candidates = endpointCandidates(modelId, config)
+  // Empezar por el esquema que ya funcionó antes para este protocolo.
+  const preferred = preferredEndpoint.get(protocol) || 0
+  const order = [...candidates.slice(preferred), ...candidates.slice(0, preferred)]
+
+  let lastError = null
+  for (const url of order) {
+    try {
+      const result = await attemptEndpoint({ url, modelId, protocol, body, config })
+      preferredEndpoint.set(protocol, candidates.indexOf(url))
+      return result
+    } catch (error) {
+      lastError = error
+      // 404/405/501 = esa ruta no existe en este gateway: probar el otro
+      // esquema antes de dar el modelo por perdido.
+      if (error instanceof AiError && [404, 405, 501].includes(error.status)) continue
+      throw error
+    }
+  }
+  throw lastError || new AiError('sin endpoint disponible', { model: modelId, retryable: true })
 }
 
 /**
@@ -482,6 +538,8 @@ export async function askAi({ request, prompt, system = '', history = [], config
 
   const settings = {
     baseUrl: String(ai.baseUrl || 'https://opencode.ai/inference/v1'),
+    openaiBaseUrl: String(ai.openaiBaseUrl || ''),
+    anthropicBaseUrl: String(ai.anthropicBaseUrl || ''),
     googleBaseUrl: String(ai.googleBaseUrl || 'https://opencode.ai/inference/google/v1beta'),
     apiKey: String(ai.apiKey || '').trim(),
     userAgent: String(ai.userAgent || 'opencode/1.18.30'),

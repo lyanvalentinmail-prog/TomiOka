@@ -29,7 +29,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` se envía como pie de foto de una imagen (por defecto `banner.jpg` de Google Drive, con caché local). Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los de texto quedan editados como **"Menu eliminado."** y los que llevan banner se eliminan para todos (WhatsApp no permite editar una foto hasta convertirla en texto; si un texto es muy viejo para editarse, también se elimina).
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (283 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (287 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -396,8 +396,12 @@ npm start
 `src/lib/ai.js` habla con el gateway sin dependencias nuevas (solo `fetch` de Node 20+):
 
 - **Un protocolo por familia de modelos**: `chat/completions` (DeepSeek y los gratuitos), `responses`
-  (GPT/Grok), `messages` (Claude) y el endpoint de Google con `:streamGenerateContent` (Gemini).
+  (GPT/Grok), `messages` (Claude) y el endpoint de Google con `systemInstruction` (Gemini).
   Se elige solo con el id del modelo, así no hay que configurar nada por comando.
+- **Dos esquemas de URL, probados en orden**: la documentación oficial separa las rutas por familia
+  (`/inference/openai/v1`, `/inference/anthropic/v1`, `/inference/google/v1beta`) mientras que el CLI
+  usa una base unificada (`/inference/v1`). Se intenta la ruta documentada y, si devuelve 404/405/501,
+  la unificada; la que funciona queda como preferida para no volver a pagar el intento.
 - **La puerta del free tier**: los modelos gratis solo se atienden a tráfico que parezca del agente
   OpenCode. El cliente replica lo que el gateway exige: el par de cabeceras `x-opencode-session` /
   `x-opencode-session-id` con un id en el formato real (`ses_` + 12 hex con el timestamp + 14
@@ -419,7 +423,9 @@ Configurable en `ai` (`config.json`):
 |--------|-------------|----------|
 | `enabled` | `true` | Apaga toda la categoría AI |
 | `apiKey` | `""` | Clave de OpenCode (mejor por `OPENCODE_API_KEY`) |
-| `baseUrl` | `https://opencode.ai/inference/v1` | Gateway para los protocolos OpenAI/Anthropic |
+| `baseUrl` | `https://opencode.ai/inference/v1` | Base unificada del gateway (la que usa el CLI) |
+| `openaiBaseUrl` | `https://opencode.ai/inference/openai/v1` | Ruta por familia para DeepSeek/GPT y los gratuitos |
+| `anthropicBaseUrl` | `https://opencode.ai/inference/anthropic/v1` | Ruta por familia para Claude |
 | `googleBaseUrl` | `https://opencode.ai/inference/google/v1beta` | Gateway de Gemini |
 | `models.gemini` / `.chatgpt` / `.deepseek` | `gemini-3-flash`, `gpt-5.6-terra`, `deepseek-v4.1-flash` | Modelos de cada comando, en orden de preferencia |
 | `freeModels` | `deepseek-v4.1-flash-free`, … | Red de seguridad gratuita, en orden |
@@ -575,7 +581,7 @@ TomiOka/
 │   ├── selftest.js          # diagnóstico del pipeline de stickers
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   └── verify-commands.js   # prueba end-to-end de todos los comandos
-├── tests/                   # node --test (283 pruebas)
+├── tests/                   # node --test (287 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -585,7 +591,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 283 pruebas (menú, endpoints, IA, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
+npm test           # 287 pruebas (menú, endpoints, IA, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real

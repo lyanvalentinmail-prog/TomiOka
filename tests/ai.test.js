@@ -9,6 +9,7 @@ import {
   buildHeaders,
   buildPrompt,
   currentSessionId,
+  endpointCandidates,
   endpointFor,
   extractText,
   friendlyAiError,
@@ -18,6 +19,7 @@ import {
   isRetryableFailure,
   parseSseChunk,
   protocolForModel,
+  resetEndpointPreference,
   resetSession,
   resolveModelChain,
   runAiCommand,
@@ -116,21 +118,48 @@ test('isFreeModel reconoce el free tier de OpenCode', () => {
   assert.equal(isFreeModel(''), false)
 })
 
-test('endpointFor arma la URL correcta por protocolo', () => {
+test('endpointCandidates arma las URLs documentadas por protocolo', () => {
   const opts = {
     baseUrl: 'https://opencode.ai/inference/v1',
+    openaiBaseUrl: 'https://opencode.ai/inference/openai/v1',
+    anthropicBaseUrl: 'https://opencode.ai/inference/anthropic/v1',
     googleBaseUrl: 'https://opencode.ai/inference/google/v1beta'
   }
-  assert.equal(
-    endpointFor('deepseek-v4.1-flash', opts),
+  // La tabla oficial de OpenCode separa por familia…
+  assert.deepEqual(endpointCandidates('deepseek-v4.1-flash', opts), [
+    'https://opencode.ai/inference/openai/v1/chat/completions',
+    // …y el CLI usa la base unificada: se deja como segunda opción.
     'https://opencode.ai/inference/v1/chat/completions'
-  )
-  assert.equal(endpointFor('gpt-5-nano', opts), 'https://opencode.ai/inference/v1/responses')
-  assert.equal(endpointFor('claude-sonnet-5', opts), 'https://opencode.ai/inference/v1/messages')
-  assert.equal(
-    endpointFor('gemini-3-flash', opts),
-    'https://opencode.ai/inference/google/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse'
-  )
+  ])
+  assert.deepEqual(endpointCandidates('gpt-5-nano', opts), [
+    'https://opencode.ai/inference/openai/v1/responses',
+    'https://opencode.ai/inference/v1/responses'
+  ])
+  assert.deepEqual(endpointCandidates('claude-sonnet-5', opts), [
+    'https://opencode.ai/inference/anthropic/v1/messages',
+    'https://opencode.ai/inference/v1/messages'
+  ])
+  assert.deepEqual(endpointCandidates('gemini-3-flash', opts), [
+    'https://opencode.ai/inference/google/v1beta/models/gemini-3-flash:streamGenerateContent?alt=sse',
+    'https://opencode.ai/inference/google/v1beta/models/gemini-3-flash:generateContent'
+  ])
+  assert.equal(endpointFor('deepseek-v4.1-flash', opts), endpointCandidates('deepseek-v4.1-flash', opts)[0])
+})
+
+test('endpointCandidates deriva las rutas por familia si solo se configura la base', () => {
+  const candidates = endpointCandidates('deepseek-v4.1-flash', {
+    baseUrl: 'https://opencode.ai/inference/v1'
+  })
+  assert.equal(candidates[0], 'https://opencode.ai/inference/openai/v1/chat/completions')
+  assert.equal(candidates[1], 'https://opencode.ai/inference/v1/chat/completions')
+})
+
+test('endpointCandidates no duplica si ambos esquemas coinciden', () => {
+  const candidates = endpointCandidates('deepseek-v4.1-flash', {
+    baseUrl: 'https://opencode.ai/inference/v1',
+    openaiBaseUrl: 'https://opencode.ai/inference/v1'
+  })
+  assert.deepEqual(candidates, ['https://opencode.ai/inference/v1/chat/completions'])
 })
 
 // ---------------------------------------------------------------------------
@@ -368,6 +397,49 @@ test('askAi manda el pedido al endpoint del protocolo del modelo', async () => {
     assert.ok(gateway.calls[0].headers['x-opencode-session'])
   } finally {
     gateway.restore()
+  }
+})
+
+test('askAi prueba el segundo esquema de URL si el primero da 404', async () => {
+  resetEndpointPreference()
+  const gateway = gatewaySock((url) =>
+    url.includes('/inference/openai/v1/')
+      ? { status: 404, contentType: 'application/json', text: '{"error":{"message":"ruta inexistente"}}' }
+      : { text: chatSse('respondió la base unificada') }
+  )
+  try {
+    const answer = await askAi({ request: 'deepseek', prompt: 'hola', config: aiConfig({ apiKey: 'sk-real' }) })
+    assert.equal(answer.text, 'respondió la base unificada')
+    assert.equal(answer.model, 'deepseek-v4.1-flash', 'el modelo no se pierde por un 404 de ruta')
+    assert.equal(gateway.calls.length, 2, 'probó las dos URLs')
+    assert.match(gateway.calls[0].url, /\/inference\/openai\/v1\/chat\/completions$/)
+    assert.match(gateway.calls[1].url, /\/inference\/v1\/chat\/completions$/)
+
+    // El esquema que funcionó queda como preferido: el próximo pedido va directo.
+    const second = await askAi({ request: 'deepseek', prompt: 'hola de nuevo', config: aiConfig({ apiKey: 'sk-real' }) })
+    assert.equal(second.text, 'respondió la base unificada')
+    assert.equal(gateway.calls.length, 3, 'un solo intento esta vez')
+    assert.match(gateway.calls[2].url, /\/inference\/v1\/chat\/completions$/)
+  } finally {
+    gateway.restore()
+    resetEndpointPreference()
+  }
+})
+
+test('un 404 en todos los esquemas pasa al modelo siguiente', async () => {
+  resetEndpointPreference()
+  const gateway = gatewaySock((url, body) =>
+    body.model === 'deepseek-v4.1-flash'
+      ? { status: 404, contentType: 'application/json', text: '{"error":{"message":"no existe"}}' }
+      : { text: chatSse('otro modelo al rescate') }
+  )
+  try {
+    const answer = await askAi({ request: 'deepseek', prompt: 'hola', config: aiConfig({ apiKey: 'sk-real', retriesPerModel: 1 }) })
+    assert.equal(answer.text, 'otro modelo al rescate')
+    assert.notEqual(answer.model, 'deepseek-v4.1-flash')
+  } finally {
+    gateway.restore()
+    resetEndpointPreference()
   }
 })
 

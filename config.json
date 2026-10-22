@@ -47,6 +47,8 @@
   "ai": {
     "enabled": true,
     "baseUrl": "https://opencode.ai/inference/v1",
+    "openaiBaseUrl": "https://opencode.ai/inference/openai/v1",
+    "anthropicBaseUrl": "https://opencode.ai/inference/anthropic/v1",
     "googleBaseUrl": "https://opencode.ai/inference/google/v1beta",
     "apiKey": "",
     "userAgent": "opencode/1.18.30",
