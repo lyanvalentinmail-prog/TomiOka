@@ -2,7 +2,10 @@ import readline from 'node:readline/promises'
 import { c } from './colors.js'
 
 export function isInteractive() {
-  return Boolean(process.stdin.isTTY && process.stdout.isTTY)
+  // TTY real (Termux directo) o la consola de la terminal de TomiOka:
+  // ahí stdin/stdout son pipes, pero el usuario escribe líneas con la
+  // tecla «i» y las respuestas se leen igual que en una TTY.
+  return Boolean((process.stdin.isTTY && process.stdout.isTTY) || process.env.TOMIOKA_CONSOLE === '1')
 }
 
 /** Pregunta y devuelve el texto (o el valor por defecto si está vacío) */

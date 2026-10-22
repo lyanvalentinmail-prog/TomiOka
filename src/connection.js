@@ -32,7 +32,7 @@ async function resolveLoginMode(config, { askFn = ask, chooseFn = choose, intera
 
   if (mode === 'ask') {
     if (!interactive) {
-      // Sin TTY (consola de la terminal, panel web): si hay teléfono
+      // Sin forma de preguntar (panel web, servicio): si hay teléfono
       // configurado se usa pairing; si no, QR. Nunca se pregunta.
       mode = isValidPhone(phone) ? 'pairing' : 'qr'
     } else {
@@ -48,10 +48,14 @@ async function resolveLoginMode(config, { askFn = ask, chooseFn = choose, intera
   }
 
   if (mode === 'pairing') {
-    if (!isValidPhone(phone)) {
+    // El número se escribe en la consola misma (TTY o consola de la
+    // terminal) y el código sale ahí. Se reintenta hasta 3 veces si
+    // el número viene mal; sin consola se pregunta una sola vez.
+    for (let attempt = 0; attempt < 3 && !isValidPhone(phone); attempt += 1) {
       phone = normalizePhone(
         await askFn('Número de WhatsApp con código de país (ej: 59891234567)')
       )
+      if (!interactive) break
     }
     if (!isValidPhone(phone)) {
       // Elegir pairing es definitivo: jamás se sustituye por el QR.

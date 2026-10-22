@@ -35,6 +35,18 @@ test('pairing pregunta el número y lo normaliza', async () => {
   assert.equal(config.pairingPhone, '59899123456')
 })
 
+test('pairing reintenta el número en la consola hasta que sea válido', async () => {
+  const answers = ['123', '+598 99 123 456']
+  const config = base()
+  const mode = await resolveLoginMode(config, {
+    interactive: true,
+    askFn: async () => answers.shift(),
+    chooseFn: async () => 'qr'
+  })
+  assert.equal(mode, 'pairing')
+  assert.equal(config.pairingPhone, '59899123456', 'el segundo intento válido queda guardado')
+})
+
 test('ask sin TTY usa pairing si hay teléfono y QR si no hay', async () => {
   assert.equal(
     await resolveLoginMode(base({ login: 'ask', pairingPhone: '59899123456' }), { interactive: false }),
