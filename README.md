@@ -131,20 +131,26 @@ También puedes usar `bash scripts/start.sh` (activa el wake-lock automáticamen
 
 ### 🖥️ Terminal del bot (Termux)
 
-TomiOka trae una terminal propia para manejar el bot desde el celular, sin
-editar archivos a mano:
+TomiOka trae una terminal propia de **pantalla completa** (estilo OpenCode,
+con logo, paneles y barra de estado) para manejar el bot desde el celular,
+sin editar archivos a mano:
 
 ```bash
 npm run terminal
 ```
 
+**Controles:** `↑↓` o `j/k` para moverte, `Enter` para abrir/guardar,
+`Esc` para volver, `q` para salir. En las listas largas, `PgUp`/`PgDn` y
+`g`/`G` saltan al principio o al final.
+
 Desde ahí puedes iniciar el bot, vincular con pairing code o QR, ver el
-estado (sesión, comandos, owners), **editar la configuración** (nombre,
-prefijo, teléfono de pairing, owners, modo de login, pack de stickers y
-banner del menú; cada cambio guarda un respaldo `config.json.bak`), ver el
-menú de WhatsApp y la lista completa de comandos, correr el diagnóstico
-(`doctor`), actualizar el repo con `git pull` y borrar la sesión para volver
-a vincular.
+estado (sesión, comandos, owners), **editar la configuración en línea**
+(nombre, prefijo, teléfono de pairing, owners, modo de login, pack de
+stickers y banner del menú; cada cambio guarda un respaldo
+`config.json.bak`), ver el menú de WhatsApp y la lista completa de
+comandos, correr el diagnóstico (`doctor`), actualizar el repo con
+`git pull` y borrar la sesión para volver a vincular. No usa dependencias
+nuevas (solo ANSI de Node), así que funciona en Termux sin compilar nada.
 
 ### Instalación en Linux / VPS
 
@@ -427,7 +433,7 @@ TomiOka/
 ## 🧪 Tests y diagnóstico
 
 ```bash
-npm test           # 216 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler)
+npm test           # 221 pruebas (menú, endpoints, banner, ZIP, stickers, WebP, sesión, packs, pipeline, handler, terminal)
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (37 verificaciones)
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
 npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión + prueba real
