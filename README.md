@@ -603,7 +603,7 @@ npm test           # 287 pruebas (menú, endpoints, IA, banner, ZIP, stickers, W
 npm run verify     # ejecuta TODOS los comandos simulando mensajes de WhatsApp (42 verificaciones)
 npm run ai:test    # llamada REAL a las tres IA: qué modelo responde, con qué protocolo y en cuánto tiempo
 npm run selftest   # conversiones reales con FFmpeg y explicación de cada falla
-npm run doctor     # FFmpeg, carpetas, banner, espacio, sesión, IA + prueba real
+npm run doctor     # FFmpeg, yt-dlp, carpetas, banner, espacio, sesión, IA + prueba real
 ```
 
 `npm test` y `npm run verify` simulan el gateway de IA (no tocan la red). Para confirmar que la IA

@@ -4,6 +4,7 @@ import path from 'node:path'
 import { createRequire } from 'node:module'
 import { ensureDirs, loadConfig } from './config.js'
 import { resolveFfmpeg, selfTestFfmpeg } from './lib/ffmpeg.js'
+import { resolveYtDlp } from './lib/downloaders.js'
 import { canWrite, tempInfo } from './lib/tmp.js'
 import { indexInfo } from './lib/emojimix.js'
 import { askAi } from './lib/ai.js'
@@ -74,6 +75,22 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
   } else {
     error('FFmpeg no encontrado (los comandos de stickers fallarán)')
     problems.push('Termux: pkg install ffmpeg  ·  Debian: sudo apt install ffmpeg')
+  }
+
+  // yt-dlp (lo necesitan los 5 comandos de descarga: tiktok, instagram,
+  // pinterest, ytmp3 y ytmp4). Sin esto fallan todos y el usuario no sabe por qué.
+  const ytdlp = await resolveYtDlp()
+  if (ytdlp) {
+    ok(`yt-dlp: ${ytdlp.path}`)
+    info(`  ${ytdlp.version}`)
+    if (!ffmpeg) warn('  yt-dlp está pero falta FFmpeg: no podrá unir video+audio ni extraer MP3')
+  } else {
+    error('yt-dlp no encontrado: los comandos de descarga van a fallar')
+    problems.push(
+      'Instala yt-dlp:  Termux "pip install yt-dlp" (tras "pkg install python-pip") · ' +
+        'Debian "sudo apt install yt-dlp" · o déjalo en bin/yt-dlp dentro del bot · ' +
+        'o define YTDLP_PATH=/ruta/al/yt-dlp'
+    )
   }
 
   // Carpeta temporal (causa típica de fallos en Termux)
@@ -224,7 +241,7 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
     { color: problems.length ? c.yellow : c.green }
   )
 
-  return { problems, recommendations, ffmpeg }
+  return { problems, recommendations, ffmpeg, ytdlp }
 }
 
 const isMain = process.argv[1] && process.argv[1].endsWith('doctor.js')
