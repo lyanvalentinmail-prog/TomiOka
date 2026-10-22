@@ -228,20 +228,22 @@ test('.emojimix pide dos emojis cuando recibe uno solo', async () => {
   await assert.rejects(() => findCommand('emojimix').run(ctx), /dos\* emojis/)
 })
 
-test('.help envía el banner aparte y el menú completo como texto (supera el pie de foto)', async () => {
+test('.help carga el menú completo junto con el banner en un único mensaje (no por separado)', async () => {
   const config = testConfig()
   config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
   const { ctx, sock } = makeContext('.help', { config })
   await findCommand('help').run(ctx)
 
-  // El menú con TODOS los comandos supera el límite de pie de foto de
-  // WhatsApp, así que el banner va solo y el menú como texto.
   const images = sentOf(sock, 'image')
-  assert.equal(images.length, 1, 'se envía una imagen')
+  assert.equal(images.length, 1, 'se envía una sola imagen con el menú incluido')
   assert.equal(images[0].content.image.subarray(1, 4).toString('ascii'), 'PNG')
+  assert.match(images[0].content.caption, /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/)
+  assert.match(images[0].content.caption, /𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔/)
+  for (const command of commands.values()) {
+    assert.ok(images[0].content.caption.includes(`.${command.name}`), `falta .${command.name} en el menú`)
+  }
   const texts = sentOf(sock, 'text')
-  assert.equal(texts.length, 1, 'el menú va como texto aparte')
-  assert.match(texts[0].content.text, /𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼/)
+  assert.equal(texts.length, 0, 'no se envía el menú como texto aparte')
 })
 
 test('.help usa el banner como pie de foto cuando el menú es corto', async () => {
@@ -263,25 +265,18 @@ test('.help usa el banner como pie de foto cuando el menú es corto', async () =
   assert.equal(sentOf(sock, 'text').length, 0, 'el menú va como pie de foto')
 })
 
-test('.help manda imagen y menú aparte si el pie sería muy largo', async () => {
+test('.help respeta sendAsCaption: false cuando se desactiva explícitamente', async () => {
   const config = testConfig()
   config.menu = {
     ...config.menu,
     image: 'tests/fixtures/sample.png',
-    sendAsCaption: true,
-    // Categoría sin lista = todos los comandos del mapa (los 120 de prueba)
-    categories: [{ emoji: '🌊', description: 'todos', kaomoji: '', divider: ['💧', '🌊'], commands: [] }]
-  }
-  const manyCommands = new Map()
-  for (let i = 0; i < 120; i += 1) {
-    manyCommands.set(`cmd${i}`, { name: `comando-largo-${i}`, description: '' })
+    sendAsCaption: false
   }
   const { ctx, sock } = makeContext('.help', { config })
-  ctx.commands = manyCommands
   await findCommand('help').run(ctx)
 
   assert.equal(sentOf(sock, 'image').length, 1)
-  assert.equal(sentOf(sock, 'text').length, 1, 'el menú se envía como texto aparte')
+  assert.equal(sentOf(sock, 'text').length, 1, 'si sendAsCaption es false se envía aparte')
 })
 
 test('.help cae al texto si el banner no existe', async () => {
@@ -320,7 +315,7 @@ test('.help deja los menús anteriores como "Menu eliminado."', async () => {
   assert.equal(edits[1].content.edit.id, 'msg-3')
 })
 
-test('.help con banner retira el menú anterior al pedir otro (foto se borra, texto se edita)', async () => {
+test('.help con banner retira el mensaje único anterior (banner + menú) al pedir otro', async () => {
   const config = testConfig()
   config.menu = { ...config.menu, image: 'tests/fixtures/sample.png', sendAsCaption: true }
   const store = createStore(config, silentLogger)
@@ -330,18 +325,14 @@ test('.help con banner retira el menú anterior al pedir otro (foto se borra, te
   await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
   await findCommand('help').run(makeContext('.help', { config, store, sock }).ctx)
 
-  // El menú completo va como banner + texto: cada menú nuevo elimina para
-  // todos el banner anterior (una foto no se puede editar a texto) y edita
-  // el texto anterior como "Menu eliminado."
+  // Como el menú va integrado como pie de foto del banner en un solo mensaje,
+  // cada menú nuevo elimina ese único mensaje anterior para todos.
   const deletions = sock.sent.filter((item) => item.content?.delete)
-  assert.equal(deletions.length, 2, 'se eliminan los banners anteriores')
+  assert.equal(deletions.length, 2, 'se eliminan los menús con banner anteriores')
   const edits = sock.sent.filter((item) => item.content?.edit)
-  assert.equal(edits.length, 2, 'se editan los textos anteriores')
-  assert.ok(
-    edits.every((item) => item.content.text === 'Menu eliminado.'),
-    'el texto anterior queda como "Menu eliminado."'
-  )
-  assert.equal(sentOf(sock, 'image').length, 3, 'cada .help manda su banner')
+  assert.equal(edits.length, 0, 'no hay textos sueltos que editar')
+  assert.equal(sentOf(sock, 'image').length, 3, 'cada .help manda su banner con menú')
+  assert.equal(sentOf(sock, 'text').length, 0, 'ningún menú se parte en texto separado')
 })
 
 test('.help <comando> no retira el menú', async () => {
@@ -480,10 +471,10 @@ test('.debug devuelve un diagnóstico legible', async () => {
   assert.match(report, /Prueba de conversión/)
 })
 
-test('.debug no aparece en el menú', async () => {
+test('.debug aparece en el menú junto al resto de comandos', async () => {
   const { buildMenu } = await import('../src/menu.js')
   const menu = buildMenu({ config: testConfig(), commands, sender: {} })
-  assert.ok(!menu.includes('.debug'))
+  assert.ok(menu.includes('.debug'))
   assert.ok(menu.includes('.help'))
 })
 

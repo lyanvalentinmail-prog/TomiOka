@@ -116,9 +116,8 @@ function argsFromUsage(command) {
 
 function categoryIdOf(command) {
   const rawCategory = String(command.category || 'tools').toLowerCase()
-  return command.name === 'help'
-    ? 'info'
-    : ({ descargas: 'download', download: 'download', stickers: 'stickers', conversion: 'tools', herramientas: 'tools', extras: 'tools' }[rawCategory] || 'tools')
+  if (command.name === 'help' || command.name === 'debug') return 'info'
+  return ({ descargas: 'download', download: 'download', stickers: 'stickers', conversion: 'tools', herramientas: 'tools', ai: 'ai', extras: 'info' }[rawCategory] || 'tools')
 }
 
 function publicCommand(command) {
@@ -236,6 +235,50 @@ async function panelBeforeCommand(instanceId, ctx, parsed) {
   if (disabledNames.has(String(target.name).toLowerCase()) || disabledCats.has(categoryIdOf(target))) {
     return { type: 'ignore' }
   }
+  if (target.name === 'help') {
+    const customBanner = customization.banner?.dataUrl || customization.banner?.url || ''
+    if (customBanner || disabledNames.size || disabledCats.size || customs.length) {
+      const filtered = new Map()
+      for (const [key, cmd] of ctx.commands.entries()) {
+        if (disabledNames.has(String(cmd.name).toLowerCase()) || disabledCats.has(categoryIdOf(cmd))) continue
+        filtered.set(key, cmd)
+      }
+      const extraCategories = []
+      const visibleCustoms = customs.filter((cc) => cc?.name && !cc.hidden)
+      if (visibleCustoms.length) {
+        for (const cc of visibleCustoms) {
+          const cmdName = String(cc.name).toLowerCase()
+          if (!filtered.has(cmdName)) {
+            filtered.set(cmdName, {
+              name: cmdName,
+              aliases: Array.isArray(cc.aliases) ? cc.aliases : [],
+              description: cc.description || '',
+              usage: `${instance.prefix || '.'}${cmdName}${cc.args ? ` ${cc.args}` : ''}`
+            })
+          }
+        }
+        extraCategories.push({
+          emoji: '✨',
+          description: '𝖯𝖾𝗋𝗌𝗈𝗇𝖺𝗅𝗂𝗓𝖺𝖽𝗈𝗌',
+          kaomoji: '(｡•̀ᴗ-)✧',
+          divider: ['✨', '🌊'],
+          commands: visibleCustoms.map((cc) => String(cc.name).toLowerCase())
+        })
+      }
+      ctx.commands = filtered
+      ctx.config = {
+        ...ctx.config,
+        menu: {
+          ...ctx.config.menu,
+          image: customBanner || ctx.config.menu.image,
+          sendAsCaption: true,
+          categories: [...(ctx.config.menu.categories || []), ...extraCategories].filter((cat) =>
+            (cat.commands || []).some((cmdName) => filtered.has(String(cmdName).toLowerCase()))
+          )
+        }
+      }
+    }
+  }
   if (String(target.name).toLowerCase() !== name) return { type: 'run', command: target }
   return null
 }
@@ -243,11 +286,12 @@ async function panelBeforeCommand(instanceId, ctx, parsed) {
 async function attachBotHandler(instance, sock) {
   let runtime = botRuntimes.get(instance.id)
   if (!runtime) {
-    const [{ loadConfig }, handlerMod, commandsMod, { createLogger }] = await Promise.all([
+    const [{ loadConfig }, handlerMod, commandsMod, { createLogger }, { loadMenuImage }] = await Promise.all([
       import('../src/config.js'),
       import('../src/handler.js'),
       import('../src/commands/index.js'),
-      import('../src/lib/logger.js')
+      import('../src/lib/logger.js'),
+      import('../src/lib/banner.js')
     ])
     const config = loadConfig()
     config.sessionDir = path.resolve(ROOT, instance.sessionDir || `sessions/${instance.id}`)
@@ -258,6 +302,7 @@ async function attachBotHandler(instance, sock) {
     // Los "números owner" del panel son los dueños de ESTE sub-bot.
     config.owner = { ...config.owner, numbers: (instance.adminNumbers || []).map((n) => String(n).replace(/\D/g, '')).filter(Boolean) }
     const { logger } = createLogger('warn', 'silent')
+    if (config.menu.image) loadMenuImage(config, { logger }).catch(() => {})
     const store = handlerMod.createStore(config, logger, { persistLiveMessages: false })
     const onUpsert = handlerMod.createUpsertHandler({
       config, logger, store, commands: commandsMod.commands,
@@ -537,22 +582,48 @@ function findStoredInstance(id) {
   return { items, index, instance: index >= 0 ? items[index] : null }
 }
 
-function menuPreview(instance) {
+async function menuPreview(instance) {
   const prefix = instance.prefix || '.'
   const customization = instance.customization && typeof instance.customization === 'object' ? instance.customization : {}
   const disabledNames = new Set((customization.disabled || []).map((item) => String(item).toLowerCase()))
   const disabledCats = new Set((customization.disabledCategories || []).map((item) => String(item).toLowerCase()))
-  const lines = ['TomiOka · Menú', '']
-  for (const category of ENDPOINT_CATEGORIES) {
-    const catId = category.name === 'Descargas' ? 'download' : 'stickers'
-    if (disabledCats.has(catId)) continue
-    const items = category.items.filter((item) => !disabledNames.has(item.command.slice(1).toLowerCase()))
-    if (!items.length) continue
-    lines.push(`${category.icon} ${category.name}`)
-    for (const item of items) lines.push(`${prefix}${item.command.slice(1)}`)
-    lines.push('')
+  try {
+    const [{ loadConfig }, commandsMod, { buildMenu }] = await Promise.all([
+      import('../src/config.js'),
+      loadCommandsModule(),
+      import('../src/menu.js')
+    ])
+    const config = loadConfig()
+    config.prefixes = [prefix]
+    const filtered = new Map()
+    for (const [key, cmd] of commandsMod.commands.entries()) {
+      if (disabledNames.has(String(cmd.name).toLowerCase()) || disabledCats.has(categoryIdOf(cmd))) continue
+      filtered.set(key, cmd)
+    }
+    const customs = (Array.isArray(customization.customCommands) ? customization.customCommands : []).filter((cc) => cc?.name && !cc.hidden)
+    const extraCategories = []
+    if (customs.length) {
+      for (const cc of customs) {
+        const cmdName = String(cc.name).toLowerCase()
+        if (!filtered.has(cmdName)) filtered.set(cmdName, { name: cmdName, description: cc.description || '' })
+      }
+      extraCategories.push({
+        emoji: '✨',
+        description: '𝖯𝖾𝗋𝗌𝗈𝗇𝖺𝗅𝗂𝗓𝖺𝖽𝗈𝗌',
+        kaomoji: '(｡•̀ᴗ-)✧',
+        divider: ['✨', '🌊'],
+        commands: customs.map((cc) => String(cc.name).toLowerCase())
+      })
+    }
+    const categories = [...(config.menu.categories || []), ...extraCategories].filter((cat) =>
+      (cat.commands || []).some((cmdName) => filtered.has(String(cmdName).toLowerCase()))
+    )
+    if (!categories.length) return 'Sin comandos visibles: activa categorías en Editar bot.'
+    config.menu = { ...config.menu, categories }
+    return buildMenu({ config, commands: filtered, sender: { label: instance.name || 'Usuario' } })
+  } catch {
+    return 'No se pudo generar la vista previa del menú.'
   }
-  return (lines.join('\n').trim() || 'Sin comandos visibles: activa categorías en Editar bot.')
 }
 
 function dependencyError(res, error) {
@@ -615,7 +686,7 @@ async function handleApi(req, res, url) {
   }
 
   if (method === 'GET' && apiPath === '/menu/styles') {
-    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka: banner, saludo y las categorías 📥 Descargas y 🎨 Stickers con los nueve comandos del bot.', preview: '📥 Descargas · 🎨 Stickers' }] })
+    return sendJson(res, 200, { ok: true, styles: [{ id: 'tomioka', label: 'TomiOka (Oficial)', description: 'El menú real de TomiOka cargado junto con el banner: saludo, información y las 6 categorías (📥 Descargas, 🎨 Stickers, 🔄 Conversión, 📦 Packs, 🧠 AI y 💧 Info) con todos los comandos del bot.', preview: '📥 Descargas · 🎨 Stickers · 🔄 Conversión · 📦 Packs · 🧠 AI · 💧 Info' }] })
   }
   if (method === 'GET' && apiPath === '/credits/plans') return sendJson(res, 200, { ok: true, plans: [] })
   if (apiPath.startsWith('/credits/')) return notImplemented(res, 'La tienda y los créditos')
@@ -836,7 +907,7 @@ async function handleApi(req, res, url) {
       return sendJson(res, 200, { ok: true, customization, instance: publicInstance(next) })
     }
     if (action === 'preview' && method === 'GET') {
-      const preview = menuPreview(instance)
+      const preview = await menuPreview(instance)
       return sendJson(res, 200, { ok: true, preview, text: preview })
     }
     if (action === 'start' && method === 'POST') {

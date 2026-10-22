@@ -11,14 +11,13 @@ import { commandList, visibleCommands } from './index.js'
 const yes = (value) => (value ? '✅' : '❌')
 
 /**
- * Diagnóstico rápido desde el chat. No aparece en el menú (hidden: true).
+ * Diagnóstico rápido desde el chat.
  * Ejecuta una conversión real con FFmpeg para detectar el problema exacto.
  */
 export default {
   name: 'debug',
   aliases: ['diag', 'diagnostico', 'test'],
   category: 'extras',
-  hidden: true,
   description: 'Diagnóstico del bot (FFmpeg, carpetas, sesión).',
   usage: '.debug',
   examples: ['.debug'],

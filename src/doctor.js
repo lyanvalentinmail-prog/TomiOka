@@ -212,7 +212,6 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
   info(`prefijo: ${config.prefixes.join(' ')} · login: ${config.login}`)
   info(`dueños: ${config.owner.numbers.length ? config.owner.numbers.join(', ') : 'ninguno (opcional)'}`)
   info(`comandos: ${commandList.filter((command) => !command.hidden).length} en el menú`)
-  info(`extra: .debug (diagnóstico, no aparece en el menú)`)
 
   // Prueba real de conversión (genera y convierte un archivo de prueba)
   if (ffmpeg?.webp) {

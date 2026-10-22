@@ -98,8 +98,7 @@ export const DEFAULTS = {
     showDescriptions: false,
     showUser: true,
     phrases: ['El océano también guarda secretos 🌊', 'Un sticker vale más que mil palabras 💧'],
-    // El menú de WhatsApp lista TODOS los comandos visibles del bot.
-    // El resto de comandos sigue funcionando, pero no se lista aquí.
+    // El menú de WhatsApp lista TODOS los comandos del bot.
     categories: [
       {
         emoji: '📥',
@@ -141,7 +140,7 @@ export const DEFAULTS = {
         description: '𝖨𝗇𝖿𝗈',
         kaomoji: '( ᴗ͈ˬᴗ͈ )',
         divider: ['💧', '🌊'],
-        commands: ['help']
+        commands: ['help', 'debug']
       }
     ]
   },
