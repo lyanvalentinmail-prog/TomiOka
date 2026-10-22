@@ -20,6 +20,7 @@ import {
   LogBuffer,
   diffRows,
   viewerLines,
+  highlightMatches,
   paletteList,
   THEMES,
   MENU_ITEMS
@@ -216,6 +217,83 @@ test('la TUI renderiza paleta, editor con interruptores, confirmación y ayuda',
   assert.ok(helpText.includes('Atajos de teclado'))
 })
 
+test('la TUI mantiene sincronizados el render y los controles de edición', () => {
+  const env = fakeEnv({ theme: THEMES.opencode })
+
+  const config = createState()
+  config.mode = 'config'
+  config.configSel = 3
+  const configFrame = renderFrame(config, env, 100, 30)
+  const selectedLine = configFrame.find((line) => line.includes('Teléfono pairing'))
+  assert.ok(selectedLine?.includes('[48;2;250;178;131m'), 'la fila elegida con configSel se ve seleccionada')
+  assert.ok(configFrame.map((line) => stripAnsi(line)).join('\n').includes('Enter edita/cambia'))
+
+  const smallConfig = createState()
+  smallConfig.mode = 'config'
+  smallConfig.configSel = 10
+  const smallConfigFrame = renderFrame(smallConfig, env, 50, 14)
+  assert.ok(smallConfigFrame.some((line) => line.includes('[48;2;250;178;131m')), 'en pantallas chicas el último campo también se ve seleccionado')
+
+  const input = createState()
+  input.overlay = 'input'
+  input.input = { kind: 'field', title: '✏️ Nombre del bot', hint: 'Nombre visible', field: { label: 'Nombre del bot', about: 'Se ve en el menú' } }
+  input.buffer = 'TomiOka Nuevo'
+  input.inputCursor = input.buffer.length
+  input.fieldError = 'Error de prueba'
+  const inputText = renderFrame(input, env, 100, 30).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(inputText.includes('Nombre del bot'), 'el editor muestra su título')
+  assert.ok(inputText.includes('TomiOka Nuevo'), 'el editor muestra el texto que se está escribiendo')
+  assert.ok(inputText.includes('Error de prueba'), 'el editor muestra errores de validación')
+  assert.deepEqual(Object.values(input.hit), [], 'un diálogo abierto no deja clics hacia la pantalla de atrás')
+
+  const longInput = createState()
+  longInput.overlay = 'input'
+  longInput.input = { kind: 'field', title: 'Editar URL', hint: '', field: { label: 'URL' } }
+  longInput.buffer = `https://example.com/${'a'.repeat(90)}`
+  longInput.inputCursor = [...longInput.buffer].length
+  const longInputText = renderFrame(longInput, env, 80, 24).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(longInputText.includes('…'), 'un texto largo se desplaza y mantiene visible el final')
+
+  const session = createState()
+  session.mode = 'session'
+  session.sessionSel = 1
+  const sessionText = renderFrame(session, env, 100, 30).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(sessionText.includes('Sesión y respaldos'))
+  assert.ok(sessionText.includes('Crear respaldo de la sesión'))
+  assert.ok(sessionText.includes('Borrar sesión'))
+
+  const viewer = createState()
+  viewer.mode = 'viewer'
+  viewer.viewer = { title: 'Comandos', kind: 'commands', filterable: true, scroll: 0, query: 'sticker', searching: false, lines: ['.sticker crea', '.tiktok baja'] }
+  const viewerText = renderFrame(viewer, env, 100, 30).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(viewerText.includes('.sticker crea'), 'el visor usa state.viewer')
+  assert.ok(!viewerText.includes('.tiktok baja'), 'el visor filtra comandos')
+
+  const confirm = createState()
+  confirm.overlay = 'confirm'
+  confirm.confirm = { title: 'Borrar', body: '¿Seguro que quieres borrar?', okLabel: 'Borrar sesión' }
+  const confirmText = renderFrame(confirm, env, 100, 30).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(confirmText.includes('¿Seguro que quieres borrar?'), 'la confirmación muestra su mensaje')
+  const confirmButtons = Object.values(confirm.hit).flat().filter((hit) => hit.kind === 'confirm-btn')
+  assert.deepEqual(confirmButtons.map((hit) => hit.which), [0, 1], 'ambos botones son clicables por separado')
+
+  const consoleState = createState()
+  consoleState.mode = 'console'
+  consoleState.follow = false
+  consoleState.botScroll = 5
+  const consoleEnv = fakeEnv({ bot: { running: true, title: 'Bot', lines: Array.from({ length: 30 }, (_, i) => `log ${i}`) } })
+  const consoleText = renderFrame(consoleState, consoleEnv, 80, 24).map((line) => stripAnsi(line)).join('\n')
+  assert.ok(consoleText.includes('log 5'), 'la consola respeta botScroll')
+  assert.ok(!consoleText.includes('log 29'), 'la consola no salta sola al final al hacer scroll')
+
+  assert.ok(highlightMatches('hola sticker', 'sticker', pal(THEMES.opencode)).includes('[48;2;250;178;131m'), 'la búsqueda resalta coincidencias')
+  assert.deepEqual(
+    filterActions([{ title: 'Editar · Nombre del bot', description: 'El nombre visible del bot' }], 'nombre visible').length,
+    1,
+    'la paleta también busca en las descripciones'
+  )
+})
+
 test('editFields refleja valores e interruptores de la config', () => {
   const config = testConfig()
   const fields = editFields(config)
@@ -233,6 +311,8 @@ test('homeList filtra las secciones de la home y createState trae lo nuevo', () 
   assert.equal(homeList(state).length, MENU_ITEMS.length)
   state.homeQuery = 'tema'
   assert.equal(homeList(state)[0].id, 'theme', 'el tema sale primero al escribir "tema"')
+  state.homeQuery = 'sesion'
+  assert.equal(homeList(state)[0].id, 'session', 'buscar sin acentos también encuentra «Sesión»')
   state.homeQuery = 'zzz-sin-resultado'
   assert.equal(homeList(state).length, 0)
 })
@@ -247,6 +327,11 @@ test('logoLines dibuja el logo bitono y pal trae la paleta OpenCode', () => {
 
 test('parseKeys reconoce la tecla líder ctrl+x', () => {
   assert.deepEqual(parseKeys('\x18').map((k) => k.name), ['ctrl-x'])
+})
+
+test('parseKeys reconoce Ctrl+H, Delete y atajos de edición', () => {
+  assert.deepEqual(parseKeys('\b\x1b[3~\x01\x05\x0e').map((k) => k.name), ['backspace', 'delete', 'ctrl-a', 'ctrl-e', 'ctrl-n'])
+  assert.deepEqual(parseKeys('\x1bOA\x1bOB').map((k) => k.name), ['up', 'down'], 'también acepta flechas SS3 de algunos Termux')
 })
 
 test('la terminal queda expuesta como script npm y cubre las acciones del bot', () => {

@@ -14,7 +14,7 @@
  * Los cambios de configuración van a config.json (respaldo .bak) y el
  * tema elegido se recuerda en data/terminal-state.json.
  */
-import { spawn } from 'node:child_process'
+import { spawn, spawnSync } from 'node:child_process'
 import { copyFileSync, cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -85,10 +85,15 @@ export function gradient(text, theme) {
 
 /* -------------------------------------------------------- búsqueda difusa */
 
+/** Normaliza búsquedas: minúsculas y sin acentos (sesion = sesión) */
+export function normalizeSearchText(value) {
+  return String(value || '').normalize('NFD').replace(/\p{M}/gu, '').toLowerCase()
+}
+
 /** Puntaje de coincidencia difusa (subsecuencia). -1 si no coincide */
 export function fuzzyScore(query, text) {
-  const q = String(query || '').toLowerCase()
-  const t = String(text || '').toLowerCase()
+  const q = normalizeSearchText(query)
+  const t = normalizeSearchText(text)
   if (!q) return 0
   let qi = 0
   let score = 0
@@ -108,7 +113,7 @@ export function fuzzyScore(query, text) {
 export function filterActions(actions, query) {
   if (!String(query || '').trim()) return [...actions]
   return actions
-    .map((action) => ({ action, score: fuzzyScore(query, `${action.title} ${action.hint || ''}`) }))
+    .map((action) => ({ action, score: fuzzyScore(query, `${action.title} ${action.description || action.hint || ''}`) }))
     .filter((entry) => entry.score >= 0)
     .sort((x, y) => y.score - x.score)
     .map((entry) => entry.action)
@@ -418,13 +423,9 @@ export function createState() {
     confirm: null,
     confirmSel: 1,
     fieldError: '',
-    scroll: 0,
-    maxScroll: 0,
     viewH: 0,
-    query: '',
-    searching: false,
     sidebar: true,
-    inputPrompt: null,
+    inputCursor: 0,
     placeholder: HOME_PLACEHOLDERS[Math.floor(Math.random() * HOME_PLACEHOLDERS.length)],
     buffer: '',
     consoleInput: false,
@@ -478,8 +479,7 @@ export const HELP_LINES = [
   '  esc               Volver, cerrar o cancelar',
   '  /                 Buscar en listas (n / N siguiente)',
   '  ?                 Esta ayuda',
-  '  t                 Cambiar el tema',
-  '  q                 Salir',
+  '  (en la home, q/t/… escriben y filtran; no son atajos)',
   '',
   '  En la consola del bot:',
   '  i                 Escribirle al bot (ej: el teléfono)',
@@ -492,12 +492,12 @@ export const HELP_LINES = [
 
 /** Líneas visibles de una vista de texto según su filtro/búsqueda */
 export function viewerLines(viewer) {
-  const query = (viewer.query || '').toLowerCase()
+  const query = normalizeSearchText(viewer.query || '')
   if (!query) return { lines: viewer.lines, matches: [] }
   const lines = []
   const matches = []
   viewer.lines.forEach((line, index) => {
-    if (String(line).toLowerCase().includes(query)) {
+    if (normalizeSearchText(line).includes(query)) {
       matches.push(lines.length)
       lines.push(line)
     } else if (!viewer.filterable) {
@@ -505,6 +505,42 @@ export function viewerLines(viewer) {
     }
   })
   return { lines, matches }
+}
+
+/** Resalta coincidencias literales sin interpretar la búsqueda como regex */
+export function highlightMatches(line, query, palette) {
+  const text = String(line)
+  const target = normalizeSearchText(query)
+  if (!target) return text
+
+  // Mapa de cada carácter normalizado a su posición en el texto original,
+  // para que «sesion» también resalte «sesión».
+  let normalized = ''
+  const positions = []
+  for (let i = 0; i < text.length;) {
+    const char = String.fromCodePoint(text.codePointAt(i))
+    const clean = normalizeSearchText(char)
+    for (const cleanChar of clean) {
+      normalized += cleanChar
+      positions.push({ start: i, end: i + char.length })
+    }
+    i += char.length
+  }
+
+  let out = ''
+  let searchFrom = 0
+  let originalFrom = 0
+  while (searchFrom < normalized.length) {
+    const found = normalized.indexOf(target, searchFrom)
+    if (found < 0) break
+    const start = positions[found].start
+    const end = positions[found + target.length - 1].end
+    out += text.slice(originalFrom, start)
+    out += `${bgc(palette.primary)}${rgb(palette.bg)}${text.slice(start, end)}${RESET}${rgb(palette.text)}`
+    searchFrom = found + target.length
+    originalFrom = end
+  }
+  return out + text.slice(originalFrom)
 }
 
 /* ------------------------------------------------------------------ render */
@@ -690,10 +726,19 @@ function promptBox({ theme, width, input, meta, narrow = false }) {
   return lines
 }
 
-function inputContent(text, palette, placeholder) {
+/** Cola visible de un texto largo, para que el cursor nunca quede fuera */
+function tailText(text, width) {
+  const str = String(text || '')
+  const limit = Math.max(1, width)
+  if (textWidth(str) <= limit) return str
+  if (limit === 1) return '…'
+  return `…${[...str].slice(-(limit - 1)).join('')}`
+}
+
+function inputContent(text, palette, placeholder, maxWidth = Infinity) {
   const cursor = COLOR_OK ? `${bgc(palette.text)}${rgb(palette.prompt)} ${bgc(palette.prompt)}` : '█'
-  if (text) return `${rgb(palette.text)}${text}${cursor}`
-  return `${cursor}${rgb(palette.muted)}${placeholder || ''}`
+  if (text) return `${rgb(palette.text)}${tailText(text, Math.max(1, maxWidth - 1))}${cursor}`
+  return `${cursor}${rgb(palette.muted)}${clip(placeholder || '', Math.max(1, maxWidth - 1))}`
 }
 
 function metaContent({ theme, agent, model, provider, showAgent = true }) {
@@ -805,7 +850,7 @@ function renderHome(state, env, W, bodyH, bodyTop) {
       const text = `${item.icon} ${item.label}${running}`
       const hint = clip(item.hint || '', Math.max(8, bw - textWidth(text) - 14))
       const line = index === state.sel
-        ? ocSelected(pad(` ${text}`, bw), theme)
+        ? ocSelected(pad(clip(` ${text}`, bw), bw), theme)
         : `${fgText(` ${text}`, palette)} ${fgMuted(hint, palette)}`
       state.hit[listTop + i] = { kind: 'section', index, itemId: item.id, x1: left, x2: left + bw }
       rows.push(padL + line)
@@ -823,7 +868,7 @@ function renderHome(state, env, W, bodyH, bodyTop) {
     theme,
     width: bw,
     narrow: W < 44,
-    input: inputContent(state.homeQuery, palette, state.placeholder || HOME_PLACEHOLDERS[0]),
+    input: inputContent(state.homeQuery, palette, state.placeholder || HOME_PLACEHOLDERS[0], bw - 1 - (W < 44 ? 1 : 2)),
     meta
   })
   for (const line of box.slice(0, 4)) rows.push(padL + line)
@@ -854,10 +899,14 @@ function renderConsole(state, env, W, bodyH, bodyTop) {
 
   const entries = bufLines
   const total = entries.length
-  state.maxScroll = Math.max(0, total - viewH)
-  state.scroll = Math.min(state.scroll, state.maxScroll)
-  const end = total - state.scroll
-  const start = Math.max(0, end - viewH)
+  const maxStart = Math.max(0, total - viewH)
+  // La consola se desplaza por línea inicial (botScroll). follow=true
+  // significa "pegado al final", como la vista de sesión de OpenCode.
+  const start = state.follow === false
+    ? Math.min(maxStart, Math.max(0, state.botScroll || 0))
+    : maxStart
+  if (state.follow === false) state.botScroll = start
+  const end = Math.min(total, start + viewH)
 
   const rows = []
   for (let i = start; i < end; i += 1) {
@@ -871,7 +920,7 @@ function renderConsole(state, env, W, bodyH, bodyTop) {
   const cmdText = state.consoleInput ? state.consoleBuffer : ''
   const cbox = promptBox({
     theme, width: mainW, narrow: W < 44,
-    input: inputContent(cmdText, palette, state.consoleInput ? 'escribí un comando y Enter… (` sale)' : 'tocá i para escribir…'),
+    input: inputContent(cmdText, palette, state.consoleInput ? 'escribí un comando y Enter… (` sale)' : 'tocá i para escribir…', mainW - 1 - (W < 44 ? 1 : 2)),
     meta: metaContent({ theme, agent: clip(config.bot.name, 24), model: 'WhatsApp', provider: running ? 'corriendo' : 'detenido', showAgent: W >= 44 })
   })
   rows.push(cbox[0], cbox[1], cbox[2], cbox[3], cbox[4])
@@ -919,33 +968,71 @@ function renderConfig(state, env, W, bodyH, bodyTop, x0) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
   const fields = editFields(env.config)
-  state.sel = Math.min(state.sel, fields.length - 1)
+  state.configSel = Math.min(Math.max(0, state.configSel || 0), Math.max(0, fields.length - 1))
   const rows = ['', `   ${rgb(palette.text)}${ESC}[1mEditar configuración${RESET}`, '']
-  const listTop = bodyTop + rows.length
 
-  let lastGroup = ''
-  let rowCursor = 0
-  const visible = fields.slice(0, bodyH - 6)
-  for (let index = 0; index < visible.length; index += 1) {
-    const field = visible[index]
-    if (field.group && field.group !== lastGroup) {
-      lastGroup = field.group
-      if (index > 0) rows.push('')
-      rows.push(`   ${fgMuted(field.group, palette)}`)
-      rowCursor = rows.length - 1 - listTop
+  // Lista lógica con encabezados de grupo. En pantallas chicas se muestra
+  // una ventana de estas filas, siempre incluyendo el campo seleccionado.
+  const entries = []
+  let entryGroup = ''
+  fields.forEach((field, index) => {
+    if (field.group && field.group !== entryGroup) {
+      if (entries.length) entries.push({ type: 'gap' })
+      entries.push({ type: 'group', label: field.group })
+      entryGroup = field.group
     }
-    const value = clip(String(field.value), 26).padEnd(27)
-    const text = pad(` ${field.label} `, 23) + value
-    const content = index === state.sel ? ocSelected(pad(text, W - 6), theme) : `${fgText(text, palette)} ${fgMuted(field.hint || '', palette)}`
-    state.hit[bodyTop + rows.length] = { kind: 'field', index, x1: x0, x2: x0 + W }
-    rows.push(`   ${content}`)
-    rowCursor += 1
+    entries.push({ type: 'field', field, index })
+  })
+  const selectedPos = Math.max(0, entries.findIndex((entry) => entry.type === 'field' && entry.index === state.configSel))
+  const listRows = Math.max(1, bodyH - 5)
+  let startPos = entries.length ? windowStart(selectedPos, entries.length, listRows) : 0
+  let effectiveRows = listRows
+  if (startPos > 0) {
+    // Se reserva una fila para repetir el grupo si la ventana empieza
+    // en mitad de una sección.
+    effectiveRows = Math.max(1, listRows - 1)
+    startPos = windowStart(selectedPos, entries.length, effectiveRows)
+  }
+  let visibleEntries = entries.slice(startPos, startPos + effectiveRows)
+  if (visibleEntries[0]?.type === 'gap') {
+    visibleEntries = entries.slice(startPos, startPos + effectiveRows + 1)
   }
 
-  const error = env.edit?.error
+  let lastGroup = ''
+  if (startPos > 0 && visibleEntries[0]?.type === 'field' && visibleEntries[0].field.group) {
+    lastGroup = visibleEntries[0].field.group
+    rows.push(`   ${fgMuted(lastGroup, palette)}`)
+  }
+  for (const entry of visibleEntries) {
+    if (entry.type === 'gap') {
+      rows.push('')
+      continue
+    }
+    if (entry.type === 'group') {
+      lastGroup = entry.label
+      rows.push(`   ${fgMuted(entry.label, palette)}`)
+      continue
+    }
+    const { field, index } = entry
+    const innerW = Math.max(10, W - 6)
+    const labelW = innerW < 40
+      ? Math.min(17, Math.max(14, Math.floor(innerW * 0.52)))
+      : Math.min(23, Math.max(12, Math.floor(innerW * 0.42)))
+    const hintW = W >= 76 ? Math.min(22, Math.floor(innerW * 0.26)) : 0
+    const valueW = Math.max(8, innerW - labelW - hintW)
+    const core = pad(clip(` ${field.label} `, labelW), labelW) + pad(clip(String(field.value), valueW), valueW)
+    const plain = hintW ? pad(core, innerW - hintW) + clip(field.hint || '', hintW) : pad(clip(core, innerW), innerW)
+    const content = index === state.configSel
+      ? ocSelected(plain, theme)
+      : `${fgText(hintW ? plain.slice(0, innerW - hintW) : plain, palette)}${hintW ? fgMuted(plain.slice(innerW - hintW), palette) : ''}`
+    state.hit[bodyTop + rows.length] = { kind: 'field', index, x1: x0, x2: x0 + W }
+    rows.push(`   ${content}`)
+  }
+
+  const error = state.fieldError || env.configError || env.edit?.error
   const detail = error
     ? `${ESC}[38;2;224;108;117m${clip(error, W - 6)}${RESET}`
-    : fgMuted('Enter edita · e edita el JSON · Esc vuelve', palette)
+    : fgMuted(W < 56 ? 'Enter edita · e JSON · Esc vuelve' : 'Enter edita/cambia · e edita config.json · Esc vuelve', palette)
   rows.push('', `   ${detail}`)
   return rows.slice(0, bodyH)
 }
@@ -953,47 +1040,60 @@ function renderConfig(state, env, W, bodyH, bodyTop, x0) {
 function renderSession(state, env, W, bodyH, bodyTop, x0) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const info = describeSession(env.session)
-  const actions = backupActions(env.session)
-  state.sel = Math.min(state.sel, actions.length - 1)
-  const lines = String(info.text || info).split('\n')
+  const session = env.session || inspectSession(env.config?.sessionDir)
+  const actions = SESSION_ACTIONS
+  state.sessionSel = Math.min(Math.max(0, state.sessionSel || 0), Math.max(0, actions.length - 1))
+  const backups = env.backups || []
+  const info = [
+    describeSession(session),
+    `Carpeta   ${env.config?.sessionDir || session.dir || 'sessions'}`,
+    `Archivos  ${session.files || 0} · credenciales ${formatBytes(session.bytes || 0)}`,
+    `Respaldos ${backups.length}${backups[0] ? ` · último ${backups[0]}` : ''}`
+  ]
   const rows = ['', `   ${rgb(palette.text)}${ESC}[1mSesión y respaldos${RESET}`, '']
-  for (const line of lines.slice(0, bodyH - actions.length - 8)) {
-    rows.push(`   ${fgMuted(clip(line, W - 6), palette)}`)
-  }
+  for (const line of info) rows.push(`   ${fgMuted(clip(line, W - 6), palette)}`)
   rows.push('')
   const listTop = bodyTop + rows.length
   actions.forEach((action, index) => {
-    const text = ` ${action.label} — ${action.hint}`
-    const content = index === state.sel ? ocSelected(pad(text, Math.min(64, W - 6)), theme) : `${fgText(text, palette)}`
+    const text = ` ${action.icon} ${action.label} — ${action.hint}`
+    const content = index === state.sessionSel
+      ? ocSelected(pad(clip(text, Math.max(1, Math.min(76, W - 6))), Math.max(1, Math.min(76, W - 6))), theme)
+      : `${fgText(text, palette)}`
     state.hit[listTop + index] = { kind: 'session-action', index, actionId: action.id, x1: x0, x2: x0 + W }
     rows.push(`   ${content}`)
   })
-  rows.push('', `   ${fgMuted('Enter ejecuta · Esc vuelve', palette)}`)
+  rows.push('', `   ${fgMuted('Enter ejecuta · ↑↓ elegir · Esc vuelve', palette)}`)
   return rows.slice(0, bodyH)
 }
 
 function renderViewer(state, env, W, bodyH) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
-  const view = env.view || { title: '', lines: [] }
-  const rows = ['', `  ${rgb(palette.text)}${ESC}[1m${clip(view.title, W - 4)}${RESET}`]
-  if (view.error) rows.push(`  ${ESC}[38;2;224;108;117m${clip(view.error, W - 4)}${RESET}`)
-  if (state.searching) {
-    rows.push(`  ${COLOR_OK ? `${bgc(palette.element)}${rgb(palette.primary)}` : '> '}${state.query} ${COLOR_OK ? bgc(palette.element) + ' ' + RESET : ''}`)
-  } else if (state.query) {
-    const count = countMatches(view.lines, state.query)
-    rows.push(`  ${fgMuted(`«${clip(state.query, 30)}» · ${count} coincidencia${count === 1 ? '' : 's'}`, palette)}`)
+  const viewer = state.viewer || { title: '', kind: '', lines: [], scroll: 0, query: '', searching: false, filterable: false }
+  const { lines, matches } = viewerLines(viewer)
+  const rows = ['', `  ${rgb(palette.text)}${ESC}[1m${clip(viewer.title || 'Vista', W - 4)}${RESET}`]
+  if (viewer.error) rows.push(`  ${ESC}[38;2;224;108;117m${clip(viewer.error, W - 4)}${RESET}`)
+  if (viewer.searching) {
+    rows.push(`  ${COLOR_OK ? `${bgc(palette.element)}${rgb(palette.primary)} ${viewer.query || ''} ${RESET}` : `> ${viewer.query || ''}`}`)
+  } else if (viewer.query) {
+    const count = viewer.filterable ? lines.length : matches.length
+    rows.push(`  ${fgMuted(`«${clip(viewer.query, 30)}» · ${count} coincidencia${count === 1 ? '' : 's'}`, palette)}`)
   }
-  const viewH = bodyH - rows.length - 1
+
+  const viewH = Math.max(1, bodyH - rows.length - 1)
   state.viewH = viewH
-  state.maxScroll = Math.max(0, view.lines.length - viewH)
-  state.scroll = Math.min(state.scroll, state.maxScroll)
-  let shown = view.lines.slice(state.scroll, state.scroll + viewH)
-  if (state.query) shown = shown.map((line) => highlightMatches(line, palette))
+  const maxScroll = Math.max(0, lines.length - viewH)
+  viewer.scroll = Math.min(Math.max(0, viewer.scroll || 0), maxScroll)
+  let shown = lines.slice(viewer.scroll, viewer.scroll + viewH)
+  if (viewer.query && !viewer.filterable) {
+    shown = shown.map((line) => highlightMatches(line, viewer.query, palette))
+  }
   for (const line of shown) rows.push(`  ${rgb(palette.text)}${line}${RESET}`)
-  while (rows.length < bodyH) rows.push('')
-  rows.push(`  ${fgMuted('Ctrl+X líder · / buscar · n/N siguiente · ↑↓ PgUp/PgDn navegar · Esc vuelve', palette)}`)
+  while (rows.length < bodyH - 1) rows.push('')
+  const help = viewer.filterable
+    ? 'escribí para filtrar · ↑↓ PgUp/PgDn navegar · Esc limpia/vuelve'
+    : 'Ctrl+X líder · / buscar · n/N siguiente · ↑↓ PgUp/PgDn navegar · Esc vuelve'
+  rows.push(`  ${fgMuted(help, palette)}`)
   return rows.slice(0, bodyH)
 }
 
@@ -1001,6 +1101,8 @@ function renderViewer(state, env, W, bodyH) {
 function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
   const theme = env.theme || THEMES.opencode
   const palette = pal(theme)
+  // Un diálogo es modal: se descartan los hits de la pantalla de atrás.
+  state.hit = {}
   const dimmed = baseLines.slice(0, bodyH).map((line) => `${ESC}[2m${line}${RESET}`)
   while (dimmed.length < bodyH) dimmed.push('')
   const dialogBg = palette.panel
@@ -1010,7 +1112,7 @@ function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
     const left = Math.floor((W - boxW) / 2)
     const top = bodyTop + Math.max(1, Math.floor(bodyH / 4))
     const title = state.confirm?.title || 'Confirmar'
-    const message = state.confirm?.message || ''
+    const message = state.confirm?.message || state.confirm?.body || ''
     const lines = []
     lines.push('')
     lines.push(`   ${rgb(palette.text)}${ESC}[1m${clip(title, boxW - 10)}${RESET}${bgc(dialogBg)}${' '.repeat(Math.max(1, boxW - 3 - textWidth(title) - 3))}${fgMuted('esc', palette)}${bgc(dialogBg)}   `)
@@ -1027,11 +1129,10 @@ function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
     const cancel = state.confirmSel === 0 ? ocSelected(cancelBox, theme) : `${bgc(dialogBg)}${rgb(palette.muted)}${cancelBox}${RESET}`
     const ok = state.confirmSel === 1 ? ocSelected(okBox, theme) : `${bgc(dialogBg)}${rgb(palette.muted)}${okBox}${RESET}`
     lines.push(`${' '.repeat(Math.max(3, boxW - 3 - buttonsW))}${cancel}${bgc(dialogBg)}${ok}`)
-    state.hit[btnRow] = {
-      kind: 'confirm-btn',
-      x1: left + boxW - 3 - buttonsW, x2: left + boxW - 3 - cancelBox.length,
-      x3: left + boxW - 3 - cancelBox.length, x4: left + boxW - 3
-    }
+    state.hit[btnRow] = [
+      { kind: 'confirm-btn', which: 0, x1: left + boxW - 3 - buttonsW, x2: left + boxW - 3 - cancelBox.length },
+      { kind: 'confirm-btn', which: 1, x1: left + boxW - 3 - cancelBox.length, x2: left + boxW - 3 }
+    ]
     lines.push('')
     const full = lines.map((line) => {
       const stripped = String(line).replace(/ +$/, '')
@@ -1064,7 +1165,7 @@ function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
     state.palette.sel = Math.min(state.palette.sel, Math.max(0, list.length - 1))
     header('Paleta de comandos')
     const q = state.palette.query
-    push(COLOR_OK ? `   ${bgc(palette.element)}${q ? rgb(palette.primary) : rgb(palette.muted)} ${q || 'Buscar'} ${RESET}` : `   > ${q || ''}`)
+    push(COLOR_OK ? `   ${bgc(palette.element)}${q ? rgb(palette.primary) : rgb(palette.muted)} ${q ? tailText(q, inner - 2) : 'Buscar'} ${RESET}` : `   > ${tailText(q, inner - 2)}`)
     push('')
     const maxRows = Math.max(3, bodyH - top - 8)
     const start = windowStart(state.palette.sel, list.length, maxRows)
@@ -1082,7 +1183,7 @@ function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
       const group = action.group && state.palette.query ? clip(action.group, 14) : ''
       const groupPad = group ? Math.max(1, inner - textWidth(rowText) - textWidth(desc) - textWidth(group) - 2) : 0
       const content = index === state.palette.sel
-        ? ocSelected(pad(`${rowText}${desc ? ` ${desc}` : ''}`, inner), theme)
+        ? ocSelected(pad(clip(`${rowText}${desc ? ` ${desc}` : ''}`, inner), inner), theme)
         : `${fgText(rowText, palette)} ${desc ? fgMuted(desc, palette) : ''}${group ? `${' '.repeat(groupPad)}${fgMuted(group, palette)}` : ''}`
       state.hit[top + box.length] = { kind: 'palette', index, x1: left + 3, x2: left + 3 + inner }
       push(`   ${content}`)
@@ -1091,17 +1192,31 @@ function renderOverlay(state, env, W, bodyH, bodyTop, baseLines) {
     footerLine('enter abrir · ↑↓ navegar · esc cerrar')
     push('')
   } else if (state.overlay === 'input') {
-    const prompt = state.inputPrompt || {}
-    header(prompt.title || 'Editar')
-    if (prompt.description) {
-      for (const line of wrap(prompt.description, inner)) push(`   ${fgMuted(line, palette)}`)
+    const input = state.input || {}
+    const draft = state.buffer || ''
+    const chars = [...draft]
+    state.inputCursor = Math.min(Math.max(0, state.inputCursor ?? chars.length), chars.length)
+    const cursor = state.inputCursor
+    const fieldW = Math.max(5, inner - 2)
+    const start = Math.max(0, cursor - fieldW + 1)
+    const visible = chars.slice(start, start + (start > 0 ? fieldW - 1 : fieldW))
+    const relative = cursor - start
+    const before = `${start > 0 ? '…' : ''}${visible.slice(0, relative).join('')}`
+    const cursorChar = visible[relative] || ' '
+    const after = visible.slice(relative + (visible[relative] ? 1 : 0)).join('')
+    const description = input.description || (input.field?.about && input.field.about !== input.hint ? input.field.about : '')
+    header(input.title || 'Editar')
+    if (description) {
+      for (const line of wrap(description, inner)) push(`   ${fgMuted(line, palette)}`)
       push('')
     }
-    push(COLOR_OK ? `   ${bgc(palette.element)}${rgb(palette.primary)} ${prompt.draft || ''} ${RESET}` : `   > ${prompt.draft || ''}`)
-    if (prompt.error) push(`   ${ESC}[38;2;224;108;117m${clip(prompt.error, inner)}${RESET}`)
-    else if (prompt.hint) push(`   ${fgMuted(clip(prompt.hint, inner), palette)}`)
+    push(COLOR_OK
+      ? `   ${bgc(palette.element)}${rgb(palette.primary)} ${before}${bgc(palette.text)}${rgb(palette.element)}${cursorChar}${bgc(palette.element)}${rgb(palette.primary)}${after} ${RESET}`
+      : `   > ${draft}`)
+    if (state.fieldError) push(`   ${ESC}[38;2;224;108;117m${clip(state.fieldError, inner)}${RESET}`)
+    else if (input.hint) push(`   ${fgMuted(clip(input.hint, inner), palette)}`)
     push('')
-    footerLine('enter confirmar · esc cancelar')
+    footerLine('enter confirmar · ←→ corregir · ctrl+u borrar · esc cancelar')
     push('')
   } else {
     header('Ayuda')
@@ -1143,10 +1258,17 @@ export function parseKeys(chunk) {
         i += mouse[0].length
         continue
       }
+      const ss3 = rest.match(/^\x1bO([A-Za-z])/)
+      if (ss3) {
+        const bySs3 = { A: 'up', B: 'down', C: 'right', D: 'left', H: 'home', F: 'end' }
+        keys.push({ name: bySs3[ss3[1]] || 'unknown' })
+        i += ss3[0].length
+        continue
+      }
       const m = rest.match(/^\x1b\[([0-9;]*)([A-Za-z~])/)
       if (m) {
         const byFinal = { A: 'up', B: 'down', C: 'right', D: 'left', H: 'home', F: 'end', Z: 'shift-tab' }
-        const byParam = { 5: 'pageup', 6: 'pagedown', 1: 'home', 4: 'end', 7: 'home', 8: 'end' }
+        const byParam = { 5: 'pageup', 6: 'pagedown', 1: 'home', 4: 'end', 7: 'home', 8: 'end', 3: 'delete' }
         keys.push({ name: m[2] === '~' ? byParam[m[1]] || 'unknown' : byFinal[m[2]] || 'unknown' })
         i += m[0].length
       } else {
@@ -1156,10 +1278,15 @@ export function parseKeys(chunk) {
       continue
     }
     if (ch === '\r' || ch === '\n') keys.push({ name: 'enter' })
-    else if (ch === '\x7f') keys.push({ name: 'backspace' })
+    else if (ch === '\x7f' || ch === '\b') keys.push({ name: 'backspace' })
+    else if (ch === '\x01') keys.push({ name: 'ctrl-a' })
+    else if (ch === '\x05') keys.push({ name: 'ctrl-e' })
+    else if (ch === '\x02') keys.push({ name: 'ctrl-b' })
+    else if (ch === '\x06') keys.push({ name: 'ctrl-f' })
     else if (ch === '\x03') keys.push({ name: 'ctrl-c' })
     else if (ch === '\x04') keys.push({ name: 'ctrl-d' })
     else if (ch === '\x10') keys.push({ name: 'ctrl-p' })
+    else if (ch === '\x0e') keys.push({ name: 'ctrl-n' })
     else if (ch === '\x0b') keys.push({ name: 'ctrl-k' })
     else if (ch === '\x15') keys.push({ name: 'ctrl-u' })
     else if (ch === '\x12') keys.push({ name: 'ctrl-r' })
@@ -1213,7 +1340,6 @@ async function main() {
   let commandsModule = null
   let menuModule = null
   let dirty = true
-  let lastClick = { at: 0, row: -1 }
 
   const bot = { proc: null, running: false, title: '', argv: null, cmd: null, buffer: new LogBuffer(600) }
   const botView = () => ({ running: bot.running, title: bot.title, lines: bot.buffer.view() })
@@ -1229,8 +1355,16 @@ async function main() {
   }
 
   const freshEnv = () => {
-    const config = loadConfig()
-    return { config, session: inspectSession(config.sessionDir), theme, backups: listBackups(config), actions: [] }
+    let config
+    let configError = ''
+    try {
+      config = loadConfig()
+    } catch (error) {
+      // La terminal debe poder abrir igual para reparar config.json con «e».
+      configError = error.message
+      config = loadConfig({ file: path.join(ROOT, 'config.__tomioka_missing__.json') })
+    }
+    return { config, configError, session: inspectSession(config.sessionDir), theme, backups: listBackups(config), actions: [] }
   }
   let env = freshEnv()
   const refreshEnv = () => { env = freshEnv(); env.actions = buildActions() }
@@ -1278,6 +1412,7 @@ async function main() {
         refreshEnv()
         dirty = true
       })
+      refreshEnv()
       dirty = true
     }
     if (bot.proc) {
@@ -1311,7 +1446,8 @@ async function main() {
 
   const openInput = (input) => {
     state.input = input
-    state.buffer = input.initial || ''
+    state.buffer = String(input.initial || '').replace(/[\r\n]+/g, ' ')
+    state.inputCursor = [...state.buffer].length
     state.fieldError = ''
     state.overlay = 'input'
   }
@@ -1335,7 +1471,67 @@ async function main() {
     applyConfigEdit(raw, field.id, field.id === 'menuImage' && String(value).trim() === '-' ? '' : value)
     saveRawConfig(raw)
     refreshEnv()
+    state.fieldError = ''
     state.toast = `✅ ${field.label} guardado`
+  }
+
+  function editConfigJson() {
+    let before
+    try {
+      before = existsSync(CONFIG_FILE) ? readFileSync(CONFIG_FILE, 'utf8') : '{}\n'
+      try {
+        saveRawConfig(JSON.parse(before))
+      } catch {
+        // Si el JSON ya está roto, se respalda tal cual y el editor lo repara.
+        if (existsSync(CONFIG_FILE)) copyFileSync(CONFIG_FILE, `${CONFIG_FILE}.bak`)
+      }
+    } catch (error) {
+      state.fieldError = `config.json no se pudo preparar: ${error.message}`
+      dirty = true
+      return
+    }
+
+    const suspendUi = () => {
+      try { process.stdout.write(`${ESC}[?1000l${ESC}[?1006l${ESC}[?25h${ESC}[?1049l`) } catch { /* sin TTY */ }
+      try { process.stdin.setRawMode(false) } catch { /* sin TTY */ }
+    }
+    const resumeUi = () => {
+      try { process.stdout.write(`${ESC}[?1049h${ESC}[?1000h${ESC}[?1006h${ESC}[?25l`) } catch { /* sin TTY */ }
+      setTerminalBg()
+      try { process.stdin.setRawMode(true) } catch { /* sin TTY */ }
+      try { process.stdin.resume() } catch { /* sin TTY */ }
+      prevFrame = []
+      prevSize = ''
+      render(true)
+    }
+
+    const configuredEditor = process.env.VISUAL_EDITOR || process.env.EDITOR
+    const editors = configuredEditor ? [configuredEditor] : ['nano', 'micro', 'nvim', 'vim', 'vi']
+    let result = null
+    suspendUi()
+    try {
+      for (const editor of editors) {
+        result = spawnSync(editor, [CONFIG_FILE], { cwd: ROOT, stdio: 'inherit', env: process.env })
+        if (!result.error) break
+      }
+    } finally {
+      resumeUi()
+    }
+
+    if (!result || result.error) {
+      state.fieldError = 'No se encontró un editor (instala nano o define EDITOR).'
+      dirty = true
+      return
+    }
+    try {
+      JSON.parse(readFileSync(CONFIG_FILE, 'utf8'))
+      refreshEnv()
+      state.toast = '✅ config.json guardado'
+    } catch (error) {
+      writeFileSync(CONFIG_FILE, before)
+      state.fieldError = `JSON inválido; se restauró el anterior: ${error.message}`
+    }
+    dirty = true
   }
 
   function cycleTheme() {
@@ -1372,6 +1568,10 @@ async function main() {
   }
 
   async function activateSection(id) {
+    // Al abrir una sección se consume la búsqueda de la home: al volver
+    // no debe quedar el texto viejo filtrando el menú.
+    state.homeQuery = ''
+    state.sel = 0
     if (id === 'console') {
       if (!bot.running) spawnConsole('Bot de TomiOka', [path.join(ROOT, 'scripts', 'boot.js')])
       else state.mode = 'console'
@@ -1448,6 +1648,7 @@ async function main() {
     return actions
   }
   env.actions = buildActions()
+  if (env.configError) state.toast = `✖ config.json inválido: ${env.configError}`
 
   /* --------------------------------------------------------------- render */
 
@@ -1556,20 +1757,17 @@ async function main() {
 
   function scrollViewer(delta) {
     const { lines } = viewerLines(state.viewer)
-    const maxScroll = Math.max(0, lines.length - 3)
-    state.viewer.scroll = Math.min(maxScroll, Math.max(0, state.viewer.scroll + delta))
+    const maxScroll = Math.max(0, lines.length - Math.max(1, state.viewH || 10))
+    state.viewer.scroll = Math.min(maxScroll, Math.max(0, (state.viewer.scroll || 0) + delta))
   }
 
   function scrollConsole(delta) {
     const all = bot.buffer.view()
-    const maxStart = Math.max(0, all.length - 5)
-    if (delta > 0 && state.botScroll + delta >= maxStart) {
-      state.follow = true
-      state.botScroll = maxStart
-    } else {
-      state.follow = false
-      state.botScroll = Math.min(maxStart, Math.max(0, state.botScroll + delta))
-    }
+    const maxStart = Math.max(0, all.length - Math.max(1, state.viewH || 10))
+    const current = state.follow ? maxStart : Math.min(maxStart, Math.max(0, state.botScroll || 0))
+    const next = Math.min(maxStart, Math.max(0, current + delta))
+    state.botScroll = next
+    state.follow = next >= maxStart
   }
 
   async function handleKey(key) {
@@ -1586,9 +1784,14 @@ async function main() {
       /* overlays primero */
       if (state.overlay === 'palette') {
         const list = paletteList(state, renderEnv())
-        if (key.name === 'escape' || key.name === 'ctrl-p') { state.overlay = null; state.palette.query = '' }
-        else if (key.name === 'up' || key.name === 'ctrl-k') state.palette.sel = Math.max(0, state.palette.sel - 1)
-        else if (key.name === 'down') state.palette.sel = Math.min(Math.max(0, list.length - 1), state.palette.sel + 1)
+        const last = Math.max(0, list.length - 1)
+        if (key.name === 'escape') { state.overlay = null; state.palette.query = '' }
+        else if (key.name === 'up' || key.name === 'ctrl-k' || key.name === 'ctrl-p') state.palette.sel = Math.max(0, state.palette.sel - 1)
+        else if (key.name === 'down' || key.name === 'ctrl-n') state.palette.sel = Math.min(last, state.palette.sel + 1)
+        else if (key.name === 'pageup') state.palette.sel = Math.max(0, state.palette.sel - 10)
+        else if (key.name === 'pagedown') state.palette.sel = Math.min(last, state.palette.sel + 10)
+        else if (key.name === 'home') state.palette.sel = 0
+        else if (key.name === 'end') state.palette.sel = last
         else if (key.name === 'backspace') { state.palette.query = state.palette.query.slice(0, -1); state.palette.sel = 0 }
         else if (key.name === 'enter') {
           const action = list[state.palette.sel]
@@ -1601,11 +1804,27 @@ async function main() {
         return
       }
       if (state.overlay === 'input') {
-        if (key.name === 'escape') { state.overlay = null; state.input = null }
-        else if (key.name === 'backspace') state.buffer = state.buffer.slice(0, -1)
-        else if (key.name === 'ctrl-u') state.buffer = ''
+        const chars = [...state.buffer]
+        state.inputCursor = Math.min(Math.max(0, state.inputCursor ?? chars.length), chars.length)
+        if (key.name === 'escape') { state.overlay = null; state.input = null; state.fieldError = '' }
+        else if (key.name === 'left' || key.name === 'ctrl-b') state.inputCursor = Math.max(0, state.inputCursor - 1)
+        else if (key.name === 'right' || key.name === 'ctrl-f') state.inputCursor = Math.min(chars.length, state.inputCursor + 1)
+        else if (key.name === 'home' || key.name === 'ctrl-a') state.inputCursor = 0
+        else if (key.name === 'end' || key.name === 'ctrl-e') state.inputCursor = chars.length
+        else if (key.name === 'backspace' && state.inputCursor > 0) {
+          chars.splice(state.inputCursor - 1, 1)
+          state.buffer = chars.join('')
+          state.inputCursor -= 1
+        } else if (key.name === 'delete' && state.inputCursor < chars.length) {
+          chars.splice(state.inputCursor, 1)
+          state.buffer = chars.join('')
+        } else if (key.name === 'ctrl-u') { state.buffer = ''; state.inputCursor = 0 }
         else if (key.name === 'enter') submitInput()
-        else if (key.name === 'char' && key.char >= ' ') state.buffer += key.char
+        else if (key.name === 'char' && key.char >= ' ') {
+          chars.splice(state.inputCursor, 0, key.char)
+          state.buffer = chars.join('')
+          state.inputCursor += 1
+        }
         dirty = true
         return
       }
@@ -1664,10 +1883,11 @@ async function main() {
         else if (key.name === 'backspace') { state.homeQuery = state.homeQuery.slice(0, -1); state.sel = 0 }
         else if (key.name === 'escape') state.homeQuery = ''
         else if (key.name === 'char' && key.char >= ' ') {
-          if (!state.homeQuery && key.char === 'q') return quitRequest()
-          if (!state.homeQuery && key.char === 't') cycleTheme()
-          else if (!state.homeQuery && key.char === '/') { state.overlay = 'palette'; state.palette.query = '' }
-          else { state.homeQuery += key.char; state.sel = 0 }
+          // En la home todo carácter escribible es texto del prompt:
+          // «q» no cierra, «t» no cambia el tema y «/» no roba el foco.
+          // Para salir/tema están Ctrl+C, Ctrl+D, Ctrl+X y las secciones.
+          state.homeQuery += key.char
+          state.sel = 0
         }
       } else if (state.mode === 'console') {
         if (state.consoleInput) {
@@ -1700,6 +1920,7 @@ async function main() {
         else if (key.name === 'home' || key.char === 'g') state.configSel = 0
         else if (key.name === 'end' || key.char === 'G') state.configSel = fields.length - 1
         else if (key.name === 'escape' || key.char === 'q') state.mode = 'menu'
+        else if (key.char === 'e') editConfigJson()
         else if (key.name === 'enter') {
           const field = fields[state.configSel]
           if (field.cycle) {
@@ -1763,7 +1984,12 @@ async function main() {
     if (key.release) return
     if (key.button === 64 || key.button === 65) {
       const delta = key.button === 64 ? -3 : 3
-      if (state.mode === 'viewer') scrollViewer(delta)
+      if (state.overlay === 'palette') {
+        const list = paletteList(state, renderEnv())
+        state.palette.sel = Math.min(Math.max(0, list.length - 1), Math.max(0, state.palette.sel + delta))
+      } else if (state.overlay) {
+        // Los demás diálogos son modales: la rueda no mueve el fondo.
+      } else if (state.mode === 'viewer') scrollViewer(delta)
       else if (state.mode === 'console') scrollConsole(delta)
       else if (state.mode === 'config') state.configSel = Math.min(editFields(env.config).length - 1, Math.max(0, state.configSel + delta))
       else if (state.mode === 'menu') state.sel = Math.min(MENU_ITEMS.length - 1, Math.max(0, state.sel + delta))
@@ -1789,35 +2015,29 @@ async function main() {
       return
     }
 
-    const nowMs = Date.now()
-    const isDouble = nowMs - lastClick.at < 400 && lastClick.row === key.y - 1 && lastClick.kind === found.kind && lastClick.index === found.index
-    lastClick = { at: nowMs, row: key.y - 1, kind: found.kind, index: found.index }
-
     if (found.kind === 'section') {
       state.sel = found.index
-      if (isDouble) void activateSection(found.itemId || MENU_ITEMS[found.index]?.id)
+      void activateSection(found.itemId || MENU_ITEMS[found.index]?.id)
     } else if (found.kind === 'field') {
       state.configSel = found.index
-      if (isDouble) {
-        const field = editFields(env.config)[found.index]
-        if (field && !field.cycle) openInput({ kind: 'field', field, title: `✏️ ${field.label}`, hint: field.hint || field.about || '', initial: field.raw })
-        else if (field) {
-          const next = field.cycle[(field.cycle.indexOf(field.raw) + 1) % field.cycle.length]
-          try { saveField(field, next) } catch (error) { state.toast = `✖ ${error.message}` }
-        }
+      const field = editFields(env.config)[found.index]
+      if (field && !field.cycle) openInput({ kind: 'field', field, title: `✏️ ${field.label}`, hint: field.hint || field.about || '', initial: field.raw })
+      else if (field) {
+        const next = field.cycle[(field.cycle.indexOf(field.raw) + 1) % field.cycle.length]
+        try { saveField(field, next) } catch (error) { state.toast = `✖ ${error.message}` }
       }
     } else if (found.kind === 'session-action') {
       state.sessionSel = found.index
-      if (isDouble) {
-        const action = SESSION_ACTIONS[found.index]
-        if (action.id === 'backup') createBackup()
-        else if (action.id === 'delete' && !bot.running) openConfirm({ title: '🗑️ Borrar la sesión de WhatsApp', body: 'Tendrás que vincular de nuevo con\npairing code o QR. ¿Seguro?', okLabel: 'Borrar sesión', run: deleteSession })
-        else if (action.id === 'back') state.mode = 'menu'
-      }
+      const action = SESSION_ACTIONS[found.index]
+      if (action.id === 'backup') createBackup()
+      else if (action.id === 'delete') {
+        if (bot.running) state.toast = '⚠️ Detén el bot antes de borrar la sesión'
+        else openConfirm({ title: '🗑️ Borrar la sesión de WhatsApp', body: 'Tendrás que vincular de nuevo con\npairing code o QR. ¿Seguro?', okLabel: 'Borrar sesión', run: deleteSession })
+      } else if (action.id === 'back') state.mode = 'menu'
     } else if (found.kind === 'palette') {
       const list = paletteList(state, renderEnv())
       state.palette.sel = found.index
-      if (isDouble && list[found.index]) {
+      if (list[found.index]) {
         const action = list[found.index]
         state.overlay = null
         state.palette.query = ''
