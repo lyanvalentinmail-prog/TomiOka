@@ -18,7 +18,8 @@
     "test": "node --test tests/*.test.js",
     "emojimix:sync": "node src/tools/sync-emojimix.js",
     "verify": "node scripts/verify-commands.js",
-    "selftest": "node scripts/selftest.js"
+    "selftest": "node scripts/selftest.js",
+    "web": "node scripts/serve-web.js"
   },
   "keywords": [
     "whatsapp",
