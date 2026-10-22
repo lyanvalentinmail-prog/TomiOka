@@ -147,6 +147,16 @@ export async function runDoctor({ config = loadConfig(), probeAi = true } = {}) 
     info('catálogo emojimix: se descargará en el primer uso (~95 MB)')
   }
 
+  // Búsqueda de stickers / paquetes (.search y .searchpack). No se hace la
+  // llamada acá para que el diagnóstico no dependa de un servicio externo;
+  // para probarla de verdad está "npm run search:test".
+  if (config.search?.enabled === false) {
+    info('búsqueda de stickers: desactivada (search.enabled = false)')
+  } else {
+    info(`búsqueda de stickers: ${config.search?.provider || 'stickerly'} · ${config.search?.baseUrl || '(sin baseUrl)'}`)
+    recommendations.push('Si *.search* o *.searchpack* no responden, ejecuta "npm run search:test" para ver qué ruta falla.')
+  }
+
   // IA (OpenCode): estado y prueba real de conexión
   if (config.ai?.enabled === false) {
     info('IA: desactivada (ai.enabled = false)')

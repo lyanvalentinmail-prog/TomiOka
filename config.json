@@ -2,7 +2,13 @@
   "bot": {
     "name": "@𝐓͠ᨵ꯭꯭ׁׅׅ𝐌𝐈𖣠꙰𝐊𝐀",
     "team": "◢🌊◣ 𝕿𝖔𝖒𝖎𝖐𝖆 ࿙💧࿚",
-    "emojis": ["💧", "🌊", "🐟", "💦", "💙"],
+    "emojis": [
+      "💧",
+      "🌊",
+      "🐟",
+      "💦",
+      "💙"
+    ],
     "prefix": ".",
     "version": "1.0",
     "status": "ᴏɴʟɪɴᴇ",
@@ -45,6 +51,20 @@
     "cacheFile": "data/emojimix-index.json",
     "timeoutMs": 600000
   },
+  "search": {
+    "enabled": true,
+    "provider": "stickerly",
+    "baseUrl": "https://api.sticker.ly",
+    "customBaseUrl": "",
+    "userAgent": "androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)",
+    "referer": "https://sticker.ly/",
+    "timeoutMs": 20000,
+    "maxResults": 3,
+    "sessionMinutes": 10,
+    "packStickerLimit": 30,
+    "maxBytes": 8388608,
+    "language": "es"
+  },
   "ai": {
     "enabled": true,
     "baseUrl": "https://opencode.ai/inference/v1",
@@ -61,9 +81,19 @@
     "retriesPerModel": 2,
     "freeTierFallback": true,
     "models": {
-      "gemini": ["gemini-3-flash", "gemini-3.5-flash-lite"],
-      "chatgpt": ["gpt-5.6-terra", "gpt-5-nano"],
-      "deepseek": ["deepseek-v4.1-flash", "deepseek-v4.1-flash-free", "deepseek-v4-pro"]
+      "gemini": [
+        "gemini-3-flash",
+        "gemini-3.5-flash-lite"
+      ],
+      "chatgpt": [
+        "gpt-5.6-terra",
+        "gpt-5-nano"
+      ],
+      "deepseek": [
+        "deepseek-v4.1-flash",
+        "deepseek-v4.1-flash-free",
+        "deepseek-v4-pro"
+      ]
     },
     "freeModels": [
       "deepseek-v4.1-flash-free",
@@ -128,7 +158,9 @@
           "ttp",
           "sticker",
           "gif",
-          "emojimix"
+          "emojimix",
+          "search",
+          "searchpack"
         ]
       },
       {

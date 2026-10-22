@@ -81,6 +81,21 @@ export const DEFAULTS = {
       'flint-40b-free'
     ]
   },
+  // 🔎 Búsqueda de stickers y paquetes (Sticker.ly). Ver src/lib/sticker-search.js
+  search: {
+    enabled: true,
+    provider: 'stickerly', // "stickerly" | "custom"
+    baseUrl: 'https://api.sticker.ly',
+    customBaseUrl: '', // con provider "custom": tu propia API
+    userAgent: 'androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)',
+    referer: 'https://sticker.ly/',
+    timeoutMs: 20000,
+    maxResults: 3,
+    sessionMinutes: 10,
+    packStickerLimit: 30,
+    maxBytes: 8388608,
+    language: 'es'
+  },
   behavior: {
     cooldownMs: 2500,
     reactToCommands: true,
@@ -119,7 +134,7 @@ export const DEFAULTS = {
         description: '𝖲𝗍𝗂𝖼𝗄𝖾𝗋𝗌',
         kaomoji: '( ᵕ ᵗ ᵕ )',
         divider: ['🐟', '💙'],
-        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
+        commands: ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack']
       },
       {
         emoji: '💦',
@@ -232,6 +247,10 @@ export function loadConfig({ file = process.env.CONFIG_PATH || path.join(ROOT, '
   // IA (OpenCode): la clave también puede venir del entorno, útil en Termux/VPS.
   if (process.env.OPENCODE_API_KEY) merged.ai.apiKey = process.env.OPENCODE_API_KEY
   if (process.env.AI_ENABLED) merged.ai.enabled = process.env.AI_ENABLED !== '0'
+  // Búsqueda de stickers: permite cambiar de proveedor/servidor sin tocar el JSON.
+  if (process.env.STICKER_SEARCH_PROVIDER) merged.search.provider = process.env.STICKER_SEARCH_PROVIDER
+  if (process.env.STICKER_SEARCH_BASE_URL) merged.search.baseUrl = process.env.STICKER_SEARCH_BASE_URL
+  if (process.env.STICKER_SEARCH_ENABLED) merged.search.enabled = process.env.STICKER_SEARCH_ENABLED !== '0'
 
   const config = { ...merged }
 

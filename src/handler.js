@@ -2,6 +2,7 @@ import path from 'node:path'
 import { CommandContext } from './lib/context.js'
 import { getContentType } from '@whiskeysockets/baileys'
 import { PackStore } from './lib/sessions.js'
+import { SearchStore } from './lib/searches.js'
 import { LiveMessages } from './lib/live-messages.js'
 import { findCommand } from './commands/index.js'
 import { getContent, getText } from './lib/message.js'
@@ -18,6 +19,11 @@ export function createStore(config, logger, { persistLiveMessages = false } = {}
       logger
     }),
     cooldowns: new Map(),
+    // Última búsqueda de paquetes por chat (`.searchpack <número>`)
+    searches: new SearchStore({
+      ttlMinutes: config.search?.sessionMinutes ?? 10,
+      logger
+    }),
     // Mensajes "vivos" (menú, progreso de .pack) que se editan en vez de repetirse.
     // En producción el menú se persiste en disco: si el bot se reinicia, el
     // próximo .menu igual retira los menús de la ejecución anterior.

@@ -44,7 +44,7 @@ test('el menú usa seis categorías con TODOS los comandos del bot', () => {
   assert.equal(config.menu.categories.length, 6)
   const [downloads, stickers, conversion, packs, ai, info] = config.menu.categories
   assert.deepEqual(downloads.commands, ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4'])
-  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix'])
+  assert.deepEqual(stickers.commands, ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack'])
   assert.deepEqual(conversion.commands, ['toimg', 'tovideo', 'take'])
   assert.deepEqual(packs.commands, ['pack'])
   assert.deepEqual(ai.commands, ['gemini', 'chatgpt', 'deepseek'])
@@ -55,7 +55,7 @@ test('el menú usa seis categorías con TODOS los comandos del bot', () => {
   )
   assert.deepEqual(
     resolveCategoryCommands(stickers, commands).map((command) => command.name),
-    ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix']
+    ['brat', 'attp', 'ttp', 'sticker', 'gif', 'emojimix', 'search', 'searchpack']
   )
   assert.deepEqual(
     resolveCategoryCommands(ai, commands).map((command) => command.name),
@@ -94,7 +94,7 @@ test('el menú incluye la info del bot y todos los comandos', () => {
   assert.ok(menu.includes('𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼'))
   assert.ok(menu.includes('𝕰𝐍𝐃 𝐎𝐅 𝐌𝐄𝐍𝐔'))
   assert.ok(menu.includes('𝖾𝗌𝗍.'))
-  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'gemini', 'chatgpt', 'deepseek']) {
+  for (const name of ['tiktok', 'instagram', 'pinterest', 'ytmp3', 'ytmp4', 'brat', 'attp', 'ttp', 'sticker', 'search', 'searchpack', 'gemini', 'chatgpt', 'deepseek']) {
     assert.ok(menu.includes(`${config.prefixes[0]}${name}`), `el menú no muestra ${name}`)
   }
   assert.ok(menu.length > 500)
