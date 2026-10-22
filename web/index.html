@@ -1,646 +1,400 @@
 <!doctype html>
 <html lang="es">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>TomiOka — Plataforma de SubBots para WhatsApp</title>
-  <meta name="description" content="Plataforma de gestión de SubBots de WhatsApp: vinculá tu número, personalizá prefijo y banner, y usá comandos en tus grupos." />
-  <link rel="stylesheet" href="styles.css" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TomiOka — Plataforma para bots de WhatsApp</title>
+  <meta name="description" content="TomiOka es una plataforma abierta para construir bots de WhatsApp con Node.js y Baileys: stickers, packs, comandos modulares y herramientas para desarrolladores.">
+  <meta name="theme-color" content="#07030d">
+  <meta property="og:title" content="TomiOka — Plataforma para bots de WhatsApp">
+  <meta property="og:description" content="Herramientas abiertas para construir bots de WhatsApp con Node.js, Baileys y FFmpeg.">
+  <meta property="og:type" content="website">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <script src="app.js" defer></script>
 </head>
 <body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
 
-  <!-- ══════════════════ LANDING (estilo Stellar Wa) ══════════════════ -->
-  <div id="landingView">
-    <header class="nav">
-      <a class="logo" href="#" data-scroll="top">🌊 TomiOka</a>
-      <nav class="nav-links" aria-label="Principal">
-        <a href="#como-empezar" data-scroll="como-empezar">Cómo empezar</a>
-        <a href="#ventajas" data-scroll="ventajas">Ventajas</a>
-        <a href="#comandos-preview" data-scroll="comandos-preview">Comandos</a>
-        <a href="#faq" data-scroll="faq">FAQ</a>
-        <a href="#desplegar" data-scroll="desplegar">Desplegar</a>
+  <!-- Fondo ambiental: solo gradientes CSS, sin imágenes pesadas -->
+  <div class="ambient" aria-hidden="true"><span></span><span></span><span></span></div>
+
+  <header class="site-header" id="siteHeader">
+    <div class="container header-inner">
+      <a class="brand" href="#inicio" aria-label="TomiOka, ir al inicio">
+        <img src="favicon.svg" width="38" height="38" alt="">
+        <span>TomiOka<small>WhatsApp Bot Platform</small></span>
+      </a>
+
+      <button class="menu-button" id="menuButton" type="button" aria-expanded="false" aria-controls="mainNav" aria-label="Abrir navegación">
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav class="main-nav" id="mainNav" aria-label="Navegación principal">
+        <a class="active" href="#inicio">Inicio</a>
+        <a href="#herramientas">Herramientas</a>
+        <a href="#proyectos">Proyectos</a>
+        <a href="#documentacion">Documentación</a>
+        <a href="#repositorio">Repositorio</a>
+        <a href="#contacto">Contacto</a>
       </nav>
-      <div class="nav-actions">
-        <span id="landUserHint" class="nav-hint"></span>
-        <button class="btn btn-ghost" type="button" data-go-panel>Entrar</button>
-        <button class="btn btn-primary" type="button" data-go-panel>Ir al Panel</button>
+
+      <a class="button button-small button-ghost desktop-only" href="https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noreferrer">GitHub ↗</a>
+    </div>
+  </header>
+
+  <main id="contenido">
+    <!-- ═══════════════ 1 · INICIO ═══════════════ -->
+    <section class="hero section" id="inicio">
+      <div class="container hero-grid">
+        <div class="hero-copy reveal">
+          <span class="eyebrow"><span class="pulse-dot"></span> Open source · Node.js + Baileys</span>
+          <h1>Bots de WhatsApp con una <span class="gradient-text">arquitectura clara</span> y herramientas reales.</h1>
+          <p class="lead">TomiOka es una plataforma abierta para construir bots modulares en Node.js. Incluye motor de stickers, packs, comandos extensibles, diagnóstico del entorno y una base pensada para Termux, Linux y VPS.</p>
+
+          <div class="hero-actions">
+            <a class="button button-primary" href="https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noreferrer">Ver proyecto en GitHub ↗</a>
+            <a class="button button-secondary" href="#herramientas">Explorar herramientas</a>
+          </div>
+
+          <ul class="hero-points" aria-label="Características principales">
+            <li>Sin dependencias nativas complejas</li>
+            <li>Sesión persistente y reconexión</li>
+            <li>Listo para Termux y VPS</li>
+          </ul>
+        </div>
+
+        <div class="hero-visual reveal" aria-label="Resumen técnico de TomiOka">
+          <div class="terminal-card">
+            <div class="terminal-head"><span></span><span></span><span></span><code>tomioka — terminal</code></div>
+            <pre><code><span class="code-purple">$</span> npm install
+<span class="code-purple">$</span> npm run doctor
+<span class="code-green">✓</span> Node.js y dependencias verificadas
+<span class="code-green">✓</span> FFmpeg con codificador WebP
+<span class="code-purple">$</span> npm start -- --pair
+<span class="code-blue">→</span> Vinculación por código o QR
+<span class="code-green">✓</span> Sesión restaurada automáticamente</code></pre>
+            <div class="terminal-foot"><span><i class="status-dot"></i> Código abierto</span><span>MIT License</span></div>
+          </div>
+
+          <div class="floating-card floating-card-a"><strong>10</strong><span>comandos incluidos</span></div>
+          <div class="floating-card floating-card-b"><strong>512×512</strong><span>stickers WebP</span></div>
+        </div>
       </div>
-    </header>
 
-    <main id="top">
-      <!-- Hero -->
-      <section class="hero">
-        <span class="pill">● Plataforma oficial · v1.0</span>
-        <h1>Automatiza WhatsApp<br>con <span class="accent">TomiOka Intelligence</span></h1>
-        <p class="hero-sub">Plataforma de gestión de SubBots con conexión estable, sesión persistente y un panel unificado para todos tus números. Sin servidores, sin configuración compleja.</p>
-        <div class="hero-ctas">
-          <button class="btn btn-primary btn-lg" type="button" data-go-panel>Ir al Panel →</button>
-          <button class="btn btn-outline btn-lg" type="button" data-go-create>Crear un SubBot</button>
+      <div class="container stats reveal" aria-label="Datos del proyecto">
+        <article><strong>Node 20+</strong><span>Runtime moderno</span></article>
+        <article><strong>10</strong><span>Comandos modulares</span></article>
+        <article><strong>30</strong><span>Stickers por pack</span></article>
+        <article><strong>100%</strong><span>Código abierto</span></article>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 2 · PANEL DE HERRAMIENTAS ═══════════════ -->
+    <section class="section" id="herramientas">
+      <div class="container">
+        <div class="section-heading reveal">
+          <span class="eyebrow">Panel de herramientas</span>
+          <h2>Configura el bot antes de desplegarlo</h2>
+          <p>Este panel funciona completamente en tu navegador. Genera un fragmento compatible con <code>config.json</code>; no inicia sesiones, no envía mensajes y no se conecta a WhatsApp.</p>
         </div>
 
-        <div class="hero-stats">
-          <div class="hero-stat"><strong id="landBotCount">0</strong><span>Total Bots · en este navegador</span></div>
-          <div class="hero-stat"><strong id="landCmdCount">10</strong><span>Comandos disponibles</span></div>
-          <div class="hero-stat"><strong id="landUserCount">0</strong><span>Usuarios registrados</span></div>
-          <div class="hero-stat"><strong>24/7</strong><span>Sesión persistente</span></div>
-        </div>
-      </section>
+        <div class="tool-layout">
+          <form class="panel-card tool-form reveal" id="configForm">
+            <div class="card-heading">
+              <div><span class="card-kicker">Configurador local</span><h3>Preferencias del bot</h3></div>
+              <span class="badge badge-local">Sin backend</span>
+            </div>
 
-      <!-- Cómo empezar -->
-      <section class="section" id="como-empezar">
-        <span class="eyebrow">Cómo empezar en 3 pasos</span>
-        <h2>Listo en menos de 2 minutos</h2>
-        <p class="section-sub">Sin servidores propios y sin tocar código.</p>
-        <div class="grid-3">
-          <article class="card step-card">
-            <span class="step-num">01</span>
-            <h3>Vincula tu número</h3>
-            <p>Genera un código de <code>8 dígitos</code> o un <strong>QR</strong> desde el panel y vincúlalo con WhatsApp en el dispositivo que será el bot. No necesitas servidor propio.</p>
-          </article>
-          <article class="card step-card">
-            <span class="step-num">02</span>
-            <h3>Personaliza tu SubBot</h3>
-            <p>Configura <strong>etiqueta, prefijo, banner y tipo de menú</strong> (clásico o de lista con categorías) desde Mis Bots. Los cambios se ven al instante en la vista previa.</p>
-          </article>
-          <article class="card step-card">
-            <span class="step-num">03</span>
-            <h3>Usa comandos en tus grupos</h3>
-            <p>Escribe <code>.menu</code> en cualquier grupo donde esté el bot para ver todo lo que puede hacer: stickers, conversiones, packs y mezclas de emojis.</p>
-          </article>
-        </div>
-      </section>
+            <label class="field">
+              <span>Nombre visible</span>
+              <input id="botName" name="botName" type="text" value="TomiOka" maxlength="40" autocomplete="off">
+            </label>
 
-      <!-- Ventajas -->
-      <section class="section" id="ventajas">
-        <span class="eyebrow">¿Por qué elegir TomiOka?</span>
-        <h2>Diferencias reales frente a otros paneles</h2>
-        <div class="grid-3">
-          <article class="card feature"><span class="feature-ico">🛡️</span><h3>Anti-spam integrado</h3><p>Cooldown por usuario y reacciones de estado para proteger tu número de usos abusivos.</p></article>
-          <article class="card feature"><span class="feature-ico">🔁</span><h3>Reconexión instantánea</h3><p>Si la conexión cae, el bot reintenta solo con backoff y restaura la sesión sin pedir código ni QR.</p></article>
-          <article class="card feature"><span class="feature-ico">💾</span><h3>Sesión persistente</h3><p>Vinculas una sola vez: las credenciales quedan guardadas y el bot entra solo al reiniciar.</p></article>
-          <article class="card feature"><span class="feature-ico">📊</span><h3>Panel en vivo</h3><p>Consola, usuarios registrados con foto, número y nombre, estadísticas y actividad por bot.</p></article>
-          <article class="card feature"><span class="feature-ico">🎨</span><h3>Personalización total</h3><p>Banner, prefijo, etiqueta y menú clásico o de lista con categorías — todo desde el panel.</p></article>
-          <article class="card feature"><span class="feature-ico">🎟️</span><h3>Stickers y packs</h3><p>Stickers desde fotos, videos y GIFs, packs nativos de WhatsApp y Emoji Kitchen integrados.</p></article>
-        </div>
-      </section>
+            <fieldset class="field fieldset-reset">
+              <legend>Prefijo de comandos</legend>
+              <div class="segmented" role="group" aria-label="Elegir prefijo">
+                <button class="active" type="button" data-prefix=".">.</button>
+                <button type="button" data-prefix="!">!</button>
+                <button type="button" data-prefix="/">/</button>
+                <button type="button" data-prefix="#">#</button>
+              </div>
+              <input id="customPrefix" type="text" value="." maxlength="3" aria-label="Prefijo personalizado">
+            </fieldset>
 
-      <!-- Comandos (preview) -->
-      <section class="section" id="comandos-preview">
-        <span class="eyebrow">Comandos</span>
-        <h2>Todo lo que el bot sabe hacer</h2>
-        <p class="section-sub">El catálogo completo está en la tab <strong>Comandos</strong> del panel. Pulsa <kbd>/</kbd> allá para buscar y toca un comando para copiarlo.</p>
-        <div id="landingCommands" class="grid-3"></div>
-      </section>
+            <div class="form-grid">
+              <label class="field">
+                <span>Nombre del pack</span>
+                <input id="packName" type="text" value="TomiOka" maxlength="50">
+              </label>
+              <label class="field">
+                <span>Autor del pack</span>
+                <input id="packAuthor" type="text" value="TomiOka Team" maxlength="50">
+              </label>
+            </div>
 
-      <!-- Stack -->
-      <section class="section section-tight">
-        <span class="eyebrow">Stack técnico</span>
-        <h2>Tecnología detrás de TomiOka</h2>
-        <div class="stack-row">
-          <span class="stack-chip"><strong>Node.js</strong> Runtime</span>
-          <span class="stack-chip"><strong>Baileys</strong> WhatsApp API</span>
-          <span class="stack-chip"><strong>Multi-Device</strong> Protocolo oficial</span>
-          <span class="stack-chip"><strong>FFmpeg · WebP</strong> Stickers</span>
-          <span class="stack-chip"><strong>Render · Vercel</strong> Deploy web</span>
-        </div>
-      </section>
+            <label class="field range-field">
+              <span>Calidad de stickers <output id="qualityValue" for="stickerQuality">82</output></span>
+              <input id="stickerQuality" type="range" min="30" max="100" value="82">
+            </label>
 
-      <!-- Desplegar -->
-      <section class="section" id="desplegar">
-        <span class="eyebrow">Despliegue</span>
-        <h2>Publicá este panel en la nube</h2>
-        <p class="section-sub">Con el Blueprint de Render o con Vercel, directo desde el repo.</p>
-        <div class="grid-2">
-          <article class="card deploy-card">
-            <h3>⬣ Blueprint en Render</h3>
-            <p>Render lee el <code>render.yaml</code> y crea el servicio <strong>tomioka-panel</strong> con <code>node scripts/serve-web.js</code> en el <code>PORT</code> que asigna.</p>
-            <a class="btn btn-primary btn-block" href="https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noopener">Deploy to Render ↗</a>
-          </article>
-          <article class="card deploy-card">
-            <h3>▲ Desplegar en Vercel</h3>
-            <p>Vercel lee el <code>vercel.json</code> y publica la carpeta <code>web/</code> como sitio estático, sin paso de build. Cada push redespliega solo.</p>
-            <a class="btn btn-primary btn-block" href="https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka&project-name=tomioka-panel" target="_blank" rel="noopener">Deploy with Vercel ↗</a>
+            <div class="form-grid">
+              <label class="field">
+                <span>FPS de stickers animados</span>
+                <select id="stickerFps"><option>10</option><option selected>15</option><option>20</option><option>24</option></select>
+              </label>
+              <label class="field">
+                <span>Estilo de ayuda</span>
+                <select id="menuStyle"><option value="compact" selected>Compacto</option><option value="detailed">Detallado</option></select>
+              </label>
+            </div>
+
+            <label class="switch-row">
+              <span><strong>Responder en grupos</strong><small>Permite comandos dentro de grupos de WhatsApp.</small></span>
+              <input id="respondGroups" type="checkbox" checked><span class="switch" aria-hidden="true"></span>
+            </label>
+
+            <div class="preview-box">
+              <span>Vista de uso</span>
+              <p>Escribe <code id="commandPreview">.menu</code> para abrir el menú y <code id="stickerPreview">.sticker</code> respondiendo a una imagen.</p>
+            </div>
+          </form>
+
+          <article class="panel-card code-card reveal">
+            <div class="card-heading">
+              <div><span class="card-kicker">Resultado</span><h3>Fragmento para config.json</h3></div>
+              <div class="mini-actions">
+                <button class="button button-small button-ghost" id="copyConfig" type="button">Copiar</button>
+                <button class="button button-small button-primary" id="downloadConfig" type="button">Descargar</button>
+              </div>
+            </div>
+            <pre class="code-block" tabindex="0"><code id="configOutput"></code></pre>
+            <p class="privacy-note">El archivo se genera localmente en el navegador. Revisa y fusiona los valores con tu <code>config.json</code> existente.</p>
           </article>
         </div>
-        <p class="section-sub small-note">Ambos publican <strong>solo el panel web</strong>. El bot de WhatsApp (Baileys) necesita sesión persistente y un proceso siempre activo: sigue corriendo en tu Termux/VPS.</p>
-      </section>
 
-      <!-- FAQ -->
-      <section class="section" id="faq">
-        <span class="eyebrow">Preguntas frecuentes</span>
-        <h2>Respuestas rápidas y claras</h2>
-        <div class="faq-list">
-          <details class="faq"><summary>¿Es seguro vincular mi número?</summary><p>Sí. Se usa el protocolo oficial <strong>WhatsApp Multi-Device</strong>. La sesión se guarda en tu equipo (carpeta <code>sessions/</code>) y el bot solo responde a comandos con tu prefijo.</p></details>
-          <details class="faq"><summary>¿Necesito un servidor propio?</summary><p>Para el bot, cualquier equipo con Node.js sirve — incluso un celular con Termux. Este panel web además se puede desplegar gratis en Render o Vercel.</p></details>
-          <details class="faq"><summary>¿Cuántos SubBots puedo crear?</summary><p>Hasta <strong>3 sub-bots</strong> por cuenta en este panel. Cada uno con su número, prefijo, etiqueta y banner propios.</p></details>
-          <details class="faq"><summary>¿Qué pasa si el bot se desconecta?</summary><p>El bot <strong>reconecta automáticamente</strong> y restaura la sesión guardada, sin pedir código ni QR de nuevo.</p></details>
-          <details class="faq"><summary>¿Puedo cambiar el menú a modo lista?</summary><p>Sí. Desde <strong>Editar</strong> en cada sub-bot elegís menú clásico con banner o <strong>menú de lista</strong>, que muestra un botón para ver la lista de categorías.</p></details>
+        <div class="tool-grid">
+          <article class="tool-card reveal"><span class="tool-icon">◈</span><h3>Doctor</h3><p>Verifica Node.js, dependencias, carpetas, FFmpeg y el pipeline real de conversión.</p><code>npm run doctor</code><button type="button" data-copy-text="npm run doctor">Copiar comando</button></article>
+          <article class="tool-card reveal"><span class="tool-icon">⬢</span><h3>Self-test</h3><p>Ejecuta conversiones reales y explica qué revisar si una etapa del proceso falla.</p><code>npm run selftest</code><button type="button" data-copy-text="npm run selftest">Copiar comando</button></article>
+          <article class="tool-card reveal"><span class="tool-icon">⬣</span><h3>Verificación</h3><p>Recorre los comandos mediante el handler real con mensajes simulados por la suite local del proyecto.</p><code>npm run verify</code><button type="button" data-copy-text="npm run verify">Copiar comando</button></article>
+          <article class="tool-card reveal"><span class="tool-icon">◆</span><h3>Pruebas</h3><p>Ejecuta la batería de tests para validar WebP, menús, sesiones, packs y comandos.</p><code>npm test</code><button type="button" data-copy-text="npm test">Copiar comando</button></article>
         </div>
-      </section>
+      </div>
+    </section>
 
-      <!-- CTA final -->
-      <section class="cta-final">
-        <h2>Comienza a automatizar en menos de un minuto</h2>
-        <p>Vincula tu número, personaliza tu SubBot y ejecuta comandos en tus grupos hoy mismo.</p>
-        <button class="btn btn-primary btn-lg" type="button" data-go-panel>Ir al Panel →</button>
-      </section>
+    <!-- ═══════════════ 3 · CATÁLOGO ═══════════════ -->
+    <section class="section section-alt" id="proyectos">
+      <div class="container">
+        <div class="section-heading reveal">
+          <span class="eyebrow">Catálogo abierto</span>
+          <h2>Proyectos y funciones disponibles</h2>
+          <p>Componentes reales del repositorio. Cada tarjeta enlaza al código fuente correspondiente; no se anuncian servicios remotos que aún no existan.</p>
+        </div>
 
-      <footer class="footer">
-        <span>🌊 <strong>TomiOka</strong> · Plataforma de SubBots</span>
-        <span class="muted">© 2026 TomiOka Team · Hecho con Node.js + Baileys</span>
-      </footer>
-    </main>
-  </div>
+        <div class="catalog-toolbar reveal">
+          <div class="filter-group" role="group" aria-label="Filtrar catálogo">
+            <button class="filter active" type="button" data-filter="all">Todo</button>
+            <button class="filter" type="button" data-filter="core">Núcleo</button>
+            <button class="filter" type="button" data-filter="stickers">Stickers</button>
+            <button class="filter" type="button" data-filter="packs">Packs</button>
+            <button class="filter" type="button" data-filter="developer">Desarrolladores</button>
+          </div>
+          <label class="search-box"><span aria-hidden="true">⌕</span><input id="catalogSearch" type="search" placeholder="Buscar función o proyecto…" aria-label="Buscar en el catálogo"></label>
+        </div>
 
-  <!-- ══════════════════ LOGIN ══════════════════ -->
-  <main id="loginView" class="login-wrap" hidden>
-    <section class="login-card card">
-      <button class="btn btn-ghost btn-mini back-link" type="button" data-go-landing>← Volver</button>
-      <div class="logo logo-center">🌊 TomiOka</div>
-      <h2>Entrar al panel</h2>
-      <p class="muted">Ingresá para crear y administrar tus sub-bots de WhatsApp (máximo 3).</p>
+        <div class="project-grid" id="projectGrid">
+          <article class="project-card reveal" data-category="core" data-search="tomioka bot whatsapp baileys conexion sesiones comandos">
+            <div class="project-top"><span class="project-icon">◉</span><span class="tag">Proyecto principal</span></div>
+            <h3>TomiOka Bot</h3><p>Bot modular para WhatsApp con conexión Baileys, reconexión automática, cooldown, manejo de sesión y comandos extensibles.</p>
+            <ul><li>Pairing code y QR</li><li>Handler con contexto reutilizable</li><li>Compatible con Termux y VPS</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noreferrer">Repositorio ↗</a><a href="#documentacion">Documentación</a></div>
+          </article>
 
-      <form id="loginForm" novalidate>
-        <label class="field">
-          <span>Tu nombre</span>
-          <input id="loginName" type="text" placeholder="Ej: Valen" autocomplete="name" />
-          <small class="error" id="loginNameError"></small>
-        </label>
-        <label class="field">
-          <span>Teléfono o correo</span>
-          <input id="loginContact" type="text" placeholder="598 91 234 567 o vos@correo.com" autocomplete="username" />
-          <small class="error" id="loginContactError"></small>
-        </label>
-        <label class="field">
-          <span>Contraseña</span>
-          <input id="loginPassword" type="password" placeholder="••••••••" autocomplete="current-password" />
-          <small class="error" id="loginPasswordError"></small>
-        </label>
-        <button class="btn btn-primary btn-block" type="submit">Entrar al panel →</button>
-      </form>
+          <article class="project-card reveal" data-category="stickers" data-search="stickers webp ffmpeg imagen video gif sticker">
+            <div class="project-top"><span class="project-icon">⬢</span><span class="tag">Media</span></div>
+            <h3>Motor de stickers</h3><p>Convierte imágenes, GIF y videos en WebP 512×512, preservando animación y transparencia mediante manipulación segura de chunks.</p>
+            <ul><li><code>.sticker</code> y <code>.gif</code></li><li>Control de peso y calidad</li><li>Metadatos EXIF propios</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka/tree/main/src/lib" target="_blank" rel="noreferrer">Ver código ↗</a><button type="button" data-copy-text=".sticker">Copiar .sticker</button></div>
+          </article>
 
-      <p class="demo-note">Base web local: tu sesión y tus sub-bots se guardan en este navegador (<code>localStorage</code>). La vinculación con WhatsApp se simula en pantalla.</p>
+          <article class="project-card reveal" data-category="packs" data-search="packs wasticker paquetes stickers whatsapp nativo zip">
+            <div class="project-top"><span class="project-icon">⬣</span><span class="tag">Packs</span></div>
+            <h3>Creador de packs</h3><p>Arma colecciones enviando fotos, videos o stickers, genera metadatos y prepara paquetes compatibles con WhatsApp.</p>
+            <ul><li>Hasta 30 stickers</li><li>Vista previa del pack</li><li>Respaldo .wasticker</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka/blob/main/src/commands/pack.js" target="_blank" rel="noreferrer">Ver módulo ↗</a><button type="button" data-copy-text=".pack Nombre | Autor">Copiar ejemplo</button></div>
+          </article>
+
+          <article class="project-card reveal" data-category="stickers" data-search="emojimix emoji kitchen mezclar emojis">
+            <div class="project-top"><span class="project-icon">◎</span><span class="tag">Creatividad</span></div>
+            <h3>Emoji Mix</h3><p>Combina dos emojis compatibles usando el catálogo de Emoji Kitchen y los convierte automáticamente en stickers.</p>
+            <ul><li>Combinaciones por catálogo</li><li>Modo aleatorio</li><li>Caché local del índice</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka/blob/main/src/commands/emojimix.js" target="_blank" rel="noreferrer">Ver comando ↗</a><button type="button" data-copy-text=".emojimix 😺 🐼">Copiar ejemplo</button></div>
+          </article>
+
+          <article class="project-card reveal" data-category="core" data-search="conversion toimg tovideo png mp4 sticker video imagen">
+            <div class="project-top"><span class="project-icon">◇</span><span class="tag">Conversión</span></div>
+            <h3>Conversor bidireccional</h3><p>Transforma stickers en imagen PNG o video MP4 y cambia nombre y autor sin perder el contenido original.</p>
+            <ul><li><code>.toimg</code> y <code>.tovideo</code></li><li><code>.take Nombre | Autor</code></li><li><code>.steal</code> con tu marca</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka/tree/main/src/commands" target="_blank" rel="noreferrer">Ver comandos ↗</a><button type="button" data-copy-text=".take Mi pack | Mi nombre">Copiar .take</button></div>
+          </article>
+
+          <article class="project-card reveal" data-category="developer" data-search="desarrolladores tests doctor selftest verify quality pipeline">
+            <div class="project-top"><span class="project-icon">⬡</span><span class="tag">Calidad</span></div>
+            <h3>Pipeline para desarrolladores</h3><p>Herramientas locales de diagnóstico y una suite de pruebas para validar cada capa antes de publicar cambios.</p>
+            <ul><li>Doctor del entorno</li><li>Conversión real de prueba</li><li>Tests de WebP, sesión y packs</li></ul>
+            <div class="card-links"><a href="https://github.com/lyanvalentinmail-prog/TomiOka/tree/main/tests" target="_blank" rel="noreferrer">Ver tests ↗</a><a href="#documentacion">Crear un comando</a></div>
+          </article>
+        </div>
+        <p class="empty-results" id="emptyResults" hidden>No encontramos proyectos con ese criterio. Prueba con “stickers”, “packs” o “tests”.</p>
+
+        <div class="commands-strip reveal">
+          <div><span class="card-kicker">Comandos incluidos</span><h3>Empieza con lo esencial</h3></div>
+          <div class="command-chips" aria-label="Comandos principales">
+            <button type="button" data-copy-text=".menu">.menu</button><button type="button" data-copy-text=".sticker">.sticker</button><button type="button" data-copy-text=".gif">.gif</button><button type="button" data-copy-text=".toimg">.toimg</button><button type="button" data-copy-text=".tovideo">.tovideo</button><button type="button" data-copy-text=".emojimix">.emojimix</button><button type="button" data-copy-text=".pack">.pack</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 4 · DOCUMENTACIÓN ═══════════════ -->
+    <section class="section" id="documentacion">
+      <div class="container">
+        <div class="section-heading reveal">
+          <span class="eyebrow">Documentación</span>
+          <h2>Del primer arranque a tu propio comando</h2>
+          <p>Ejemplos basados en la estructura real del proyecto. Puedes copiar cada bloque y adaptarlo a tu entorno.</p>
+        </div>
+
+        <div class="docs-layout">
+          <aside class="docs-nav reveal" aria-label="Índice de documentación">
+            <button class="doc-tab active" type="button" data-doc="install">Instalación</button>
+            <button class="doc-tab" type="button" data-doc="config">Configuración</button>
+            <button class="doc-tab" type="button" data-doc="command">Crear un comando</button>
+            <button class="doc-tab" type="button" data-doc="deploy">Ejecución</button>
+            <div class="docs-note"><strong>Requisito base</strong><span>Node.js 20 o superior y FFmpeg con soporte WebP.</span></div>
+          </aside>
+
+          <div class="docs-content reveal">
+            <article class="doc-panel active" data-panel="install">
+              <h3>Instalación en Termux</h3><p>Instala el runtime, FFmpeg y las dependencias del proyecto.</p>
+              <div class="code-window"><div class="code-head"><span>Terminal</span><button type="button" data-copy-target="codeInstall">Copiar</button></div><pre><code id="codeInstall">pkg update -y
+pkg install -y nodejs-lts git ffmpeg libwebp
+
+git clone https://github.com/lyanvalentinmail-prog/TomiOka.git
+cd TomiOka
+npm install
+npm run doctor</code></pre></div>
+              <p class="docs-tip">En Linux o VPS puedes instalar Node.js y FFmpeg con el gestor de paquetes de tu distribución y ejecutar los mismos comandos de npm.</p>
+            </article>
+
+            <article class="doc-panel" data-panel="config">
+              <h3>Configuración esencial</h3><p>El comportamiento principal se controla desde <code>config.json</code>. El panel superior genera la base de estos valores.</p>
+              <div class="code-window"><div class="code-head"><span>config.json</span><button type="button" data-copy-target="codeConfig">Copiar</button></div><pre><code id="codeConfig">{
+  "bot": {
+    "name": "TomiOka",
+    "prefix": "."
+  },
+  "stickers": {
+    "packName": "TomiOka",
+    "packAuthor": "TomiOka Team",
+    "quality": 82,
+    "fps": 15
+  },
+  "behavior": {
+    "respondInGroups": true,
+    "cooldownMs": 2500
+  }
+}</code></pre></div>
+            </article>
+
+            <article class="doc-panel" data-panel="command">
+              <h3>Crear un comando modular</h3><p>Cada comando vive en su propio archivo dentro de <code>src/commands/</code> y se registra en el índice de comandos.</p>
+              <div class="code-window"><div class="code-head"><span>src/commands/saludo.js</span><button type="button" data-copy-target="codeCommand">Copiar</button></div><pre><code id="codeCommand">export default {
+  name: 'saludo',
+  aliases: ['hola'],
+  category: 'extras',
+  description: 'Saluda al grupo.',
+  usage: '.saludo',
+  examples: ['.saludo'],
+
+  async run(ctx) {
+    await ctx.reply('👋 ¡Hola! Soy TomiOka.')
+    return 'saludo enviado'
+  }
+}</code></pre></div>
+              <p class="docs-tip">Después importa el módulo y agrégalo a <code>commandList</code> en <code>src/commands/index.js</code>. Ejecuta <code>npm test</code> antes de publicar.</p>
+            </article>
+
+            <article class="doc-panel" data-panel="deploy">
+              <h3>Vincular y ejecutar</h3><p>Elige código de vinculación o QR. Una vez guardada la sesión, los siguientes arranques se conectan sin pedir credenciales nuevamente.</p>
+              <div class="code-window"><div class="code-head"><span>Arranque</span><button type="button" data-copy-target="codeDeploy">Copiar</button></div><pre><code id="codeDeploy"># Vincular con pairing code
+npm run pair
+
+# Vincular escaneando un QR
+npm run qr
+
+# Arranque normal con sesión guardada
+npm start
+
+# Servir esta página localmente
+npm run web</code></pre></div>
+              <p class="docs-tip">No compartas la carpeta <code>sessions/</code>: contiene las credenciales de la cuenta vinculada.</p>
+            </article>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 5 · PROYECTOS Y REPOSITORIOS ═══════════════ -->
+    <section class="section section-alt" id="repositorio">
+      <div class="container">
+        <div class="section-heading reveal">
+          <span class="eyebrow">Acceso abierto</span>
+          <h2>Explora, reutiliza y contribuye</h2>
+          <p>El código, la documentación técnica y el historial de cambios están disponibles públicamente en GitHub.</p>
+        </div>
+
+        <div class="repo-grid">
+          <article class="repo-card reveal">
+            <span class="repo-mark">T</span>
+            <div><h3>Repositorio principal</h3><p>Bot, motor multimedia, suite de pruebas, scripts y esta página web.</p></div>
+            <div class="repo-actions"><a class="button button-primary" href="https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noreferrer">Abrir proyecto ↗</a><button class="button button-secondary" type="button" data-copy-text="git clone https://github.com/lyanvalentinmail-prog/TomiOka.git">Copiar clonación</button></div>
+          </article>
+          <article class="link-card reveal"><h3>Código fuente</h3><p>Revisa comandos, librerías y pipeline multimedia.</p><a href="https://github.com/lyanvalentinmail-prog/TomiOka/tree/main/src" target="_blank" rel="noreferrer">Explorar src/ ↗</a></article>
+          <article class="link-card reveal"><h3>Issues</h3><p>Reporta errores o propone nuevas funciones con contexto y pasos para reproducirlos.</p><a href="https://github.com/lyanvalentinmail-prog/TomiOka/issues" target="_blank" rel="noreferrer">Abrir issues ↗</a></article>
+          <article class="link-card reveal"><h3>Pull requests</h3><p>Consulta cambios propuestos y contribuye mejoras revisables.</p><a href="https://github.com/lyanvalentinmail-prog/TomiOka/pulls" target="_blank" rel="noreferrer">Ver pull requests ↗</a></article>
+          <article class="link-card reveal"><h3>Despliegue web</h3><p>La página puede publicarse con las configuraciones incluidas para Render o Vercel.</p><div class="inline-links"><a href="https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noreferrer">Render ↗</a><a href="https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka&project-name=tomioka-panel" target="_blank" rel="noreferrer">Vercel ↗</a></div></article>
+        </div>
+      </div>
+    </section>
+
+    <!-- ═══════════════ 6 · CONTACTO ═══════════════ -->
+    <section class="section contact-section" id="contacto">
+      <div class="container contact-card reveal">
+        <div>
+          <span class="eyebrow">Contacto y comunidad</span>
+          <h2>¿Quieres mejorar TomiOka?</h2>
+          <p>La vía oficial del proyecto es GitHub: abre un issue para soporte, revisa el código o envía una propuesta. No publicamos canales privados ni enlaces sociales no verificados.</p>
+        </div>
+        <div class="contact-actions">
+          <a class="social-button" href="https://github.com/lyanvalentinmail-prog" target="_blank" rel="noreferrer"><span>GH</span><span><strong>GitHub</strong><small>@lyanvalentinmail-prog</small></span>↗</a>
+          <a class="social-button" href="https://github.com/lyanvalentinmail-prog/TomiOka/issues" target="_blank" rel="noreferrer"><span>!</span><span><strong>Soporte</strong><small>Issues del repositorio</small></span>↗</a>
+          <button class="social-button" type="button" data-copy-text="https://github.com/lyanvalentinmail-prog/TomiOka"><span>⧉</span><span><strong>Compartir</strong><small>Copiar URL del proyecto</small></span>↗</button>
+        </div>
+      </div>
     </section>
   </main>
 
-  <!-- ══════════════════ APP / PANEL ══════════════════ -->
-  <div id="appView" class="app" hidden>
-    <header class="app-header">
-      <a class="logo" href="#" data-go-landing>🌊 TomiOka</a>
-      <nav class="tabs" aria-label="Secciones del panel">
-        <button class="tab active" data-tab="panel" type="button">Panel</button>
-        <button class="tab" data-tab="endpoints" type="button">Endpoints</button>
-        <button class="tab" data-tab="comandos" type="button">Comandos</button>
-        <button class="tab" data-tab="perfil" type="button">Perfil / Login</button>
-      </nav>
-      <div class="app-header-right">
-        <span class="badge" title="Sub-bots creados">🤖 <strong id="sideBotCount">0 / 3</strong></span>
-        <div class="progress progress-mini" aria-hidden="true"><div id="sideBotBar" class="progress-bar" style="width:0%"></div></div>
-        <div class="user-chip" title="Tu cuenta">
-          <div class="avatar" id="sideAvatar">T</div>
-          <div class="user-chip-text"><strong id="sideUserName">Usuario</strong><span id="sideUserContact">—</span></div>
-        </div>
-        <button id="logoutBtn" class="icon-btn" type="button" title="Cerrar sesión">⏻</button>
-      </div>
-    </header>
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <a class="brand" href="#inicio"><img src="favicon.svg" width="32" height="32" alt=""><span>TomiOka</span></a>
+      <p>Plataforma abierta para bots de WhatsApp. Identidad y código propios, publicados bajo licencia MIT.</p>
+      <span>© <span id="currentYear">2026</span> TomiOka Team</span>
+    </div>
+  </footer>
 
-    <main class="main">
-      <!-- Encabezado del panel (saludo por hora, estilo Stellar) -->
-      <div class="page-head" id="pageHead">
-        <span class="eyebrow" id="greetingEyebrow">BUENAS</span>
-        <h2 id="pageTitle">Panel</h2>
-        <p id="pageSubtitle" class="muted">Tus sub-bots desplegados</p>
-      </div>
-
-      <!-- ───── TAB: PANEL ───── -->
-      <section id="tab-panel" class="tab-page">
-        <div class="stats-grid">
-          <article class="stat"><span>Total Bots</span><strong id="statBots">0 / 3</strong><small>Creados en este navegador</small></article>
-          <article class="stat"><span>En línea</span><strong id="statOnline">0</strong><small>Activos ahora</small></article>
-          <article class="stat"><span>Usuarios</span><strong id="statUsers">0</strong><small>Registrados en tus bots</small></article>
-          <article class="stat"><span>Comandos</span><strong id="statCommands">0</strong><small>Ejecutados en total</small></article>
-        </div>
-
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Sesiones</span>
-            <h3>Mis Bots</h3>
-            <p class="muted">Gestiona tus sesiones activas. Máximo 3 por cuenta.</p>
-          </div>
-          <div class="section-head-actions">
-            <button id="topCreateBtn" class="btn btn-outline" type="button">＋ Crear sub-bot</button>
-            <button id="createBotBtn" class="btn btn-primary" type="button">Crear Bot</button>
-          </div>
-        </div>
-
-        <div id="botsEmpty" class="empty-state">
-          <div class="empty-ico">🌊</div>
-          <h4>No tienes bots registrados aún.</h4>
-          <p>Creá el primero: elegís prefijo y etiqueta, tu número y vinculás con pairing code o QR.</p>
-          <button class="btn btn-primary" data-create type="button">Crear Bot →</button>
-        </div>
-
-        <div id="botsGrid" class="bots-grid"></div>
-        <p id="botsLimitMsg" class="limit-msg" hidden>⚠️ Alcanzaste el máximo de 3 sub-bots. Eliminá uno para crear otro.</p>
-
-        <!-- Despliegue -->
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Despliegue</span>
-            <h3>Publicar este panel</h3>
-            <p class="muted">Con el Blueprint de Render o con Vercel, directo desde el repo.</p>
-          </div>
-        </div>
-        <div class="grid-2">
-          <article class="card deploy-card">
-            <h3>⬣ Blueprint en Render</h3>
-            <p>Render lee el <code>render.yaml</code> del repo y crea el servicio web <strong>tomioka-panel</strong> solo: corre <code>node scripts/serve-web.js</code> y usa el <code>PORT</code> que Render asigna.</p>
-            <ol class="deploy-steps">
-              <li>Tocá el botón (o en Render: <strong>New + → Blueprint</strong>)</li>
-              <li>Elegí el repo <code>TomiOka</code> y aplicá el Blueprint</li>
-              <li>Tu panel queda en <code>*.onrender.com</code></li>
-            </ol>
-            <a class="btn btn-primary btn-block" href="https://render.com/deploy?repo=https://github.com/lyanvalentinmail-prog/TomiOka" target="_blank" rel="noopener">Deploy to Render ↗</a>
-          </article>
-          <article class="card deploy-card">
-            <h3>▲ Desplegar en Vercel</h3>
-            <p>Vercel lee el <code>vercel.json</code> del repo y publica la carpeta <code>web/</code> como sitio estático, sin paso de build. Cada push redespliega solo.</p>
-            <ol class="deploy-steps">
-              <li>Tocá el botón (o en Vercel: <strong>Add New → Project</strong>)</li>
-              <li>Importá el repo <code>TomiOka</code> y confirmá</li>
-              <li>Tu panel queda en <code>*.vercel.app</code></li>
-            </ol>
-            <a class="btn btn-primary btn-block" href="https://vercel.com/new/clone?repository-url=https://github.com/lyanvalentinmail-prog/TomiOka&project-name=tomioka-panel" target="_blank" rel="noopener">Deploy with Vercel ↗</a>
-          </article>
-        </div>
-        <p class="muted small-note">Ambos despliegues publican <strong>solo el panel web</strong>. El bot de WhatsApp (Baileys) necesita sesión persistente y un proceso siempre activo, así que sigue corriendo en tu Termux/VPS.</p>
-      </section>
-
-      <!-- ───── PANEL DEL BOT (detalle) ───── -->
-      <section id="botPanel" class="tab-page" hidden>
-        <button id="backToPanelBtn" class="btn btn-ghost btn-mini" type="button">← Volver a Mis Bots</button>
-
-        <div class="card bot-hero">
-          <div id="botHeroBanner" class="bot-hero-banner grad-ocean"></div>
-          <div class="bot-hero-body">
-            <div class="avatar avatar-lg" id="botHeroAvatar">🌊</div>
-            <div class="bot-hero-info">
-              <h3 id="botHeroLabel">Sub-bot</h3>
-              <p class="muted" id="botHeroMeta">—</p>
-              <div class="chips" id="botHeroChips"></div>
-            </div>
-            <div class="bot-hero-actions">
-              <button id="botToggleBtn" class="btn btn-soft" type="button">⏸ Pausar</button>
-              <button id="botEditFromPanelBtn" class="btn btn-primary" type="button">✏️ Editar</button>
-            </div>
-          </div>
-        </div>
-
-        <div class="stats-grid">
-          <article class="stat"><span>Usuarios</span><strong id="bpUsers">0</strong><small>Registrados</small></article>
-          <article class="stat"><span>Comandos</span><strong id="bpCommands">0</strong><small>Ejecutados</small></article>
-          <article class="stat"><span>Stickers</span><strong id="bpStickers">0</strong><small>Creados</small></article>
-          <article class="stat"><span>Grupos</span><strong id="bpGroups">0</strong><small>Activos</small></article>
-        </div>
-
-        <div class="dash-grid">
-          <article class="card">
-            <div class="card-head">
-              <h4>🖥️ Consola</h4>
-              <div class="card-head-actions">
-                <button id="consolePauseBtn" class="btn btn-mini" type="button">⏸ Pausar</button>
-                <button id="consoleClearBtn" class="btn btn-mini" type="button">Limpiar</button>
-              </div>
-            </div>
-            <div id="consoleLog" class="console" role="log" aria-label="Consola del bot"></div>
-            <p class="muted small">Salida simulada del proceso (<code>npm start</code>) de este sub-bot.</p>
-          </article>
-
-          <article class="card">
-            <div class="card-head"><h4>Estado del bot</h4></div>
-            <ul class="kv-list" id="botStatusList"></ul>
-            <h5 class="subhead">Actividad · últimos 7 días</h5>
-            <div id="activityChart" class="chart" aria-hidden="true"></div>
-            <h5 class="subhead">Últimos comandos</h5>
-            <ul class="mini-list" id="lastCommandsList"></ul>
-          </article>
-        </div>
-
-        <article class="card">
-          <div class="card-head">
-            <h4>Usuarios registrados <span id="usersCountBadge" class="badge">0</span></h4>
-            <input id="userSearch" class="search-mini" type="search" placeholder="Buscar por nombre o número…" />
-          </div>
-          <div id="usersList" class="users-list"></div>
-        </article>
-      </section>
-
-      <!-- ───── TAB: ENDPOINTS (solo base) ───── -->
-      <section id="tab-endpoints" class="tab-page" hidden>
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Endpoints</span>
-            <h3>Rutas HTTP</h3>
-            <p class="muted">Base de la sección: todavía no hay ningún endpoint configurado.</p>
-          </div>
-          <button class="btn btn-soft" type="button" disabled title="Próximamente">＋ Nuevo endpoint</button>
-        </div>
-
-        <div class="empty-state">
-          <div class="empty-ico">⌁</div>
-          <h4>Sin endpoints todavía</h4>
-          <p>Acá vas a poder exponer rutas HTTP de tus sub-bots (webhooks, estado, envíos). Por ahora es solo la base visual.</p>
-        </div>
-
-        <div class="endpoint-skeletons" aria-hidden="true">
-          <div class="skeleton-card"><span class="sk-method">GET</span><div><div class="sk-line w60"></div><div class="sk-line w40"></div></div><span class="badge">Sin configurar</span></div>
-          <div class="skeleton-card"><span class="sk-method">POST</span><div><div class="sk-line w50"></div><div class="sk-line w70"></div></div><span class="badge">Sin configurar</span></div>
-          <div class="skeleton-card"><span class="sk-method">WS</span><div><div class="sk-line w70"></div><div class="sk-line w30"></div></div><span class="badge">Sin configurar</span></div>
-        </div>
-      </section>
-
-      <!-- ───── TAB: COMANDOS ───── -->
-      <section id="tab-comandos" class="tab-page" hidden>
-        <div class="section-head">
-          <div>
-            <span class="eyebrow">Comandos</span>
-            <h3>Todo lo que el bot sabe hacer</h3>
-            <p class="muted">Los comandos reales del bot (<code>src/commands/</code>). Pulsa <kbd>/</kbd> para buscar, toca uno para copiarlo con el prefijo <code id="cmdPrefixHint">.</code></p>
-          </div>
-          <input id="commandSearch" class="search-mini" type="search" placeholder="Buscar comando…  ( / )" />
-        </div>
-        <div id="commandCats" class="chips cat-chips"></div>
-        <div id="commandsGrid" class="commands-grid"></div>
-        <p id="commandsEmpty" class="muted" hidden>No hay comandos que coincidan con la búsqueda.</p>
-      </section>
-
-      <!-- ───── TAB: PERFIL / LOGIN ───── -->
-      <section id="tab-perfil" class="tab-page" hidden>
-        <div class="profile-grid">
-          <article class="card profile-card">
-            <div class="avatar avatar-xl" id="profileAvatar">T</div>
-            <h3 id="profileName">Usuario</h3>
-            <p class="muted" id="profileContact">—</p>
-            <span class="badge badge-live"><span class="dot"></span> Sesión iniciada</span>
-            <ul class="kv-list profile-kv">
-              <li><span>Sub-bots</span><strong id="profileBotCount">0 / 3</strong></li>
-              <li><span>Sesión desde</span><strong id="profileSince">—</strong></li>
-              <li><span>Almacenamiento</span><strong>Este navegador</strong></li>
-            </ul>
-            <button id="logoutBtn2" class="btn btn-danger-soft btn-block" type="button">⏻ Cerrar sesión</button>
-          </article>
-
-          <article class="card">
-            <div class="card-head"><h4>Editar perfil</h4></div>
-            <form id="profileForm" novalidate>
-              <label class="field">
-                <span>Nombre visible</span>
-                <input id="profileNameInput" type="text" placeholder="Tu nombre" />
-              </label>
-              <label class="field">
-                <span>Teléfono o correo</span>
-                <input id="profileContactInput" type="text" placeholder="598 91 234 567" />
-              </label>
-              <button class="btn btn-primary" type="submit">Guardar cambios</button>
-            </form>
-            <h5 class="subhead">Sesión</h5>
-            <p class="muted small">Estás dentro del panel. Si cerrás sesión, tus sub-bots quedan guardados en este navegador y vuelven a aparecer al ingresar con el mismo nombre.</p>
-          </article>
-        </div>
-      </section>
-
-      <footer class="footer footer-app">
-        <span>🌊 <strong>TomiOka</strong></span>
-        <span class="muted">© 2026 TomiOka Team</span>
-      </footer>
-    </main>
-  </div>
-
-  <!-- ══════════════════ ASISTENTE: CREAR SUB-BOT ══════════════════ -->
-  <div id="wizard" class="overlay" hidden>
-    <section class="sheet" role="dialog" aria-modal="true" aria-labelledby="wizardTitle">
-      <header class="sheet-head">
-        <div>
-          <h3 id="wizardTitle">Crear sub-bot</h3>
-          <p class="muted" id="wizardCounter">Sub-bot 1 de 3</p>
-        </div>
-        <button id="wizardCloseBtn" class="icon-btn" type="button" title="Cancelar">✕</button>
-      </header>
-
-      <ol class="steps" id="wizardSteps">
-        <li class="active" data-step-dot="1"><span>1</span> Configurar</li>
-        <li data-step-dot="2"><span>2</span> Vincular</li>
-        <li data-step-dot="3"><span>3</span> Conectar</li>
-      </ol>
-
-      <!-- Paso 1 · Prefijo y etiqueta -->
-      <form id="wizardStep1" class="wizard-step">
-        <h4>Configurar el sub-bot</h4>
-        <p class="muted">Elegí la etiqueta que lo identifica y el prefijo de sus comandos.</p>
-
-        <label class="field">
-          <span>Etiqueta del sub-bot</span>
-          <input id="wLabel" type="text" placeholder="Ej: 🌊 Soporte, Ventas, Mi bot…" maxlength="40" />
-          <small class="hint">Es el nombre visible en tus tarjetas y en el panel del bot.</small>
-          <small class="error" id="wLabelError"></small>
-        </label>
-
-        <div class="field">
-          <span>Prefijo de comandos</span>
-          <div class="prefix-row" id="prefixChips">
-            <button type="button" class="chip prefix-chip active" data-prefix=".">.</button>
-            <button type="button" class="chip prefix-chip" data-prefix="!">!</button>
-            <button type="button" class="chip prefix-chip" data-prefix="/">/</button>
-            <button type="button" class="chip prefix-chip" data-prefix="#">#</button>
-            <button type="button" class="chip prefix-chip" data-prefix="$">$</button>
-          </div>
-          <input id="wPrefix" type="text" value="." maxlength="3" placeholder="Prefijo personalizado (ej: ..)" />
-          <small class="hint">Así se van a llamar los comandos: <code id="wPrefixPreview">.sticker</code>, <code>.menu</code>, <code>.pack</code>…</small>
-          <small class="error" id="wPrefixError"></small>
-        </div>
-
-        <div class="sheet-actions">
-          <button type="button" class="btn btn-ghost" data-wizard-cancel>Cancelar</button>
-          <button type="submit" class="btn btn-primary">Siguiente &gt;</button>
-        </div>
-      </form>
-
-      <!-- Paso 2 · Teléfono + método -->
-      <form id="wizardStep2" class="wizard-step" hidden>
-        <h4>Tu número y método de vinculación</h4>
-        <p class="muted">El sub-bot se vincula a este número de WhatsApp.</p>
-
-        <label class="field">
-          <span>Número de teléfono (con código de país)</span>
-          <input id="wPhone" type="tel" placeholder="Ej: 598 91 234 567" autocomplete="tel" />
-          <small class="hint">Sin <code>+</code> ni guiones. Ejemplo Uruguay: <code>59891234567</code>.</small>
-          <small class="error" id="wPhoneError"></small>
-        </label>
-
-        <div class="field">
-          <span>¿Cómo querés vincular?</span>
-          <div class="method-grid">
-            <label class="method-card">
-              <input type="radio" name="wMethod" value="pairing" checked />
-              <strong>🔢 Pairing code</strong>
-              <span>Código de 8 caracteres para ingresar en WhatsApp. Recomendado en celular.</span>
-            </label>
-            <label class="method-card">
-              <input type="radio" name="wMethod" value="qr" />
-              <strong>▦ QR code</strong>
-              <span>Escaneás un código QR con la cámara / vinculación de WhatsApp.</span>
-            </label>
-          </div>
-        </div>
-
-        <div class="sheet-actions">
-          <button type="button" class="btn btn-ghost" data-wizard-back="1">&lt; Atrás</button>
-          <button type="submit" class="btn btn-primary">Siguiente &gt;</button>
-        </div>
-      </form>
-
-      <!-- Paso 3 · QR o pairing -->
-      <div id="wizardStep3" class="wizard-step" hidden>
-        <h4 id="linkTitle">Vinculá tu WhatsApp</h4>
-        <p class="muted" id="linkSubtitle">Usá el código en tu teléfono para conectar el sub-bot.</p>
-
-        <div id="pairingBox" class="link-box">
-          <span class="link-label">Tu pairing code</span>
-          <div id="pairingCode" class="pairing-code">····-····</div>
-          <p class="muted small">En WhatsApp: <strong>Ajustes → Dispositivos vinculados → Vincular un dispositivo → Vincular con número de teléfono</strong> e ingresá el código.</p>
-        </div>
-
-        <div id="qrBox" class="link-box" hidden>
-          <span class="link-label">Escaneá este QR</span>
-          <canvas id="qrCanvas" width="264" height="264" class="qr-canvas" aria-label="Código QR de vinculación (demostración)"></canvas>
-          <p class="muted small">En WhatsApp: <strong>Ajustes → Dispositivos vinculados → Vincular un dispositivo</strong> y apuntá la cámara.</p>
-        </div>
-
-        <div class="link-status">
-          <span class="spinner" aria-hidden="true"></span>
-          <span id="linkStatusText">Esperando vinculación…</span>
-          <span class="badge" id="linkCountdown">05:00</span>
-        </div>
-
-        <label class="check-row">
-          <input type="checkbox" id="linkedCheck" />
-          <span>Ya lo vinculé en mi teléfono</span>
-        </label>
-
-        <div class="sheet-actions">
-          <button type="button" class="btn btn-ghost" data-wizard-back="2">&lt; Atrás</button>
-          <div class="sheet-actions-right">
-            <button id="regenCodeBtn" type="button" class="btn btn-soft">↻ Generar otro</button>
-            <button id="wizardFinishBtn" type="button" class="btn btn-primary" disabled>Finalizar ✓</button>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <!-- ══════════════════ EDITAR SUB-BOT ══════════════════ -->
-  <div id="editModal" class="overlay" hidden>
-    <section class="sheet sheet-wide" role="dialog" aria-modal="true" aria-labelledby="editTitle">
-      <header class="sheet-head">
-        <div>
-          <h3 id="editTitle">Editar sub-bot</h3>
-          <p class="muted">Banner, etiqueta, prefijo y tipo de menú.</p>
-        </div>
-        <button id="editCloseBtn" class="icon-btn" type="button" title="Cerrar">✕</button>
-      </header>
-
-      <form id="editForm" novalidate>
-        <div class="edit-grid">
-          <div>
-            <label class="field">
-              <span>Etiqueta</span>
-              <input id="eLabel" type="text" maxlength="40" />
-              <small class="error" id="eLabelError"></small>
-            </label>
-            <label class="field">
-              <span>Prefijo</span>
-              <input id="ePrefix" type="text" maxlength="3" />
-              <small class="error" id="ePrefixError"></small>
-            </label>
-
-            <div class="field">
-              <span>Banner del menú</span>
-              <div class="banner-presets" id="bannerPresets">
-                <button type="button" class="banner-preset grad-ocean active" data-banner="grad-ocean">Océano</button>
-                <button type="button" class="banner-preset grad-sunset" data-banner="grad-sunset">Atardecer</button>
-                <button type="button" class="banner-preset grad-forest" data-banner="grad-forest">Bosque</button>
-                <button type="button" class="banner-preset grad-night" data-banner="grad-night">Noche</button>
-              </div>
-              <input id="eBannerUrl" type="url" placeholder="…o pegá la URL de una imagen (https://…)" />
-              <label class="upload-btn">
-                🖼️ Subir imagen
-                <input id="eBannerFile" type="file" accept="image/*" hidden />
-              </label>
-              <small class="hint">La imagen subida se achica en el navegador antes de guardarse.</small>
-            </div>
-
-            <div class="field">
-              <span>Tipo de menú</span>
-              <div class="method-grid">
-                <label class="method-card">
-                  <input type="radio" name="eMenuType" value="classic" />
-                  <strong>🖼️ Menú clásico</strong>
-                  <span>Banner + lista de comandos en un solo mensaje.</span>
-                </label>
-                <label class="method-card">
-                  <input type="radio" name="eMenuType" value="list" />
-                  <strong>📋 Menú de lista</strong>
-                  <span>Muestra un botón para ver la lista de categorías y elegir ahí.</span>
-                </label>
-              </div>
-            </div>
-
-            <div class="field" id="categoriesField" hidden>
-              <span>Categorías del menú de lista</span>
-              <div class="chips" id="categoryChips"></div>
-              <small class="hint">Estas categorías aparecen al tocar el botón de la lista.</small>
-            </div>
-          </div>
-
-          <div>
-            <span class="field-label">Vista previa en WhatsApp</span>
-            <div class="phone-mock">
-              <div class="phone-head">🌊 <span id="previewBotName">Sub-bot</span></div>
-              <div class="phone-body">
-                <div id="previewClassic">
-                  <div id="previewBanner" class="preview-banner grad-ocean"></div>
-                  <div class="bubble">
-                    <strong>𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼</strong>
-                    <span id="previewCommands">.sticker · .toimg · .pack · .menu</span>
-                  </div>
-                </div>
-                <div id="previewList" hidden>
-                  <div class="bubble">
-                    <strong>𝓜𝓮𝓷𝓾 𝓭𝓮 𝓬𝓸𝓶𝓪𝓷𝓭𝓸𝓼</strong>
-                    <span>Elegí una categoría para ver sus comandos 👇</span>
-                  </div>
-                  <button id="previewListBtn" type="button" class="list-btn">📋 Ver lista de categorías</button>
-                  <div id="previewCategories" class="bubble list-bubble" hidden></div>
-                </div>
-              </div>
-            </div>
-            <p class="muted small">Vista previa orientativa de cómo lo ven tus usuarios.</p>
-          </div>
-        </div>
-
-        <div class="sheet-actions">
-          <button type="button" class="btn btn-danger-soft" id="deleteBotBtn">🗑 Eliminar sub-bot</button>
-          <div class="sheet-actions-right">
-            <button type="button" class="btn btn-ghost" id="editCancelBtn">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Guardar cambios ✓</button>
-          </div>
-        </div>
-      </form>
-    </section>
-  </div>
-
-  <div id="toastBox" class="toast-box" aria-live="polite"></div>
-
-  <script src="app.js"></script>
+  <button class="back-to-top" id="backToTop" type="button" aria-label="Volver arriba">↑</button>
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <noscript><div class="noscript">La navegación básica funciona sin JavaScript, pero los filtros, pestañas y el configurador necesitan activarlo.</div></noscript>
 </body>
 </html>
