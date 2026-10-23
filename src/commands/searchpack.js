@@ -208,7 +208,7 @@ export default {
       return importPack(ctx, { pack, target: parsePackId(text) || text })
     }
 
-    // 5) Búsqueda por texto
+    // 5) Búsqueda por texto → buscar y enviar el primer paquete automáticamente
     await ctx.sendLive(packSlot(ctx), `🔎 Buscando paquetes de *${truncate(text, 40)}*…`)
     let found
     try {
@@ -232,15 +232,12 @@ export default {
       return `searchpack "${text}" sin resultados`
     }
 
-    ctx.store.searches?.save(ctx.chatJid, {
-      query: text,
-      kind: 'packs',
-      results: found.results,
-      provider: settings.provider
-    })
-
-    await ctx.finishLive(packSlot(ctx), packListMessage(text, found.results, page))
-    return `searchpack "${text}" ${found.results.length} paquete(s) pág. ${page}`
+    // Enviar automáticamente el primer paquete encontrado
+    const best = found.results[0]
+    const full = best.stickers?.length ? best : await resolvePack(best.id, { config: ctx.config, logger: ctx.logger })
+    await ctx.sendLive(packSlot(ctx), `✅ Encontré *${truncate(best.name || 'paquete', 40)}*. Descargando…`)
+    const result = await importPack(ctx, { pack: full, target: best.id })
+    return result
   }
 }
 
