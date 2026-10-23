@@ -613,7 +613,7 @@ function pairingCard({ id, mode = 'pairing', connected = false, context = 'modal
       <li><b>2.</b><span>Ajustes → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>${isQr ? '' : ' → <b>Vincular con el número de teléfono</b>'}.</span></li>
       <li><b>3.</b><span>${isQr ? 'Escanea el código.' : 'Escribe los 8 caracteres del código que aparece arriba.'}</span></li>
     </ol>
-    ${isQr ? '' : `<div class="pairing-wa-note">${icon('whatsapp')} También puedes pedir el código desde WhatsApp: envía <code>.key</code> (o <code>.pairing</code>) a cualquier bot conectado y te devuelve este mismo código.</div>`}
+    ${isQr ? '' : `<div class="pairing-wa-note">${icon('whatsapp')} El código lo genera WhatsApp para este número: si caduca, pulsa <b>Pedir código nuevo</b>. También puedes vincular por terminal con <code>npm run pair</code>.</div>`}
     <div class="pairing-actions">
       ${isQr
         ? `<button class="glow-btn glow-btn-soft" type="button" data-action="${context === 'wizard' ? 'refresh-link' : 'refresh-connect-link'}" ${context === 'wizard' ? flow_loading_guard() : ''}>${icon('refresh')} Renovar QR</button>`

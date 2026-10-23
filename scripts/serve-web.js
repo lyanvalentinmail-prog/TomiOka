@@ -18,10 +18,12 @@ import os from 'node:os'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { createLinkSessionManager } from '../src/lib/link-session.js'
+import { categoryIdOf, createPanelBotManager } from './lib/panel-bot.js'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const WEB_DIR = path.join(ROOT, 'web')
-const DATA_DIR = path.join(ROOT, 'data')
+// `TOMIOKA_WEB_DATA` permite usar otra carpeta de datos (tests/aislamiento)
+const DATA_DIR = process.env.TOMIOKA_WEB_DATA ? path.resolve(process.env.TOMIOKA_WEB_DATA) : path.join(ROOT, 'data')
 const REGISTRY_FILE = path.join(DATA_DIR, 'web-subbots.json')
 const PORT = Number(process.env.PORT) || 3000
 const HOST = process.env.HOST || '0.0.0.0'
@@ -114,12 +116,6 @@ function argsFromUsage(command) {
   return usage.startsWith(head) ? usage.slice(head.length).trim() : ''
 }
 
-function categoryIdOf(command) {
-  const rawCategory = String(command.category || 'tools').toLowerCase()
-  if (command.name === 'help' || command.name === 'debug') return 'info'
-  return ({ descargas: 'download', download: 'download', stickers: 'stickers', conversion: 'tools', herramientas: 'tools', ai: 'ai', extras: 'info' }[rawCategory] || 'tools')
-}
-
 function publicCommand(command) {
   const category = categoryIdOf(command)
   return {
@@ -194,152 +190,38 @@ function loadCommandsModule() {
 }
 
 /**
- * Aplica lo guardado en "Editar bot" a cada comando del sub-bot:
- * comandos/categorías deshabilitados (silencio), alias extra y
- * comandos personalizados de texto. Lee el registro en cada mensaje,
- * así los cambios se aplican sin reiniciar el bot.
+ * Bot de cada sub-bot del panel: el handler real de comandos enganchado al
+ * socket de Baileys. La lógica vive en `scripts/lib/panel-bot.js` (testeable);
+ * acá solo se conecta con el registro de sub-bots.
  */
-async function panelBeforeCommand(instanceId, ctx, parsed) {
-  const { instance } = findStoredInstance(instanceId)
-  if (!instance) return null
-  const customization = instance.customization && typeof instance.customization === 'object' ? instance.customization : {}
-  const name = String(parsed.command || '').toLowerCase()
+const panelBots = createPanelBotManager({
+  getInstance: (id) => findStoredInstance(id).instance
+})
 
-  const customs = Array.isArray(customization.customCommands) ? customization.customCommands : []
-  const custom = customs.find((cc) => String(cc?.name || '').toLowerCase() === name
-    || (cc?.aliases || []).some((alias) => String(alias).toLowerCase() === name))
-  if (custom) {
-    const permission = String(custom.permission || 'all')
-    if ((permission === 'owner' || permission === 'admin') && !ctx.isOwner) {
-      return { type: 'custom', response: '🔒 Este comando es solo para el dueño del bot.' }
-    }
-    const response = String(custom.response || '')
-      .replaceAll('{{user}}', ctx.displayName || '')
-      .replaceAll('{{botName}}', 'TomiOka')
-      .replaceAll('{{prefix}}', instance.prefix || '.')
-      .replaceAll('{{groupName}}', ctx.isGroup ? 'este grupo' : 'este chat')
-    return { type: 'custom', response }
-  }
-
-  const { findCommand } = await loadCommandsModule()
-  let target = findCommand(name)
-  if (!target) {
-    for (const [commandName, aliases] of Object.entries(customization.aliases || {})) {
-      if ((aliases || []).some((alias) => String(alias).toLowerCase() === name)) { target = findCommand(commandName); break }
-    }
-  }
-  if (!target) return null
-
-  const disabledNames = new Set((customization.disabled || []).map((item) => String(item).toLowerCase()))
-  const disabledCats = new Set((customization.disabledCategories || []).map((item) => String(item).toLowerCase()))
-  if (disabledNames.has(String(target.name).toLowerCase()) || disabledCats.has(categoryIdOf(target))) {
-    return { type: 'ignore' }
-  }
-  if (target.name === 'help') {
-    const customBanner = customization.banner?.dataUrl || customization.banner?.url || ''
-    if (customBanner || disabledNames.size || disabledCats.size || customs.length) {
-      const filtered = new Map()
-      for (const [key, cmd] of ctx.commands.entries()) {
-        if (disabledNames.has(String(cmd.name).toLowerCase()) || disabledCats.has(categoryIdOf(cmd))) continue
-        filtered.set(key, cmd)
-      }
-      const extraCategories = []
-      const visibleCustoms = customs.filter((cc) => cc?.name && !cc.hidden)
-      if (visibleCustoms.length) {
-        for (const cc of visibleCustoms) {
-          const cmdName = String(cc.name).toLowerCase()
-          if (!filtered.has(cmdName)) {
-            filtered.set(cmdName, {
-              name: cmdName,
-              aliases: Array.isArray(cc.aliases) ? cc.aliases : [],
-              description: cc.description || '',
-              usage: `${instance.prefix || '.'}${cmdName}${cc.args ? ` ${cc.args}` : ''}`
-            })
-          }
-        }
-        extraCategories.push({
-          emoji: '💦',
-          description: '𝖯𝖾𝗋𝗌𝗈𝗇𝖺𝗅𝗂𝗓𝖺𝖽𝗈𝗌',
-          kaomoji: '(｡•̀ᴗ-)✧',
-          divider: ['💧', '🌊'],
-          commands: visibleCustoms.map((cc) => String(cc.name).toLowerCase())
-        })
-      }
-      ctx.commands = filtered
-      ctx.config = {
-        ...ctx.config,
-        menu: {
-          ...ctx.config.menu,
-          image: customBanner || ctx.config.menu.image,
-          sendAsCaption: true,
-          categories: [...(ctx.config.menu.categories || []), ...extraCategories].filter((cat) =>
-            (cat.commands || []).some((cmdName) => filtered.has(String(cmdName).toLowerCase()))
-          )
-        }
-      }
-    }
-  }
-  if (String(target.name).toLowerCase() !== name) return { type: 'run', command: target }
-  return null
-}
-
-async function attachBotHandler(instance, sock) {
-  let runtime = botRuntimes.get(instance.id)
-  if (!runtime) {
-    const [{ loadConfig }, handlerMod, commandsMod, { createLogger }, { loadMenuImage }] = await Promise.all([
-      import('../src/config.js'),
-      import('../src/handler.js'),
-      import('../src/commands/index.js'),
-      import('../src/lib/logger.js'),
-      import('../src/lib/banner.js')
-    ])
-    const config = loadConfig()
-    config.sessionDir = path.resolve(ROOT, instance.sessionDir || `sessions/${instance.id}`)
-    config.prefixes = [instance.prefix || '.']
-    config.bot = { ...config.bot, prefix: instance.prefix || '.', prefixes: config.prefixes }
-    config.pairingPhone = String(instance.phone || '').replace(/\D/g, '')
-    config.login = 'pairing'
-    // Los "números owner" del panel son los dueños de ESTE sub-bot.
-    config.owner = { ...config.owner, numbers: (instance.adminNumbers || []).map((n) => String(n).replace(/\D/g, '')).filter(Boolean) }
-    const { logger } = createLogger('warn', 'silent')
-    if (config.menu.image) loadMenuImage(config, { logger }).catch(() => {})
-    const store = handlerMod.createStore(config, logger, { persistLiveMessages: false })
-    const onUpsert = handlerMod.createUpsertHandler({
-      config, logger, store, commands: commandsMod.commands,
-      hooks: { beforeCommand: ({ ctx, parsed }) => panelBeforeCommand(instance.id, ctx, parsed) }
-    })
-    runtime = { store, onUpsert }
-    botRuntimes.set(instance.id, runtime)
-  }
-  if (!sock.__tomiokaCounted) {
-    sock.__tomiokaCounted = true
-    const originalSend = sock.sendMessage.bind(sock)
-    sock.sendMessage = async (...args) => {
-      const result = await originalSend(...args)
-      const id = result?.key?.id
-      if (id) {
-        runtime.store.sentIds.add(id)
-        if (runtime.store.sentIds.size > 500) runtime.store.sentIds.delete(runtime.store.sentIds.values().next().value)
-      }
-      return result
-    }
-  }
-  sock.ev.on('messages.upsert', (event) => {
-    runtime.onUpsert(sock, event).catch(() => {})
+/**
+ * Runtime de Baileys. `TOMIOKA_WEB_RUNTIME` permite inyectar otro módulo
+ * (los tests usan un WhatsApp falso); sin la variable se usa Baileys real.
+ */
+function loadRuntime() {
+  if (process.env.TOMIOKA_WEB_RUNTIME) return import(process.env.TOMIOKA_WEB_RUNTIME)
+  return import('@whiskeysockets/baileys').then(async (baileys) => {
+    const pino = (await import('pino')).default
+    return { ...baileys, logger: pino({ level: 'silent' }) }
   })
 }
 
-function destroyBotRuntime(id) {
-  const runtime = botRuntimes.get(id)
-  if (!runtime) return
-  try { runtime.store.packs.destroy() } catch { /* ignore */ }
-  botRuntimes.delete(id)
+const linkSessions = createLinkSessionManager({
+  loadRuntime,
+  onStatus: (rt, patch) => { persistRuntimeStatus(rt, patch); broadcastLink(rt.id) },
+  attachSocket: (payload) => panelBots.attach(payload)
+})
+
+/** Cierra el servidor HTTP (tests). */
+export function stopServer() {
+  return new Promise((resolve) => server.close(() => resolve(true)))
 }
 
-const linkSessions = createLinkSessionManager({
-  onStatus: (rt, patch) => { persistRuntimeStatus(rt, patch); broadcastLink(rt.id) },
-  attachSocket: attachBotHandler
-})
+export { panelBots, linkSessions, server }
 
 function slugify(value) {
   const slug = String(value || 'subbot')
@@ -394,6 +276,8 @@ function publicInstance(instance) {
     status: live?.status || instance.status || 'created',
     activated: Boolean(instance.activated || live?.status === 'open'),
     live: Boolean(live?.sock || live),
+    // ¿El handler de comandos está enganchado en este proceso?
+    botActive: Boolean(panelBots.get(instance.id)),
     groups: 0,
     sessionDir,
     launchCommand: instance.launchCommand || `SESSION_DIR=${sessionDir} PAIRING_PHONE=${phone} npm run pair`
@@ -415,7 +299,7 @@ function linkPayload(instance) {
     pairingFormatted: live?.pairingFormatted || '',
     pairingCodeAt: live?.pairingCodeAt || null,
     qr: live?.qr || '',
-    qrDataUrl: '',
+    qrDataUrl: live?.qrDataUrl || '',
     lastError: live?.lastError || ''
   }
 }
@@ -427,7 +311,14 @@ function snapshot() {
     ok: true,
     revision,
     instances,
-    stats: { groups: 0, registered: 0, subbots: instances.length, connected: instances.filter((i) => i.status === 'open').length, activated: instances.filter((i) => i.activated).length }
+    stats: {
+      groups: 0,
+      registered: instances.filter((i) => i.activated).length,
+      subbots: instances.length,
+      connected: instances.filter((i) => i.status === 'open').length,
+      activated: instances.filter((i) => i.activated).length,
+      botsActive: instances.filter((i) => i.botActive).length
+    }
   }
 }
 
@@ -457,7 +348,12 @@ function systemInfo() {
       commandsExecuted: 0,
       topCommands: []
     },
-    whatsapp: { instances: instances.length, connected: instances.filter((i) => i.status === 'open').length, activated: instances.filter((i) => i.activated).length }
+    whatsapp: {
+      instances: instances.length,
+      connected: instances.filter((i) => i.status === 'open').length,
+      activated: instances.filter((i) => i.activated).length,
+      botsActive: instances.filter((i) => i.botActive).length
+    }
   }
 }
 
@@ -859,7 +755,7 @@ async function handleApi(req, res, url) {
     if (!action && method === 'GET') return sendJson(res, 200, { ok: true, instance: publicInstance(instance) })
     if (!action && method === 'DELETE') {
       await linkSessions.stop(id)
-      destroyBotRuntime(id)
+      panelBots.destroy(id)
       items.splice(index, 1)
       writeSubbots(items)
       return sendJson(res, 200, { ok: true, deleted: id })
@@ -888,7 +784,7 @@ async function handleApi(req, res, url) {
       writeSubbots(items)
       if (body.phone !== undefined || body.prefix !== undefined || body.pairingMode !== undefined || body.adminNumbers !== undefined) {
         await linkSessions.stop(id)
-        destroyBotRuntime(id)
+        panelBots.destroy(id)
       }
       return sendJson(res, 200, { ok: true, instance: publicInstance(next) })
     }
@@ -932,7 +828,7 @@ async function handleApi(req, res, url) {
     }
     if (action === 'stop' && method === 'POST') {
       await linkSessions.stop(id)
-      destroyBotRuntime(id)
+      panelBots.destroy(id)
       return sendJson(res, 200, { ok: true, ...linkPayload(instance) })
     }
     if (action === 'restart' && method === 'POST') {
