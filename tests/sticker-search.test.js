@@ -28,7 +28,7 @@ const SEARCH_CONFIG = {
   search: {
     enabled: true,
     provider: 'stickerly',
-    baseUrl: 'https://api.sticker.ly',
+    baseUrl: 'http://api.sticker.ly',
     userAgent: 'test-agent/1.0',
     timeoutMs: 5000,
     maxResults: 3,
@@ -49,7 +49,7 @@ function stubFetch(routes) {
   const calls = []
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url)
-    calls.push({ url: target, headers: options.headers || {} })
+    calls.push({ url: target, headers: options.headers || {}, method: options.method || 'GET' })
     for (const [matcher, responder] of routes) {
       const match = typeof matcher === 'string' ? target.includes(matcher) : matcher.test(target)
       if (!match) continue
@@ -107,24 +107,26 @@ const SEARCH_STICKERS_PAYLOAD = {
 }
 
 const SEARCH_PACKS_PAYLOAD = {
-  result: [
-    {
-      packId: 'CC22DD',
-      name: 'Gatos graciosos',
-      authorName: 'michi',
-      stickerCount: 12,
-      isAnimated: false,
-      thumbnailUrl: 'https://cdn.example.com/pack/cover.webp'
-    },
-    {
-      packId: 'EE33FF',
-      name: 'Perritos',
-      authorName: 'tomi',
-      stickerCount: 8,
-      isAnimated: true,
-      thumbnailUrl: 'https://cdn.example.com/pack/dog.webp'
-    }
-  ]
+  result: {
+    stickerPacks: [
+      {
+        packId: 'CC22DD',
+        name: 'Gatos graciosos',
+        authorName: 'michi',
+        stickerCount: 12,
+        isAnimated: false,
+        thumbnailUrl: 'https://cdn.example.com/pack/cover.webp'
+      },
+      {
+        packId: 'EE33FF',
+        name: 'Perritos',
+        authorName: 'tomi',
+        stickerCount: 8,
+        isAnimated: true,
+        thumbnailUrl: 'https://cdn.example.com/pack/dog.webp'
+      }
+    ]
+  }
 }
 
 test('parsePackId acepta enlaces de Sticker.ly y códigos sueltos', () => {
@@ -181,7 +183,7 @@ test('searchEndpointCandidates arma URLs con query, página y tamaño', () => {
   const urls = searchEndpointCandidates({ kind: 'packs', query: 'gatos', page: 2, limit: 5, config: SEARCH_CONFIG })
   assert.ok(urls.length >= 3, 'prueba varias rutas')
   const first = new URL(urls[0])
-  assert.equal(first.origin, 'https://api.sticker.ly')
+  assert.equal(first.origin, 'http://api.sticker.ly')
   assert.equal(first.searchParams.get('query'), 'gatos')
   assert.equal(first.searchParams.get('page'), '2')
   assert.equal(first.searchParams.get('size'), '5')
@@ -205,6 +207,7 @@ test('searchStickers normaliza la respuesta y recuerda la ruta que funciona', as
     assert.ok(stub.calls.some((call) => call.url.includes('/v3/search/sticker')))
     assert.ok(stub.calls.some((call) => call.url.includes('/v3.1/search/sticker')))
     assert.equal(stub.calls[0].headers['user-agent'], 'test-agent/1.0', 'se identifica como la app')
+    assert.ok(stub.calls[0].headers['x-duid'], 'envía el device ID')
 
     // La segunda vez arranca por la ruta que funcionó (sin pagar el 404)
     stub.calls.length = 0
@@ -216,28 +219,52 @@ test('searchStickers normaliza la respuesta y recuerda la ruta que funciona', as
   }
 })
 
-test('searchPacks devuelve paquetes y respeta el límite', async () => {
+test('searchPacks usa POST con keyword y cursor', async () => {
   resetSearchEndpoints()
-  const stub = stubFetch([[/\/search\/pack\?/, SEARCH_PACKS_PAYLOAD]])
+  const stub = stubFetch([[/\/stickerPack\/search/, SEARCH_PACKS_PAYLOAD]])
   try {
     const found = await searchPacks({ query: 'gatos', limit: 1, config: SEARCH_CONFIG })
     assert.equal(found.results.length, 1)
     assert.equal(found.results[0].name, 'Gatos graciosos')
     assert.equal(found.results[0].id, 'CC22DD')
+    // Verificar que usó POST
+    const postCall = stub.calls.find((c) => c.method === 'POST')
+    assert.ok(postCall, 'la búsqueda de packs usa POST')
+    assert.ok(postCall.url.includes('/stickerPack/search'))
   } finally {
     stub.restore()
     resetSearchEndpoints()
   }
 })
 
-test('searchStickers aplana los paquetes cuando la búsqueda devuelve packs', async () => {
+test('searchStickers aplana los paquetes cuando la búsqueda GET falla y cae en POST', async () => {
   resetSearchEndpoints()
-  const stub = stubFetch([[/\/search\/sticker/, PACK_DETAIL]])
+  // GET falla (404), pero POST tiene packs con stickers
+  const stub = stubFetch([
+    // GET de stickers falla
+    [/\/search\/sticker/, () => new Response('no', { status: 404 })],
+    // POST de packs funciona
+    [/\/stickerPack\/search/, {
+      result: {
+        stickerPacks: [{
+          packId: 'AA11BB',
+          name: 'Gatitos',
+          authorName: 'tomi',
+          isAnimated: false,
+          resourceUrlPrefix: 'https://cdn.example.com/pack/AA11BB/1/',
+          stickers: [
+            { fileName: '1.webp', isAnimated: false, tags: ['🐱'] },
+            { fileName: '2.webp', isAnimated: false, tags: ['😺'] }
+          ]
+        }]
+      }
+    }]
+  ])
   try {
     const found = await searchStickers({ query: 'chibi', limit: 3, config: SEARCH_CONFIG })
     assert.equal(found.results.length, 2, 'usa los stickers del paquete')
-    assert.equal(found.results[0].packName, 'chibi umaru anime')
-    assert.ok(found.results[0].url.endsWith('1786246945465.png'))
+    assert.equal(found.results[0].packName, 'Gatitos')
+    assert.ok(found.results[0].url.endsWith('1.webp'))
   } finally {
     stub.restore()
     resetSearchEndpoints()
@@ -308,7 +335,7 @@ test('provider "custom" usa customBaseUrl y sus rutas', () => {
     search: {
       ...SEARCH_CONFIG.search,
       provider: 'custom',
-      baseUrl: 'https://api.sticker.ly',
+      baseUrl: 'http://api.sticker.ly',
       customBaseUrl: 'https://mi-servidor.example/'
     }
   }
@@ -327,8 +354,8 @@ test('searchSettings normaliza y acota los valores', () => {
   assert.equal(settings.timeoutMs, 2000)
   assert.equal(settings.packStickerLimit, 30)
   assert.equal(settings.sessionMinutes, 1)
-  assert.equal(settings.baseUrl, 'https://api.sticker.ly')
-  assert.equal(searchSettings({ search: { baseUrl: 'https://x.example///' } }).baseUrl, 'https://x.example')
+  assert.equal(settings.baseUrl, 'http://api.sticker.ly')
+  assert.equal(searchSettings({ search: { baseUrl: 'http://x.example///' } }).baseUrl, 'http://x.example')
 })
 
 test('friendlySearchError explica cada falla en castellano', () => {

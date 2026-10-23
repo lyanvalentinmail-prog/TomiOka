@@ -1,4 +1,5 @@
-import { HttpError, fetchBuffer, fetchJson } from './http.js'
+import { HttpError, fetchBuffer, fetchJson, postJson } from './http.js'
+import { randomBytes } from 'node:crypto'
 
 /**
  * 🔎 Búsqueda de stickers y paquetes.
@@ -24,10 +25,10 @@ const DEFAULT_MAX_BYTES = 8 * 1024 * 1024
 export const DEFAULT_SEARCH_SETTINGS = {
   enabled: true,
   provider: 'stickerly',
-  baseUrl: 'https://api.sticker.ly',
+  baseUrl: 'http://api.sticker.ly',
   customBaseUrl: '',
   // La API móvil solo responde a clientes que se identifican como la app.
-  userAgent: 'androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)',
+  userAgent: 'androidapp.stickerly/1.17.3 (Redmi 7; U; Android 29; es-ES; es;)',
   referer: 'https://sticker.ly/',
   timeoutMs: DEFAULT_TIMEOUT,
   maxResults: 3,
@@ -83,24 +84,40 @@ export function searchSettings(config = {}) {
   }
 }
 
+/* ── generación de device ID ────────────────────────────────────────── */
+
+/** Genera un device ID hexadecimal (16 caracteres) para el header `x-duid` */
+export function generateDeviceId() {
+  return randomBytes(8).toString('hex')
+}
+
 /* ── rutas candidatas ───────────────────────────────────────────────
  * Se prueban en orden; la primera que responde queda memorizada para no
  * pagar los 404 en cada búsqueda.
+ *
+ * Basado en la API real de Sticker.ly (verificada con scrapers funcionales
+ * de 2025-2026):
+ *   - Búsqueda: POST /v3.1/stickerPack/search?withAnimation=true
+ *   - Detalle:  GET  /v3.1/stickerPack/{id}
+ *   - Recomendados: GET /v3.1/stickerPack/recommend?withAnimation=true
  */
+
+/** Rutas candidatas para búsqueda de packs (POST) */
+const SEARCH_PACK_PATHS = [
+  '/v3.1/stickerPack/search?withAnimation=true',
+  '/v3.1/stickerPack/search',
+  '/v3/stickerPack/search?withAnimation=true',
+  '/v3/stickerPack/search',
+  '/v2/search/pack'
+]
+
+/** Rutas candidatas para búsqueda de stickers individuales (GET) */
 const SEARCH_STICKER_PATHS = [
   '/v3/search/sticker',
   '/v3.1/search/sticker',
   '/v3/search/stickers',
   '/v3.1/search/stickers',
   '/v2/search/sticker'
-]
-
-const SEARCH_PACK_PATHS = [
-  '/v3/search/pack',
-  '/v3.1/search/pack',
-  '/v3/search/stickerPack',
-  '/v3.1/search/stickerPack',
-  '/v2/search/pack'
 ]
 
 const PACK_INFO_PATHS = [
@@ -131,7 +148,7 @@ function ordered(paths, kind) {
   return [preferred, ...paths.filter((path) => path !== preferred)]
 }
 
-/** Lista de URLs a probar para una búsqueda (para tests y diagnóstico) */
+/** Lista de URLs a probar para una búsqueda de stickers (GET fallback) */
 export function searchEndpointCandidates({ kind = 'stickers', query = '', page = 1, limit = 3, config = {} } = {}) {
   const settings = searchSettings(config)
   const paths = settings.provider === 'custom'
@@ -148,7 +165,9 @@ export function searchEndpointCandidates({ kind = 'stickers', query = '', page =
       lang: settings.language,
       language: settings.language
     })
-    return `${settings.baseUrl}${path}?${params.toString()}`
+    // Si el path ya tiene query string, unir con '&' en vez de duplicar '?'
+    const separator = path.includes('?') ? '&' : '?'
+    return `${settings.baseUrl}${path}${separator}${params.toString()}`
   })
 }
 
@@ -375,7 +394,9 @@ function searchHeaders(settings) {
     'user-agent': settings.userAgent,
     accept: 'application/json',
     referer: settings.referer,
-    'accept-language': settings.language
+    'accept-language': settings.language,
+    'x-duid': generateDeviceId(),
+    connection: 'Keep-Alive'
   }
 }
 
@@ -404,6 +425,40 @@ async function tryCandidates(urls, kind, { settings, logger } = {}) {
   throw failures.at(-1) || new SearchError('La búsqueda no respondió.')
 }
 
+/**
+ * Búsqueda de packs por POST (la API real de Sticker.ly usa POST con
+ * { keyword, cursor } en vez de query params).
+ */
+async function tryPostSearch(query, cursor, { settings, logger } = {}) {
+  const paths = ordered(SEARCH_PACK_PATHS, 'packs')
+  const failures = []
+
+  for (const pathTemplate of paths) {
+    // Extraer el path sin query string para el POST
+    const [pathBase] = pathTemplate.split('?')
+    const hasAnimation = pathTemplate.includes('withAnimation=true')
+    const url = `${settings.baseUrl}${pathBase}${hasAnimation ? '?withAnimation=true' : ''}`
+
+    try {
+      const payload = await postJson(url, {
+        body: { keyword: query, cursor },
+        timeoutMs: settings.timeoutMs,
+        retries: 0,
+        headers: searchHeaders(settings)
+      })
+      preferredPath.packs = pathTemplate
+      return payload
+    } catch (error) {
+      failures.push(error)
+      const status = error?.status
+      if (status === 401 || status === 403) break
+      if (!status && /fetch failed|ENOTFOUND|ECONN|abort/i.test(String(error?.message || ''))) break
+      logger?.debug?.(`búsqueda POST: ${url} falló (${error?.message || error})`)
+    }
+  }
+  throw failures.at(-1) || new SearchError('La búsqueda no respondió.')
+}
+
 async function search({ kind, query, page = 1, limit = 3, config, logger }) {
   const settings = searchSettings(config)
   if (!settings.enabled) {
@@ -424,16 +479,38 @@ async function search({ kind, query, page = 1, limit = 3, config, logger }) {
     )
   }
 
-  const urls = searchEndpointCandidates({ kind, query: text, page, limit, config })
-  const payload = await tryCandidates(urls, kind, { settings, logger })
+  let payload
 
   if (kind === 'packs') {
+    // Para búsqueda de packs, usar POST con la API real de Sticker.ly
+    const cursor = Math.max(0, (page - 1))
+    if (settings.provider === 'custom') {
+      // Para proveedor custom, usar GET con query params (API genérica)
+      const urls = searchEndpointCandidates({ kind, query: text, page, limit, config })
+      payload = await tryCandidates(urls, kind, { settings, logger })
+    } else {
+      payload = await tryPostSearch(text, cursor, { settings, logger })
+    }
     const packs = collectPacks(payload)
     return { query: text, page, kind, results: packs.slice(0, limit) }
   }
 
+  // Para búsqueda de stickers individuales: primero intentar GET directo,
+  // si falla, usar POST de packs y aplanar los stickers
+  const urls = searchEndpointCandidates({ kind: 'stickers', query: text, page, limit, config })
+
+  try {
+    payload = await tryCandidates(urls, 'stickers', { settings, logger })
+  } catch (error) {
+    // Si falla la búsqueda directa de stickers, usar la búsqueda de packs
+    // y aplanar los stickers de los paquetes encontrados
+    logger?.debug?.(`búsqueda de stickers GET falló, usando POST de packs: ${error?.message || error}`)
+    const cursor = Math.max(0, (page - 1))
+    payload = await tryPostSearch(text, cursor, { settings, logger })
+  }
+
   const stickers = collectStickers(payload)
-  if (stickers.length) return { query: text, page, kind, results: stickers.slice(0, limit) }
+  if (stickers.length) return { query: text, page, kind: 'stickers', results: stickers.slice(0, limit) }
 
   // Algunas respuestas de "sticker" traen paquetes con sus stickers: se
   // aplanan para poder enviar stickers igual.
@@ -448,7 +525,7 @@ async function search({ kind, query, page = 1, limit = 3, config, logger }) {
       tags: sticker.tags
     }))
   )
-  return { query: text, page, kind, results: flat.slice(0, limit) }
+  return { query: text, page, kind: 'stickers', results: flat.slice(0, limit) }
 }
 
 /** Busca stickers sueltos */
