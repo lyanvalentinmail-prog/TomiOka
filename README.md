@@ -30,7 +30,7 @@ comandos para crear stickers, convertir archivos, combinar emojis y armar paquet
 - 🖼️ **Menú con banner**: `.help` carga el menú completo directamente como pie de foto del banner en un único mensaje (por defecto `banner.jpg` de Google Drive, con caché local), nunca por separado. Cada vez que pedís un menú nuevo, **todos** los anteriores se retiran: los que llevan banner se eliminan para todos y los de solo texto quedan editados como **"Menu eliminado."**.
 - ✏️ **Mensajes que se actualizan solos**: el progreso de `.pack` es un único mensaje que se edita con cada sticker (no manda uno por foto), y `.debug` edita el "Ejecutando diagnóstico…" con el resultado.
 - 🪶 **Pensado para Termux**: sin compiladores, sin dependencias nativas, ZIP incluido en el código.
-- 🧪 **Tests** con `node --test` (330 pruebas) y `npm run doctor` para diagnóstico.
+- 🧪 **Tests** con `node --test` (345 pruebas) y `npm run doctor` para diagnóstico.
 - 🌐 **Plataforma web** (`web/`): SPA/PWA copiada de la web de Project y rebrandeada como **TomiOka**, con rutas `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`, servidor local con API real (`/api/state`, `/api/system`, `/api/commands`, `/api/endpoints/catalog`) y registro local de **sub-bots**. La tab de Endpoints web contiene solo los nueve endpoints de servicio (Descargas y Stickers); lo no implementado (cuentas, tienda, tickets o sesiones desde el navegador) responde con un mensaje claro, sin simular un backend.
 
 ---
@@ -47,10 +47,18 @@ acotada y veraz. Incluye:
 
 1. **Landing y panel** con las rutas de la referencia: `/home`, `/register`, `/bots`, `/metrics`, `/store`, `/endpoints`, `/favorites`, `/tickets`, `/profile` y `/cmds`.
 2. **Registro local de sub-bots**: `POST /api/instances` guarda cada sub-bot en `data/web-subbots.json` con su `sessions/<slug>` y su comando de vinculación por terminal (`SESSION_DIR=sessions/<slug> PAIRING_PHONE=... npm run pair` o `npm run qr`).
-3. **Pairing code real desde el panel**: `POST /api/instances/:id/pairing` abre un socket de Baileys para ese sub-bot y le pide el código a WhatsApp (formato `XXXX-XXXX`, ~60 s de vigencia); el estado se sigue en vivo por `/api/instances/:id/link` y SSE (`/api/stream`). Al vincularse, el sub-bot queda en línea **y respondiendo comandos** desde el mismo proceso del panel, con su prefijo propio. También se puede detener/reiniciar desde Mis Bots.
+3. **Pairing code real desde el panel**: `POST /api/instances/:id/pairing` abre un socket de Baileys para ese sub-bot y le pide el código a WhatsApp (formato `XXXX-XXXX`, ~60 s de vigencia); el estado se sigue en vivo por `/api/instances/:id/link` y SSE (`/api/stream`). Al vincularse, el sub-bot queda en línea **y respondiendo comandos de verdad** desde el mismo proceso del panel: al conectar se engancha el handler real (`src/handler.js`) en ese socket, con **su** prefijo, sus comandos personalizados, sus números owner y su menú. El estado de vinculación y `botActive` se ven en `/api/instances/:id/link`. También se puede detener/reiniciar desde Mis Bots.
 4. **Endpoints**: solo los nueve comandos de WhatsApp del menú —TikTok downloader, Instagram downloader, Pinterest downloader, Youtube Mp3 y Youtube Mp4 en **Descargas**; Brat, Attp, Ttp y Sticker en **Stickers**—, servidos por `/api/endpoints/catalog` y `/api/v1`.
 5. **Comandos reales del bot** en `/api/commands`, generados desde `src/commands/index.js`, y telemetría local del proceso en `/api/system` y `/api/health`.
 6. **PWA completa**: `manifest.webmanifest`, `sw.js`, `icon.svg` y fuentes locales (Outfit y JetBrains Mono).
+
+> **Cómo corre el bot del panel.** `scripts/lib/panel-bot.js` crea un runtime por sub-bot
+> (config, store, cooldown y hooks de personalización) y `attach({ instance, sock })` lo engancha
+> al socket de Baileys: ahí escucha `messages.upsert` y ejecuta los comandos como el bot principal.
+> Si ese enganche falla, el panel **no** muestra el sub-bot como conectado: avisa el motivo en
+> `lastError` en vez de dejar un bot vinculado pero sordo. El modo QR entrega el código como imagen
+> (`qrDataUrl`), generada con la dependencia opcional `qrcode`; sin ella, el panel sigue ofreciendo
+> el pairing code.
 
 > El panel tiene cuentas locales reales: registro/login con contraseña cifrada
 > (scrypt, en `data/web-accounts.json`), sesiones con token y API keys propias.
@@ -88,6 +96,7 @@ acotada y veraz. Incluye:
 | yt-dlp | para `.tiktok`, `.instagram`, `.pinterest`, `.ytmp3` y `.ytmp4` (`pkg install yt-dlp` o `pip install -U yt-dlp`; ruta alternativa con `YTDLP_PATH`) |
 | Espacio | ~150 MB con dependencias + 95 MB si usas `.emojimix` (solo la primera vez) |
 | Cuenta de WhatsApp | número que actuará como bot (puede ser tu número personal) |
+| `qrcode` (opcional) | solo para el panel web: muestra el QR de vinculación como imagen. Sin él, el panel ofrece pairing code |
 
 > Sin FFmpeg el bot arranca igual, pero los comandos de stickers/conversión responden con un aviso.
 
@@ -647,6 +656,8 @@ categoría editando `menu.categories` en `config.json` sin tocar el código.
 | `STICKER_SEARCH_PROVIDER` | `custom` | Cambia el proveedor de `.search` sin tocar el JSON |
 | `STICKER_SEARCH_BASE_URL` | `https://…` | Otro servidor de búsqueda de stickers |
 | `STICKER_SEARCH_ENABLED` | `0` | Apaga `.search` y `.searchpack` |
+| `TOMIOKA_WEB_DATA` | `/ruta/datos` | Carpeta de datos del panel (registro de sub-bots y cuentas); por defecto `data/` |
+| `TOMIOKA_WEB_RUNTIME` | `/ruta/fake-baileys.mjs` | Runtime de WhatsApp alternativo para el panel (lo usan los tests; en producción se omite) |
 
 ### ⚡ Rendimiento (por qué ahora es instantáneo)
 
@@ -729,7 +740,7 @@ TomiOka/
 │   ├── serve-web.js         # sirve la plataforma web (npm run web)
 │   ├── verify-commands.js   # prueba end-to-end de todos los comandos
 │   └── test-search.js       # llamada REAL a la búsqueda de stickers
-├── tests/                   # node --test (330 pruebas)
+├── tests/                   # node --test (345 pruebas)
 ├── sessions/                # credenciales (ignorada)
 └── data/                    # caché emojimix, temporales y menús guardados (ignorada)
 ```
@@ -830,6 +841,8 @@ npm run emojimix:sync
 | El bot se detiene solo en Android | `termux-wake-lock` + `tmux`; desactiva optimización de batería para Termux |
 | `.help` llega sin la imagen del banner | El archivo de Drive debe ser público ("cualquiera con el enlace"); revisa `npm run doctor`. También puedes usar una ruta local: `"image": "banner.jpg"` |
 | Cambié el banner y sigue el viejo | Pon `"imageCacheMinutes": 0` o borra `data/cache/menu-image-*` |
+| Un sub-bot del panel figura vinculado pero no responde | Corregido: el panel ahora engancha el handler de comandos en el socket del sub-bot (`botActive: true` en `/api/instances/:id/link`). Si `lastError` dice "No se pudo activar el bot", el motivo real aparece ahí |
+| El QR del panel no aparece | Falta la dependencia opcional `qrcode` (`npm install qrcode`); mientras tanto usa el pairing code |
 | Los comandos no responden en grupos | Verifica el prefijo (`.` por defecto) y `behavior.respondInGroups` |
 
 ---

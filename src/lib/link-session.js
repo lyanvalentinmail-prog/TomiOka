@@ -19,6 +19,27 @@ export function formatPairingCode(code) {
   return clean.match(/.{1,4}/g).join('-')
 }
 
+/**
+ * Convierte el QR de WhatsApp en una imagen (data URL) para mostrarlo en el
+ * panel. `qrcode` es una dependencia OPCIONAL: si no está instalada, el panel
+ * sigue funcionando y ofrece el pairing code.
+ */
+let qrEncoderPromise = null
+export async function encodeQrDataUrl(text) {
+  const value = String(text || '')
+  if (!value) return ''
+  try {
+    if (!qrEncoderPromise) qrEncoderPromise = import('qrcode')
+    const QR = await qrEncoderPromise
+    const encode = QR?.toDataURL || QR?.default?.toDataURL
+    if (typeof encode !== 'function') return ''
+    return await encode(value, { margin: 1, width: 320, errorCorrectionLevel: 'L' })
+  } catch {
+    qrEncoderPromise = null
+    return ''
+  }
+}
+
 let runtimePromise = null
 async function defaultLoadRuntime() {
   if (!runtimePromise) {
@@ -52,6 +73,7 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
       pairingFormatted: rt.pairingFormatted || '',
       pairingCodeAt: rt.pairingCodeAt || null,
       qr: rt.qr || '',
+      qrDataUrl: rt.qrDataUrl || '',
       qrAt: rt.qrAt || null,
       lastError: rt.lastError || '',
       phone: rt.phone || ''
@@ -96,6 +118,7 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
       getMessage: async () => undefined
     })
     rt.sock = sock
+    rt.attachFailed = false
     rt.pairingAttempts = 0
     rt.lastPairingAttemptAt = 0
     emit(rt, { status: rt.status === 'open' ? 'open' : 'connecting' })
@@ -105,7 +128,15 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
       handleUpdate(rt, mod, update).catch((error) => fail(rt, error))
     })
     if (attachSocket) {
-      try { await attachSocket({ instance: rt.instance, sock, runtime: rt }) } catch (error) { rt.lastError = error.message }
+      try {
+        await attachSocket({ instance: rt.instance, sock, runtime: rt })
+      } catch (error) {
+        // Si el handler no se pudo enganchar, el sub-bot quedaría conectado
+        // pero sordo. Se avisa en el panel en vez de dejarlo así en silencio.
+        rt.attachFailed = true
+        rt.lastError = `No se pudo activar el bot en esta sesión: ${error?.message || error}`
+        emit(rt, { status: 'error' })
+      }
     }
     return rt
   }
@@ -115,6 +146,11 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
     if (qr) {
       rt.qr = qr
       rt.qrAt = Date.now()
+      rt.qrDataUrl = ''
+      encodeQrDataUrl(qr).then((dataUrl) => {
+        // Solo si el QR sigue siendo el actual (se renueva cada ~20 s)
+        if (rt.qr === qr && dataUrl) rt.qrDataUrl = dataUrl
+      }).catch(() => {})
       if (!rt.registered) {
         emit(rt, { status: rt.instance.pairingMode === 'qr' ? 'qr' : 'connecting' })
         if (rt.instance.pairingMode !== 'qr') ensurePairingCode(rt).catch(() => {})
@@ -123,10 +159,16 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
     if (connection === 'open') {
       rt.registered = true
       rt.attempts = 0
+      if (rt.attachFailed) {
+        // Vinculado, pero sin handler: no se muestra como "conectado".
+        emit(rt, { status: 'error' })
+        return
+      }
       rt.pairingCode = ''
       rt.pairingFormatted = ''
       rt.pairingCodeAt = null
       rt.qr = ''
+      rt.qrDataUrl = ''
       rt.lastError = ''
       emit(rt, { status: 'open', activated: true, linkedAt: new Date().toISOString() })
       return
@@ -281,6 +323,8 @@ export function createLinkSessionManager({ loadRuntime = defaultLoadRuntime, onS
     rt.pairingCode = ''
     rt.pairingFormatted = ''
     rt.pairingCodeAt = null
+    rt.qr = ''
+    rt.qrDataUrl = ''
     emit(rt, { status: 'stopped' })
     return getState(id)
   }

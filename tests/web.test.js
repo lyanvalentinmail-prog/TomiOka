@@ -13,6 +13,7 @@ const js = read('web/app.js')
 const sw = read('web/sw.js')
 const manifest = read('web/manifest.webmanifest')
 const server = read('scripts/serve-web.js')
+const panelBot = read('scripts/lib/panel-bot.js')
 
 async function waitForServer(base) {
   let lastError
@@ -240,8 +241,11 @@ test('editar bot muestra la info de TomiOka y el arranque instala dependencias',
   assert.ok(js.includes("['download', 'Descargas']") && js.includes("['info', 'Información']"), 'categorías de TomiOka')
   assert.ok(js.includes('Números owner de este sub-bot'), 'los números son owners del sub-bot')
   assert.ok(!js.includes('staff only'), 'sin promesas ajenas')
-  assert.ok(server.includes('panelBeforeCommand') && server.includes('beforeCommand'), 'la personalización se aplica al sub-bot')
-  assert.ok(server.includes('config.owner') && server.includes('adminNumbers'), 'los owners se cargan en la config del sub-bot')
+  // La personalización vive en el módulo del bot del panel (testeable aparte)
+  assert.ok(server.includes('createPanelBotManager'), 'el panel usa el gestor de bots')
+  assert.ok(panelBot.includes('panelBeforeCommand') && panelBot.includes('beforeCommand'), 'la personalización se aplica al sub-bot')
+  assert.ok(panelBot.includes('config.owner') && panelBot.includes('adminNumbers'), 'los owners se cargan en la config del sub-bot')
+  assert.ok(panelBot.includes('messages.upsert'), 'el sub-bot escucha los mensajes de WhatsApp')
   const pkg = JSON.parse(read('package.json'))
   assert.equal(pkg.scripts.start, 'node scripts/boot.js')
   assert.ok(read('scripts/boot.js').includes('Faltan dependencias'), 'npm start instala si falta Baileys')
