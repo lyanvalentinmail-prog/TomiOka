@@ -23,7 +23,7 @@ function stubFetch(routes) {
   const calls = []
   globalThis.fetch = async (url, options = {}) => {
     const target = String(url)
-    calls.push({ url: target, headers: options.headers || {} })
+    calls.push({ url: target, headers: options.headers || {}, method: options.method || 'GET' })
     for (const [matcher, responder] of routes) {
       const match = typeof matcher === 'string' ? target.includes(matcher) : matcher.test(target)
       if (!match) continue
@@ -62,10 +62,12 @@ const STICKERS_PAYLOAD = {
 }
 
 const PACKS_PAYLOAD = {
-  result: [
-    { packId: 'CC22DD', name: 'Gatos graciosos', authorName: 'michi', stickerCount: 12, isAnimated: false },
-    { packId: 'EE33FF', name: 'Perritos', authorName: 'tomi', stickerCount: 8, isAnimated: true }
-  ]
+  result: {
+    stickerPacks: [
+      { packId: 'CC22DD', name: 'Gatos graciosos', authorName: 'michi', stickerCount: 12, isAnimated: false },
+      { packId: 'EE33FF', name: 'Perritos', authorName: 'tomi', stickerCount: 8, isAnimated: true }
+    ]
+  }
 }
 
 const DETAIL_PAYLOAD = {
@@ -87,7 +89,7 @@ function searchConfig(overrides = {}) {
   config.search = {
     ...config.search,
     enabled: true,
-    baseUrl: 'https://api.sticker.ly',
+    baseUrl: 'http://api.sticker.ly',
     userAgent: 'test-agent/1.0',
     timeoutMs: 5000,
     maxResults: 2,
@@ -160,7 +162,7 @@ test('.search sin resultados no manda stickers y lo dice', async () => {
 
 test('.search explica el bloqueo del servicio', async () => {
   resetSearchEndpoints()
-  const stub = stubFetch([[/\/search\/sticker/, () => new Response('nope', { status: 403 })]])
+  const stub = stubFetch([[/./, () => new Response('nope', { status: 403 })]])
   try {
     const { ctx } = commandContext('.search gatitos', { config: searchConfig() })
     await assert.rejects(() => findCommand('search').run(ctx), /rechazó la búsqueda \(403\)/)
@@ -177,7 +179,7 @@ test('.search respeta search.enabled = false', async () => {
 
 test('.searchpack lista paquetes y guarda la selección por chat', async () => {
   resetSearchEndpoints()
-  const stub = stubFetch([[/\/search\/pack/, PACKS_PAYLOAD]])
+  const stub = stubFetch([[/\/stickerPack\/search/, PACKS_PAYLOAD]])
   try {
     const config = searchConfig()
     const store = createStore(config, silentLogger)
@@ -202,7 +204,7 @@ test('.searchpack lista paquetes y guarda la selección por chat', async () => {
 test('.searchpack <número> descarga el paquete elegido como .wasticker', async () => {
   resetSearchEndpoints()
   const stub = stubFetch([
-    [/\/search\/pack/, PACKS_PAYLOAD],
+    [/\/stickerPack\/search/, PACKS_PAYLOAD],
     [/\/stickerPack\/CC22DD/, DETAIL_PAYLOAD],
     [/cdn\.example\.com\/.*\.webp/, webp]
   ])
@@ -233,7 +235,7 @@ test('.searchpack <número> descarga el paquete elegido como .wasticker', async 
 test('.searchpack envía el paquete nativo cuando WhatsApp lo permite', async () => {
   resetSearchEndpoints()
   const stub = stubFetch([
-    [/\/search\/pack/, PACKS_PAYLOAD],
+    [/\/stickerPack\/search/, PACKS_PAYLOAD],
     [/\/stickerPack\/CC22DD/, DETAIL_PAYLOAD],
     [/cdn\.example\.com\/.*\.webp/, webp]
   ])

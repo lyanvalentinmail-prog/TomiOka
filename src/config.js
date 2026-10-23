@@ -85,9 +85,9 @@ export const DEFAULTS = {
   search: {
     enabled: true,
     provider: 'stickerly', // "stickerly" | "custom"
-    baseUrl: 'https://api.sticker.ly',
+    baseUrl: 'http://api.sticker.ly',
     customBaseUrl: '', // con provider "custom": tu propia API
-    userAgent: 'androidapp.stickerly/1.13.3 (G011A; U; Android 22; es-ES; es;)',
+    userAgent: 'androidapp.stickerly/1.17.3 (Redmi 7; U; Android 29; es-ES; es;)',
     referer: 'https://sticker.ly/',
     timeoutMs: 20000,
     maxResults: 3,

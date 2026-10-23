@@ -62,7 +62,7 @@ test('loadConfig mezcla defaults, config.json y normaliza', () => {
   assert.equal(config.stickers.size, 512)
   assert.equal(typeof DEFAULTS.stickers.maxStaticKB, 'number')
   assert.equal(config.search.provider, 'stickerly')
-  assert.equal(config.search.baseUrl, 'https://api.sticker.ly')
+  assert.equal(config.search.baseUrl, 'http://api.sticker.ly')
 })
 
 test('loadConfig respeta BOT_PREFIX y SESSION_DIR', () => {

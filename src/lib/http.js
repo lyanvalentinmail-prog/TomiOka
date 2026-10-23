@@ -123,3 +123,59 @@ export async function fetchJson(url, options = {}) {
     throw new Error(`Respuesta JSON inválida de ${url}: ${error.message}`)
   }
 }
+
+/**
+ * Envía un POST JSON y devuelve la respuesta parseada.
+ * @param {string} url
+ * @param {{body:object, timeoutMs?:number, maxBytes?:number, retries?:number, headers?:object}} options
+ */
+export async function postJson(url, options = {}) {
+  const {
+    body = {},
+    timeoutMs = DEFAULT_TIMEOUT,
+    maxBytes = 40 * 1024 * 1024,
+    retries = 2,
+    headers = {}
+  } = options
+
+  let lastError
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        signal: controller.signal,
+        redirect: 'follow',
+        headers: {
+          'content-type': 'application/json',
+          accept: 'application/json',
+          'user-agent':
+            'Mozilla/5.0 (Linux; Android 12) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120 Mobile Safari/537.36',
+          ...headers
+        },
+        body: JSON.stringify(body)
+      })
+      if (!response.ok) {
+        throw new HttpError(`HTTP ${response.status} al enviar POST a ${url}`, {
+          status: response.status,
+          url
+        })
+      }
+      const text = await response.text()
+      try {
+        return JSON.parse(text)
+      } catch (parseError) {
+        throw new Error(`Respuesta JSON inválida de ${url}: ${parseError.message}`)
+      }
+    } catch (error) {
+      lastError = error
+      const retryable = !(error instanceof HttpError && error.status && error.status < 500)
+      if (attempt === retries || !retryable) break
+      await new Promise((resolve) => setTimeout(resolve, 600 * (attempt + 1)))
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(String(lastError))
+}
