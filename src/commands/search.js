@@ -9,6 +9,7 @@ import {
 } from '../lib/sticker-search.js'
 import { truncate } from '../lib/text.js'
 import { mapLimit } from '../lib/concurrency.js'
+import { deliverPack } from './pack.js'
 
 const MAX_SEND = 10
 
@@ -115,56 +116,48 @@ export default {
       return `search "${query}" sin resultados`
     }
 
-    // Descargar y convertir en paralelo (3 a la vez) y enviar en orden: así
-    // los 3 stickers llegan casi juntos en vez de uno detrás del otro.
+    // Descargar y convertir en paralelo (3 a la vez)
     const prepared = await mapLimit(found.results, 3, async (sticker) => {
       try {
-        return await stickerBufferFromUrl(ctx, sticker.url, { animated: sticker.animated })
+        const buffer = await stickerBufferFromUrl(ctx, sticker.url, { animated: sticker.animated })
+        return {
+          buffer,
+          emojis: (sticker.tags || []).slice(0, 3),
+          animated: sticker.animated
+        }
       } catch (error) {
         ctx.logger?.warn?.(`No se pudo preparar el sticker ${sticker.url}: ${error.message}`)
         return null
       }
     })
 
-    let sent = 0
-    const failures = []
-    for (const [index, buffer] of prepared.entries()) {
-      const sticker = found.results[index]
-      if (!buffer) {
-        failures.push(new Error('descarga fallida'))
-        continue
-      }
-      try {
-        const packName = sticker.packName || 'TomiOka Search'
-        const packAuthor = sticker.author || 'Sticker.ly'
-        await ctx.sendSticker(buffer, {
-          packName: truncate(packName, 60),
-          packAuthor: truncate(packAuthor, 30),
-          emojis: (sticker.tags || []).slice(0, 3),
-          withMetadata: true
-        })
-        sent += 1
-      } catch (error) {
-        failures.push(error)
-        ctx.logger?.warn?.(`No se pudo enviar el sticker ${sticker.url}: ${error.message}`)
-      }
+    const validStickers = prepared.filter(Boolean)
+    if (!validStickers.length) {
+      await ctx.finishLive(searchSlot(ctx), `💦 No pude descargar los stickers de «${truncate(query, 40)}».`)
+      throw new Error('No se pudo descargar ningún sticker. Prueba con otra búsqueda.')
     }
 
+    // Enviar como paquete nativo con botón "Agregar a WhatsApp"
     const first = found.results[0]
+    const packName = first?.packName || 'TomiOka Search'
+    const packAuthor = first?.author || 'Sticker.ly'
+
+    await ctx.sendLive(searchSlot(ctx), `⏳ Armando paquete de «${truncate(query, 40)}»…`)
+
+    const { pack } = await deliverPack(ctx, {
+      name: truncate(packName, 60),
+      author: truncate(packAuthor, 30),
+      stickers: validStickers,
+      description: `Búsqueda: ${truncate(query, 40)}`
+    })
+
     const source = first?.packName
       ? `\n▸ De *${truncate(first.packName, 40)}*${first.author ? ` · 👤 ${truncate(first.author, 24)}` : ''}`
       : ''
-    const summary = sent
-      ? `✅ *${sent}* sticker(s) de «${truncate(query, 40)}»${source}\n▸ Página ${page} · \`.search ${truncate(query, 20)} ${Math.min(MAX_SEND, limit + 3)}\` para más`
-      : `💦 No pude descargar los stickers de «${truncate(query, 40)}».`
+    const summary = `✅ Paquete «${truncate(packName, 40)}» enviado\n▸ ${pack.stickers.length} sticker(s)${source}\n▸ Página ${page} · \`.search ${truncate(query, 20)} ${Math.min(MAX_SEND, limit + 3)}\` para más`
 
     await ctx.finishLive(searchSlot(ctx), summary)
 
-    if (!sent) {
-      const reason = failures[0] ? friendlySearchError(failures[0]) : 'El servicio no devolvió archivos.'
-      throw new Error(`${reason}\n\nPrueba con otra búsqueda o usa *.debug* si el problema sigue.`)
-    }
-
-    return `search "${query}" ${sent} sticker(s) pág. ${page}`
+    return `search "${query}" pack ${pack.stickers.length} sticker(s) pág. ${page}`
   }
 }

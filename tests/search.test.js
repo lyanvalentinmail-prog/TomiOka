@@ -118,7 +118,7 @@ test('looksLikePackCode distingue códigos de búsquedas', () => {
   assert.equal(looksLikePackCode('gatos graciosos'), false)
 })
 
-test('.search manda los stickers encontrados y cierra el progreso', async () => {
+test('.search manda los stickers como paquete nativo y cierra el progreso', async () => {
   resetSearchEndpoints()
   const stub = stubFetch([
     [/\/search\/sticker/, STICKERS_PAYLOAD],
@@ -128,12 +128,14 @@ test('.search manda los stickers encontrados y cierra el progreso', async () => 
     const { ctx, sock } = commandContext('.search gatitos', { config: searchConfig() })
     const summary = await findCommand('search').run(ctx)
 
-    assert.match(summary, /search "gatitos" 2 sticker/)
-    assert.equal(sentOf(sock, 'sticker').length, 2, 'envía dos stickers')
+    assert.match(summary, /search "gatitos" pack 2 sticker/)
+    const documents = sentOf(sock, 'document')
+    assert.equal(documents.length, 1, 'envía un paquete como documento')
+    assert.match(documents[0].content.fileName, /\.wasticker$/, 'es un archivo .wasticker')
     const texts = textsOf(sock)
     assert.ok(texts.some((text) => /Buscando \*gatitos\*/.test(text)), 'avisa que está buscando')
-    assert.ok(texts.some((text) => /✅ \*2\* sticker/.test(text)), 'resume el resultado')
-    assert.ok(texts.some((text) => /Gatitos/.test(text)), 'nombra el paquete de origen')
+    assert.ok(texts.some((text) => /Paquete «Gatitos» enviado/.test(text)), 'resume con el nombre del paquete')
+    assert.ok(texts.some((text) => /De \*Gatitos\*/.test(text)), 'nombra el paquete de origen')
   } finally {
     stub.restore()
     resetSearchEndpoints()
@@ -145,14 +147,14 @@ test('.search sin texto explica cómo usarlo', async () => {
   await assert.rejects(() => findCommand('search').run(ctx), /Escribe qué quieres buscar/)
 })
 
-test('.search sin resultados no manda stickers y lo dice', async () => {
+test('.search sin resultados no manda paquete y lo dice', async () => {
   resetSearchEndpoints()
   const stub = stubFetch([[/\/search\/sticker/, { result: { stickers: [] } }]])
   try {
     const { ctx, sock } = commandContext('.search dinosaurio', { config: searchConfig() })
     const summary = await findCommand('search').run(ctx)
     assert.match(summary, /sin resultados/)
-    assert.equal(sentOf(sock, 'sticker').length, 0)
+    assert.equal(sentOf(sock, 'document').length, 0, 'no envía paquete')
     assert.ok(textsOf(sock).some((text) => /No encontré stickers/.test(text)))
   } finally {
     stub.restore()
@@ -175,6 +177,34 @@ test('.search explica el bloqueo del servicio', async () => {
 test('.search respeta search.enabled = false', async () => {
   const { ctx } = commandContext('.search gatitos', { config: searchConfig({ enabled: false }) })
   await assert.rejects(() => findCommand('search').run(ctx), /desactivada/)
+})
+
+test('.search envía el paquete nativo cuando WhatsApp lo permite', async () => {
+  resetSearchEndpoints()
+  const stub = stubFetch([
+    [/\/search\/sticker/, STICKERS_PAYLOAD],
+    [/cdn\.example\.com\/.*\.webp/, webp]
+  ])
+  try {
+    const sock = fakeSock()
+    const relayed = []
+    sock.waUploadToServer = async () => ({ directPath: '/v/test', mediaUrl: 'https://mmg.whatsapp.net/v/test' })
+    sock.relayMessage = async (jid, message) => {
+      relayed.push({ jid, message })
+      return 'native-1'
+    }
+
+    const { ctx } = commandContext('.search gatitos', { config: searchConfig(), sock })
+    await findCommand('search').run(ctx)
+
+    assert.equal(relayed.length, 1, 'usa el mensaje nativo')
+    assert.ok(relayed[0].message.stickerPackMessage, 'relayea un stickerPackMessage')
+    assert.equal(relayed[0].message.stickerPackMessage.name, 'Gatitos', 'usa el nombre del pack de origen')
+    assert.equal(sentOf(sock, 'document').length, 0, 'no manda el respaldo')
+  } finally {
+    stub.restore()
+    resetSearchEndpoints()
+  }
 })
 
 test('.searchpack busca y envía el primer paquete automáticamente', async () => {
