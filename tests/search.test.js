@@ -177,31 +177,7 @@ test('.search respeta search.enabled = false', async () => {
   await assert.rejects(() => findCommand('search').run(ctx), /desactivada/)
 })
 
-test('.searchpack lista paquetes y guarda la selección por chat', async () => {
-  resetSearchEndpoints()
-  const stub = stubFetch([[/\/stickerPack\/search/, PACKS_PAYLOAD]])
-  try {
-    const config = searchConfig()
-    const store = createStore(config, silentLogger)
-    const { ctx, sock } = commandContext('.searchpack gatitos', { config, store })
-    const summary = await findCommand('searchpack').run(ctx)
-
-    assert.match(summary, /2 paquete/)
-    const texts = textsOf(sock)
-    const list = texts.find((text) => text.includes('Paquetes de'))
-    assert.ok(list, 'manda la lista')
-    assert.match(list, /1️⃣ \*Gatos graciosos\*/)
-    assert.match(list, /2️⃣ \*Perritos\*/)
-    assert.match(list, /\.searchpack 1/)
-    assert.match(list, /privado/)
-    assert.equal(store.searches.get(ctx.chatJid).results.length, 2)
-  } finally {
-    stub.restore()
-    resetSearchEndpoints()
-  }
-})
-
-test('.searchpack <número> descarga el paquete elegido como .wasticker', async () => {
+test('.searchpack busca y envía el primer paquete automáticamente', async () => {
   resetSearchEndpoints()
   const stub = stubFetch([
     [/\/stickerPack\/search/, PACKS_PAYLOAD],
@@ -212,24 +188,27 @@ test('.searchpack <número> descarga el paquete elegido como .wasticker', async 
     const config = searchConfig()
     const store = createStore(config, silentLogger)
     const { ctx, sock } = commandContext('.searchpack gatitos', { config, store })
-    await findCommand('searchpack').run(ctx)
+    const summary = await findCommand('searchpack').run(ctx)
 
-    const second = commandContext('.searchpack 1', { config, store, sock })
-    const summary = await findCommand('searchpack').run(second.ctx)
-
-    assert.match(summary, /searchpack "Gatos graciosos" 2 sticker/)
+    assert.match(summary, /Gatos graciosos/)
     const documents = sentOf(sock, 'document')
-    assert.equal(documents.length, 1, 'sin soporte nativo manda el .wasticker')
+    assert.equal(documents.length, 1, 'envía el paquete como documento')
     assert.match(documents[0].content.fileName, /\.wasticker$/)
     assert.match(documents[0].content.caption, /Gatos graciosos/)
     const texts = textsOf(sock)
     assert.ok(texts.some((text) => /descargando \d+\/2/.test(text)), 'muestra el progreso')
     assert.ok(texts.some((text) => /✅ \*Gatos graciosos\* enviado/.test(text)))
-    assert.equal(store.searches.get(ctx.chatJid), null, 'la selección se consume')
   } finally {
     stub.restore()
     resetSearchEndpoints()
   }
+})
+
+test('.searchpack <número> sin búsqueda previa da error claro', async () => {
+  const config = searchConfig()
+  const store = createStore(config, silentLogger)
+  const { ctx } = commandContext('.searchpack 1', { config, store })
+  await assert.rejects(() => findCommand('searchpack').run(ctx), /No hay ninguna búsqueda/)
 })
 
 test('.searchpack envía el paquete nativo cuando WhatsApp lo permite', async () => {
@@ -252,8 +231,6 @@ test('.searchpack envía el paquete nativo cuando WhatsApp lo permite', async ()
 
     const { ctx } = commandContext('.searchpack gatitos', { config, store, sock })
     await findCommand('searchpack').run(ctx)
-    const second = commandContext('.searchpack 1', { config, store, sock })
-    await findCommand('searchpack').run(second.ctx)
 
     assert.equal(relayed.length, 1, 'usa el mensaje nativo')
     assert.ok(relayed[0].message.stickerPackMessage, 'relayea un stickerPackMessage')
